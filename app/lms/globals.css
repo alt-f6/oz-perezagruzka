@@ -1,0 +1,270 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/*
+ * Design tokens for the new Tailwind/Radix primitives (src/components/ui/*).
+ * These live alongside the legacy :root vars and plain classes below, which
+ * are still used by pages not yet migrated onto the new design system.
+ */
+@theme {
+  /* Violet + Cyan Duotone — chosen via visual-companion comparison, see
+     docs/superpowers/specs/2026-07-26-design-language-foundation-design.md */
+  --color-background: #0a0b12;
+  --color-foreground: #eeeef8;
+
+  --color-card: #13141f;
+  --color-card-foreground: #eeeef8;
+
+  --color-popover: #13141f;
+  --color-popover-foreground: #eeeef8;
+
+  --color-border: rgba(180, 180, 255, 0.10);
+  --color-input: rgba(180, 180, 255, 0.16);
+  --color-ring: rgba(139, 92, 246, 0.65);
+
+  --color-primary: #8b5cf6;
+  --color-primary-2: #22d3ee;
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #1b1c2b;
+  --color-secondary-foreground: #eeeef8;
+
+  --color-muted: #1b1c2b;
+  --color-muted-foreground: #9a9ab0;
+
+  --color-accent: #182233;
+  --color-accent-foreground: #eeeef8;
+
+  --color-success: #22d3ee;
+  --color-success-foreground: #04212a;
+
+  --color-destructive: #fb7185;
+  --color-destructive-foreground: #fff5f5;
+
+  --radius: 0.75rem;
+  --radius-sm: calc(var(--radius) - 0.25rem);
+  --radius-md: calc(var(--radius) - 0.125rem);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 0.25rem);
+}
+
+:root {
+  --bg: #0b0f14;
+  --card: #111827;
+  --text: #e5e7eb;
+  --muted: #9ca3af;
+  --border: rgba(255, 255, 255, 0.12);
+  --link: #93c5fd;
+  --btn: #1f2937;
+  --btnHover: #374151;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+  background: radial-gradient(1200px 600px at 20% 0%, rgba(59,130,246,0.25), transparent 60%),
+              radial-gradient(900px 500px at 80% 10%, rgba(168,85,247,0.20), transparent 55%),
+              var(--bg);
+  color: var(--text);
+  line-height: 1.55;
+}
+
+.lms-shell a { color: var(--link); text-decoration: none; }
+.lms-shell a:hover { text-decoration: underline; }
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 16px 0;
+}
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 64px 24px 24px;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  padding: 26px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+  backdrop-filter: blur(8px);
+}
+
+
+.h1 { font-size: 34px; margin: 0 0 10px; letter-spacing: -0.02em; }
+.h2 { font-size: 20px; margin: 0 0 12px; color: var(--muted); font-weight: 500; }
+
+.row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.space { height: 12px; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-weight: 900;
+  font-size: 14px;
+  text-decoration: none;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.06);
+  transition: transform .12s ease, filter .12s ease;
+  cursor: pointer;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+
+.btn.primary {
+  width: 100%;
+  background: linear-gradient(135deg, rgba(120,120,255,0.92), rgba(170,120,255,0.92));
+  box-shadow: 0 10px 30px rgba(120,120,255,0.22);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+select, textarea {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.small { color: var(--muted); font-size: 13px; }
+
+.list { margin: 0; padding-left: 18px; }
+.list li { margin: 10px 0; }
+
+.kv { display: grid; grid-template-columns: 140px 1fr; gap: 8px 12px; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  opacity: 0.9;
+  margin-bottom: 14px;
+}
+
+.btn.primary {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(
+    135deg,
+    rgba(120, 120, 255, 0.9),
+    rgba(170, 120, 255, 0.9)
+  );
+  box-shadow: 0 10px 30px rgba(120, 120, 255, 0.25);
+}
+
+.btn.primary:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+pre {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 12px;
+  overflow: auto;
+}
+
+.form {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  opacity: 0.9;
+  margin-bottom: 12px;
+}
+
+.error {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 120, 120, 0.35);
+  background: rgba(255, 120, 120, 0.12);
+  color: rgba(255, 210, 210, 0.95);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.linkMuted {
+  color: rgba(255, 255, 255, 0.65);
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.linkMuted:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.input {
+  width: 100%;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.22);
+  color: #fff;
+  padding: 0 12px;
+  outline: none;
+}
+
+.input:focus {
+  border-color: rgba(150,150,255,0.65);
+  box-shadow: 0 0 0 4px rgba(150,150,255,0.12);
+}
+
+
+.actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
+.actions .btn {
+  white-space: nowrap;
+}

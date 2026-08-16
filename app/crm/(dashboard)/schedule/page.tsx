@@ -1,0 +1,47 @@
+import { db } from "@/shared/lib/db";
+import { requireSessionUser } from "@/shared/lib/auth";
+import {
+  ScheduleClient,
+  type ScheduleGroup,
+  type ScheduleLesson,
+  type ScheduleTeacher,
+} from "./ScheduleClient";
+
+export default async function SchedulePage() {
+  const sessionUser = await requireSessionUser(["ADMIN", "MANAGER", "TEACHER"]);
+  const isTeacher = sessionUser.role === "TEACHER";
+
+  const [lessons, groups, teachers] = await Promise.all([
+    db.classSession.findMany({
+      where: isTeacher ? { teacherId: sessionUser.id } : undefined,
+      orderBy: { scheduledAt: "asc" },
+      select: {
+        id: true,
+        scheduledAt: true,
+        groupId: true,
+        teacherId: true,
+        group: { select: { id: true, name: true } },
+      },
+    }),
+    db.group.findMany({
+      where: isTeacher ? { teacherId: sessionUser.id } : undefined,
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    db.user.findMany({
+      where: isTeacher
+        ? { role: "TEACHER", id: sessionUser.id }
+        : { role: "TEACHER" },
+      orderBy: { fullName: "asc" },
+      select: { id: true, fullName: true },
+    }),
+  ]);
+
+  return (
+    <ScheduleClient
+      lessons={lessons as unknown as ScheduleLesson[]}
+      groups={groups as ScheduleGroup[]}
+      teachers={teachers as ScheduleTeacher[]}
+    />
+  );
+}

@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PDF</title>
+    <style>
+      html, body { margin: 0; padding: 0; background: transparent; height: 100%; }
+      #root { height: 100%; overflow: auto; padding: 10px; }
+      .page { margin: 0 0 12px 0; }
+      canvas { width: 100%; height: auto; display: block; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: #fff; }
+      #wm {
+        pointer-events: none;
+        position: fixed;
+        inset: 0;
+        opacity: 0.16;
+        transform: rotate(-18deg);
+        display: grid;
+        place-items: center;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        color: rgba(255,255,255,0.75);
+        text-shadow: 0 1px 0 rgba(0,0,0,0.6);
+        user-select: none;
+      }
+      #err { padding: 12px; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; font-size: 13px; color: rgba(255,255,255,0.9); }
+      #busy { padding: 12px; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; font-size: 13px; color: rgba(255,255,255,0.7); }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="wm"></div>
+
+    <script type="module">
+      const root = document.getElementById("root");
+      const wm = document.getElementById("wm");
+
+      function setErr(msg) {
+        root.innerHTML = "";
+        const d = document.createElement("div");
+        d.id = "err";
+        d.textContent = msg;
+        root.appendChild(d);
+      }
+
+      function setBusy(msg) {
+        root.innerHTML = "";
+        const d = document.createElement("div");
+        d.id = "busy";
+        d.textContent = msg;
+        root.appendChild(d);
+      }
+
+      window.addEventListener("contextmenu", (e) => e.preventDefault());
+
+      let pdfjs = null;
+
+      async function ensurePdfJs() {
+        if (pdfjs) return pdfjs;
+        pdfjs = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.530/build/pdf.min.mjs");
+        pdfjs.GlobalWorkerOptions.workerSrc =
+          "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.530/build/pdf.worker.min.mjs";
+        return pdfjs;
+      }
+
+      let pageObserver = null;
+      let lastReportedPage = null;
+      let reportTimer = null;
+
+      function reportPage(page) {
+        if (page === lastReportedPage) return;
+        lastReportedPage = page;
+
+        clearTimeout(reportTimer);
+        reportTimer = setTimeout(() => {
+          try {
+            window.parent.postMessage({ type: "PDF_PAGE", page }, "*");
+          } catch {}
+        }, 400);
+      }
+
+      function observePages() {
+        if (pageObserver) pageObserver.disconnect();
+
+        pageObserver = new IntersectionObserver(
+          (entries) => {
+            let best = null;
+
+            for (const entry of entries) {
+              if (!best || entry.intersectionRatio > best.intersectionRatio) {
+                best = entry;
+              }
+            }
+
+            if (best && best.intersectionRatio > 0.5) {
+              reportPage(Number(best.target.dataset.page));
+            }
+          },
+          { root, threshold: [0, 0.25, 0.5, 0.75, 1] }
+        );
+
+        root.querySelectorAll(".page").forEach((el) => pageObserver.observe(el));
+      }
+
+      async function renderPdf(url, scale, initialPage) {
+        setBusy("Загрузка PDF…");
+
+        const pdf = await ensurePdfJs();
+
+        const task = pdf.getDocument({ url });
+        const doc = await task.promise;
+
+        root.innerHTML = "";
+        lastReportedPage = null;
+
+        let initialWrap = null;
+
+        for (let i = 1; i <= doc.numPages; i++) {
+          const page = await doc.getPage(i);
+          const viewport = page.getViewport({ scale });
+
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          canvas.width = Math.floor(viewport.width);
+          canvas.height = Math.floor(viewport.height);
+
+          const wrap = document.createElement("div");
+          wrap.className = "page";
+          wrap.dataset.page = String(i);
+          wrap.appendChild(canvas);
+          root.appendChild(wrap);
+
+          if (i === initialPage) initialWrap = wrap;
+
+          await page.render({ canvasContext: ctx, viewport }).promise;
+        }
+
+        observePages();
+
+        if (initialWrap) {
+          initialWrap.scrollIntoView({ block: "start" });
+        }
+      }
+
+      window.addEventListener("message", async (ev) => {
+        const data = ev.data || {};
+        if (data.type !== "PDF_LOAD") return;
+
+        try {
+          const { signedUrl, watermark, scale, initialPage } = data;
+          wm.textContent = watermark || "";
+          await renderPdf(
+            signedUrl,
+            typeof scale === "number" ? scale : 1.35,
+            typeof initialPage === "number" && initialPage > 1 ? initialPage : undefined
+          );
+        } catch (e) {
+          setErr(String(e?.message || e));
+        }
+      });
+    </script>
+  </body>
+</html>

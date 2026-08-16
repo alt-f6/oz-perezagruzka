@@ -1,0 +1,652 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["views"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  MANAGER
+  TEACHER
+  STUDENT
+  PARENT
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  EXCUSED
+  CANCELLED_BY_CENTER
+}
+
+enum TransactionType {
+  PAYMENT
+  LESSON_CHARGE
+  REFUND
+  ADJUSTMENT
+}
+
+enum PaymentIntentStatus {
+  PENDING
+  SUCCEEDED
+  CANCELED
+}
+
+// Unified funnel: landing's top-of-funnel capture through crm's sales pipeline.
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  DIAGNOSTIC_SCHEDULED
+  DIAGNOSTIC_CONDUCTED
+  CONVERTED
+  LOST
+  CLOSED_LOST
+}
+
+enum LeadSource {
+  READINESS_MAP
+  HERO_FORM
+  AI_TUTOR_FALLBACK
+  OTHER
+}
+
+enum RateType {
+  FIXED_PER_LESSON
+  PER_HEAD
+  PERCENTAGE
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum AiFeature {
+  TUTOR_DEMO
+  READINESS_MAP
+}
+
+// ─────────────────────────────────────────────────────────────
+// USER & AUTH
+// ─────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid())
+  email        String?  @unique
+  passwordHash String? // legacy bcrypt auth carried over from lms; null for Supabase-authenticated users
+  authId       String?  @unique // Supabase auth identity, when applicable
+  role         Role     @default(STUDENT)
+  fullName     String
+  phone        String?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // CRM: staff-side relations
+  students      Student[]
+  groups        Group[]         @relation("GroupTeacher")
+  classSessions ClassSession[]  @relation("ClassSessionTeacher")
+  rates         TeacherRate[]
+  payouts       TeacherPayout[]
+  invites       Invite[]        @relation("InviteInviter")
+  parentProfile Parent?         @relation("ParentUser")
+
+  // Lead conversion: a Lead becomes a User (role STUDENT) upon payment
+  convertedFromLead Lead?
+
+  // LMS: learner/teacher relations
+  coursesTaught  Course[]         @relation("CourseTeacher")
+  enrollments    Enrollment[]
+  lessonProgress LessonProgress[]
+  assignments    Assignment[]
+  lessonMessages LessonMessage[]
+  sessions       Session[]
+}
+
+// Per-IP/email login throttling, shared by the CRM and LMS bcrypt login routes.
+model LoginAttempt {
+  id           String   @id @default(uuid())
+  ipAddress    String
+  email        String
+  attemptCount Int      @default(1)
+  lastAttempt  DateTime @default(now())
+
+  @@unique([ipAddress, email])
+}
+
+// Durable, cross-instance rate-limit counters for AI endpoints (chat, readiness
+// map). Replaces the old in-process Map — see src/landing/lib/rate-limit.ts.
+model RateLimitBucket {
+  key     String   @id
+  count   Int      @default(1)
+  resetAt DateTime
+}
+
+// Session tokens for the unified bcrypt auth path, shared by CRM and LMS.
+model Session {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+model Parent {
+  id             String   @id @default(uuid())
+  userId         String?  @unique // User(role: PARENT) login account for the parent portal
+  fullName       String
+  phone          String   @unique
+  telegramChatId String?
+  createdAt      DateTime @default(now())
+
+  user     User?           @relation("ParentUser", fields: [userId], references: [id], onDelete: SetNull)
+  students ParentStudent[]
+  invites  Invite[]        @relation("InviteParent")
+}
+
+// A "Student" is a CRM child profile, distinct from its optional User login account.
+model Student {
+  id        String    @id @default(uuid())
+  userId    String?
+  fullName  String
+  phone     String?   @unique
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  user           User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  parents        ParentStudent[]
+  groups         GroupStudent[]
+  attendance     Attendance[]
+  transactions   Transaction[]
+  freezes        Freeze[]
+  examGoals      StudentExamGoal[]
+  examResults    StudentExamResult[]
+  invites        Invite[]            @relation("InviteStudent")
+  paymentIntents PaymentIntent[]
+
+  @@index([userId])
+}
+
+model ParentStudent {
+  parentId  String
+  studentId String
+
+  parent  Parent  @relation(fields: [parentId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([parentId, studentId])
+  @@index([studentId])
+}
+
+model Invite {
+  id         String    @id @default(uuid())
+  email      String    @unique
+  role       Role
+  token      String    @unique @default(uuid())
+  invitedBy  String
+  studentId  String?
+  parentId   String?
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  inviter User     @relation("InviteInviter", fields: [invitedBy], references: [id], onDelete: Cascade)
+  student Student? @relation("InviteStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  parent  Parent?  @relation("InviteParent", fields: [parentId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────────
+// CRM: LIVE CLASSES, BILLING
+// ─────────────────────────────────────────────────────────────
+
+model Group {
+  id             String    @id @default(uuid())
+  name           String
+  teacherId      String
+  pricePerLesson Decimal   @default(0.00) @db.Decimal(10, 2)
+  meetingUrl     String?
+  capacity       Int       @default(10)
+  createdAt      DateTime  @default(now())
+  deletedAt      DateTime?
+
+  teacher       User           @relation("GroupTeacher", fields: [teacherId], references: [id])
+  students      GroupStudent[]
+  classSessions ClassSession[]
+
+  @@index([teacherId])
+}
+
+model GroupStudent {
+  groupId   String
+  studentId String
+
+  group   Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([groupId, studentId])
+  @@index([studentId])
+}
+
+// Scheduled live tutoring session. Renamed from crm's original `Lesson` to avoid
+// colliding with the LMS course-content `Lesson` model unified below.
+model ClassSession {
+  id             String    @id @default(uuid())
+  groupId        String
+  teacherId      String
+  scheduledAt    DateTime
+  status         String    @default("scheduled")
+  reminderSentAt DateTime? // set by the lesson-reminders cron so a session is only reminded once
+
+  group        Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  teacher      User          @relation("ClassSessionTeacher", fields: [teacherId], references: [id])
+  attendance   Attendance[]
+  transactions Transaction[]
+
+  makeupTargetFor MakeupLesson[] @relation("TargetClassSession")
+
+  @@index([groupId])
+  // Covers computeTeacherSalary's per-teacher [scheduledAt range] filter.
+  @@index([teacherId, scheduledAt])
+  // Covers the lesson-reminders cron's [scheduledAt range] + reminderSentAt:null scan.
+  @@index([scheduledAt, reminderSentAt])
+}
+
+model Attendance {
+  id                String           @id @default(uuid())
+  classSessionId    String
+  studentId         String
+  status            AttendanceStatus
+  priceAtTime       Decimal          @db.Decimal(10, 2)
+  grade             Int?
+  homeworkCompleted Boolean          @default(false)
+  comment           String?
+  createdAt         DateTime         @default(now())
+
+  classSession ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  makeupProvided MakeupLesson? @relation("ExcusedAbsence")
+
+  @@unique([classSessionId, studentId])
+  @@index([studentId])
+}
+
+model MakeupLesson {
+  id                   String @id @default(uuid())
+  excusedAbsenceId     String @unique
+  targetClassSessionId String
+
+  excusedAbsence     Attendance   @relation("ExcusedAbsence", fields: [excusedAbsenceId], references: [id], onDelete: Cascade)
+  targetClassSession ClassSession @relation("TargetClassSession", fields: [targetClassSessionId], references: [id], onDelete: Cascade)
+
+  @@index([targetClassSessionId])
+}
+
+model Freeze {
+  id        String   @id @default(uuid())
+  studentId String
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  // Matches BillingService.markAttendanceAndCharge's per-student freeze lookup.
+  @@index([studentId, startDate, endDate])
+}
+
+model Transaction {
+  id             String          @id @default(uuid())
+  studentId      String
+  amount         Decimal         @db.Decimal(10, 2)
+  type           TransactionType
+  description    String?
+  idempotencyKey String?         @unique
+  classSessionId String?
+  createdAt      DateTime        @default(now())
+
+  student      Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classSession ClassSession? @relation(fields: [classSessionId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, classSessionId, type])
+  @@index([classSessionId])
+}
+
+view StudentBalanceView {
+  studentId    String  @unique
+  totalBalance Decimal @db.Decimal(10, 2)
+}
+
+model PaymentIntent {
+  id              String              @id @default(uuid())
+  studentId       String
+  yookassaId      String              @unique
+  amount          Decimal             @db.Decimal(10, 2)
+  status          PaymentIntentStatus @default(PENDING)
+  confirmationUrl String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+}
+
+model TeacherRate {
+  id        String   @id @default(uuid())
+  teacherId String
+  rateType  RateType
+  value     Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+
+  teacher User @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  // Matches computeTeacherSalary's "latest rate for teacher" lookup.
+  @@index([teacherId, createdAt])
+}
+
+model TeacherPayout {
+  id         String   @id @default(uuid())
+  teacherId  String
+  amount     Decimal  @db.Decimal(10, 2)
+  periodFrom DateTime @db.Date
+  periodTo   DateTime @db.Date
+  createdAt  DateTime @default(now())
+
+  teacher User @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([teacherId])
+}
+
+model StudentExamGoal {
+  id          String   @id @default(uuid())
+  studentId   String
+  subject     String
+  startScore  Int      @default(0)
+  targetScore Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subject])
+}
+
+model StudentExamResult {
+  id           String   @id @default(uuid())
+  studentId    String
+  subject      String
+  testName     String
+  currentScore Int
+  maxScore     Int      @default(100)
+  testedAt     DateTime @db.Date
+  createdAt    DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// CRM ⇄ LMS: LEAD PIPELINE
+// ─────────────────────────────────────────────────────────────
+
+// Superset of crm's sales-pipeline Lead and landing's top-of-funnel capture Lead.
+// On conversion (payment), a Lead is linked 1:1 to the User created for the student.
+model Lead {
+  id String @id @default(uuid())
+
+  // Contact info
+  name       String
+  parentName String?
+  phone      String? @unique
+  email      String?
+  telegram   String?
+
+  // Lead lifecycle
+  subject          String?
+  notes            String?
+  message          String?
+  source           LeadSource @default(OTHER)
+  status           LeadStatus @default(NEW)
+  closedLostReason String?
+  readinessScore   Int?
+
+  // Attribution
+  sessionId   String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmContent  String?
+  utmTerm     String?
+  clickId     String?
+  referrer    String?
+  landingPage String?
+  ipHash      String?
+
+  chatLogs    AiChatLog[]
+  consentLogs ConsentLog[]
+
+  // Populated once the lead pays and is converted into a User(role: STUDENT)
+  convertedUserId String? @unique
+  convertedUser   User?   @relation(fields: [convertedUserId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sessionId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AiChatLog {
+  id String @id @default(uuid())
+
+  sessionId String
+  lead      Lead?   @relation(fields: [leadId], references: [id])
+  leadId    String?
+
+  feature AiFeature @default(TUTOR_DEMO)
+  role    ChatRole
+  content String    @db.Text
+
+  model        String?
+  latencyMs    Int?
+  failed       Boolean @default(false)
+  errorMessage String?
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([leadId])
+  @@index([feature])
+}
+
+// Persistent 152-FZ/63-FZ audit trail for every checkbox-based simple
+// electronic signature (ПЭП) / consent event, per the mechanism described in
+// /pep. Written by src/landing/lib/consent-log.ts's non-blocking
+// recordConsent() at the moment a lead-capture or readiness-map form with
+// consent is submitted — this is the DB-backed record the /pep page
+// promises exists. consentType is a free string (not an enum) because
+// distinct moments are tracked under different values (e.g.
+// "PRIVACY_POLICY" at readiness-map submission, "PEP_ACCEPTANCE" at
+// contact-form submission) rather than a single blanket type.
+model ConsentLog {
+  id String @id @default(uuid())
+
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  consentType     String
+  documentSlug    String?
+  documentVersion String
+  ipHash          String
+  userAgent       String
+
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
+  @@index([consentType])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// LMS: COURSE STRUCTURE
+// ─────────────────────────────────────────────────────────────
+
+model Course {
+  id          String   @id @default(uuid())
+  title       String
+  description String   @default("")
+  isPublished Boolean  @default(false)
+  teacherId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  teacher     User         @relation("CourseTeacher", fields: [teacherId], references: [id])
+  modules     Module[]
+  enrollments Enrollment[]
+}
+
+model Module {
+  id        String   @id @default(uuid())
+  courseId  String
+  title     String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons Lesson[]
+
+  @@index([courseId, order])
+}
+
+// Course-content lesson (unit of learning material), distinct from crm's ClassSession.
+model Lesson {
+  id               String   @id @default(uuid())
+  moduleId         String
+  title            String
+  description      String   @default("")
+  content          String   @default("")
+  isPublished      Boolean  @default(false)
+  order            Int      @default(0)
+  videoUrl         String?
+  videoProvider    String?
+  videoEmbedUrl    String?
+  videoDurationSec Int?
+  videoPosterUrl   String?
+  createdAt        DateTime @default(now())
+
+  module      Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  assets      LessonAsset[]
+  media       LessonMedia[]
+  progress    LessonProgress[]
+  assignments Assignment[]
+  messages    LessonMessage[]
+
+  @@index([moduleId, order])
+  @@index([isPublished, order])
+}
+
+model LessonAsset {
+  id           String   @id @default(uuid())
+  lessonId     String
+  kind         String
+  title        String?
+  originalName String
+  mimeType     String
+  sizeBytes    BigInt   @default(0)
+  storageKey   String
+  order        Int      @default(1)
+  isPublic     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, order])
+}
+
+model LessonMedia {
+  id        String   @id @default(uuid())
+  lessonId  String
+  kind      String   @default("video")
+  title     String?
+  url       String
+  provider  String
+  embedUrl  String
+  order     Int      @default(1)
+  isPublic  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, order])
+}
+
+model Enrollment {
+  id          String    @id @default(uuid())
+  studentId   String
+  courseId    String
+  enrolledAt  DateTime  @default(now())
+  completedAt DateTime?
+
+  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+}
+
+model LessonProgress {
+  id                  String    @id @default(uuid())
+  studentId           String
+  lessonId            String
+  completedAt         DateTime?
+  lastPositionSeconds Int       @default(0)
+  updatedAt           DateTime  @default(now())
+
+  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lesson  Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, lessonId])
+}
+
+// Explicit per-student lesson assignment, independent of course-wide Enrollment.
+model Assignment {
+  id        String   @id @default(uuid())
+  studentId String
+  lessonId  String
+  createdAt DateTime @default(now())
+
+  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  lesson  Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, lessonId])
+}
+
+model LessonMessage {
+  id         String   @id @default(uuid())
+  lessonId   String
+  studentId  String
+  text       String
+  senderRole Role
+  createdAt  DateTime @default(now())
+
+  lesson  Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([lessonId])
+  @@index([studentId])
+  @@map("lesson_messages")
+}

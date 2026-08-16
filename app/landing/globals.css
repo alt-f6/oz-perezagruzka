@@ -1,0 +1,200 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #221b3a;
+
+  --color-brand-50: #f4f1fb;
+  --color-brand-100: #e6ddf6;
+  --color-brand-200: #cdbaee;
+  --color-brand-300: #ab8fe1;
+  --color-brand-400: #8862d1;
+  --color-brand-500: #6d42bd;
+  --color-brand-600: #57339c;
+  --color-brand-700: #45297c;
+  --color-brand-800: #362163;
+  --color-brand-900: #241645;
+
+  --color-accent-50: #fffbeb;
+  --color-accent-100: #fff3c4;
+  --color-accent-200: #ffe58a;
+  --color-accent-300: #ffd451;
+  --color-accent-400: #ffc229;
+  --color-accent-500: #f7a80c;
+  --color-accent-600: #d68606;
+  --color-accent-700: #a8630a;
+  --color-accent-800: #874e10;
+  --color-accent-900: #703f12;
+
+  --color-ink-900: #1a1523;
+  --color-ink-800: #2f293e;
+  --color-ink-700: #453d59;
+  --color-ink-600: #5a526e;
+  --color-ink-500: #6f6683;
+  --color-ink-400: #9189a4;
+  --color-ink-300: #b3abc4;
+  --color-ink-200: #cec8da;
+  --color-ink-100: #e9e5f1;
+  --color-ink-50: #f7f6fb;
+
+  /* Yandex.Maps brand colors — intentional exception to the brand/accent/ink
+     palette, used only for the Yandex reviews attribution badge/stars. */
+  --color-yandex-yellow: #ffcc00;
+  --color-yandex-red: #ff3333;
+
+  --shadow-card: 0 20px 40px -15px rgba(0, 0, 0, 0.05);
+  --shadow-card-hover: 0 25px 50px -12px rgba(109, 66, 189, 0.15);
+
+  /* Glow shadows/gradients derived from --color-brand-500 (#6d42bd) and
+     --color-accent-500 (#f7a80c) — kept here instead of re-typed as raw
+     rgba() literals per component, so a palette change only touches this
+     file. */
+  --shadow-brand-elevated: 0 32px 80px rgba(0, 0, 0, 0.4);
+  --shadow-brand-soft: 0 20px 40px -15px rgba(0, 0, 0, 0.08);
+  --shadow-brand-photo: 0 20px 40px -15px rgba(0, 0, 0, 0.12);
+  --shadow-accent-glow: 0 4px 32px rgba(247, 168, 12, 0.4);
+  --shadow-accent-glow-0: 0 0 0 0 rgba(247, 168, 12, 0.4);
+  --shadow-accent-glow-hover: 0 0 45px 5px rgba(247, 168, 12, 0.35);
+  --shadow-brand-glow: 0 0 50px rgba(109, 66, 189, 0.2);
+  --shadow-brand-glow-hover: 0 0 60px rgba(109, 66, 189, 0.28);
+  --shadow-rose-glow: 0 25px 50px -12px rgba(225, 29, 72, 0.12);
+
+  --gradient-brand-radial: radial-gradient(closest-side, rgba(109, 66, 189, 0.16), transparent 70%);
+  --gradient-brand-ellipse: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(109, 66, 189, 0.3) 0%, transparent 70%);
+  --gradient-white-glow: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.1), transparent 60%);
+  --gradient-accent-glow: radial-gradient(circle, rgba(247, 168, 12, 0.08) 0%, transparent 70%);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --font-sans: var(--font-manrope, ui-sans-serif, system-ui, sans-serif);
+  --font-mono: var(--font-geist-mono, ui-monospace, monospace);
+
+  --color-brand-50: var(--color-brand-50);
+  --color-brand-100: var(--color-brand-100);
+  --color-brand-200: var(--color-brand-200);
+  --color-brand-300: var(--color-brand-300);
+  --color-brand-400: var(--color-brand-400);
+  --color-brand-500: var(--color-brand-500);
+  --color-brand-600: var(--color-brand-600);
+  --color-brand-700: var(--color-brand-700);
+  --color-brand-800: var(--color-brand-800);
+  --color-brand-900: var(--color-brand-900);
+
+  --color-accent-50: var(--color-accent-50);
+  --color-accent-100: var(--color-accent-100);
+  --color-accent-200: var(--color-accent-200);
+  --color-accent-300: var(--color-accent-300);
+  --color-accent-400: var(--color-accent-400);
+  --color-accent-500: var(--color-accent-500);
+  --color-accent-600: var(--color-accent-600);
+  --color-accent-700: var(--color-accent-700);
+  --color-accent-800: var(--color-accent-800);
+  --color-accent-900: var(--color-accent-900);
+
+  --color-ink-900: var(--color-ink-900);
+  --color-ink-800: var(--color-ink-800);
+  --color-ink-700: var(--color-ink-700);
+  --color-ink-600: var(--color-ink-600);
+  --color-ink-500: var(--color-ink-500);
+  --color-ink-400: var(--color-ink-400);
+  --color-ink-300: var(--color-ink-300);
+  --color-ink-200: var(--color-ink-200);
+  --color-ink-100: var(--color-ink-100);
+  --color-ink-50: var(--color-ink-50);
+
+  --color-yandex-yellow: var(--color-yandex-yellow);
+  --color-yandex-red: var(--color-yandex-red);
+
+  --shadow-card: var(--shadow-card);
+  --shadow-card-hover: var(--shadow-card-hover);
+
+  --font-display: var(--font-manrope, var(--font-sans));
+
+  --text-2-5xl: 1.75rem;
+  --text-2-5xl--line-height: 2.25rem;
+  --text-3-5xl: 2rem;
+  --text-3-5xl--line-height: 2.5rem;
+
+  --animate-blob-float: blob-float 14s ease-in-out infinite;
+  --animate-blob-float-slow: blob-float 22s ease-in-out infinite reverse;
+
+  @keyframes blob-float {
+    0%, 100% {
+      transform: translate(0, 0) scale(1);
+    }
+    33% {
+      transform: translate(3%, -4%) scale(1.05);
+    }
+    66% {
+      transform: translate(-2%, 3%) scale(0.97);
+    }
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: rgba(109, 66, 189, 0.15);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display), var(--font-sans), Arial, Helvetica, sans-serif;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  font-weight: 700;
+}
+
+h1 {
+  font-size: clamp(36px, 5.5vw, 64px);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+h2 {
+  font-size: clamp(28px, 4vw, 48px);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+h3 {
+  font-size: clamp(18px, 2.5vw, 26px);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+p {
+  line-height: 1.7;
+}
+
+@media print {
+  .no-print, header, footer, button {
+    display: none !important;
+  }
+}
+
+.va-photo {
+  filter: contrast(1.05) saturate(0.95);
+  transition: filter 0.3s ease;
+}
+
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

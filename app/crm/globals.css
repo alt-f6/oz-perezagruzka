@@ -1,0 +1,222 @@
+@import "tailwindcss";
+
+:root {
+  --font-geist-sans: 'Geist Sans', sans-serif;
+  --font-geist-mono: 'Geist Mono', monospace;
+}
+
+@theme {
+  /* Light, neutral SaaS palette (Shadcn/Vercel aesthetic).
+     Legacy semantic tokens are kept but remapped to the slate scale
+     so existing bg-base / border-border usages stay consistent. */
+  --color-base: #f8fafc;   /* slate-50 — page background */
+  --color-border: #e2e8f0; /* slate-200 — hairline borders */
+  /* Purple brand ramp — copied verbatim from app/landing/globals.css so CRM and the
+     landing app share one brand identity. */
+  --color-brand-50: #f4f1fb;
+  --color-brand-100: #e6ddf6;
+  --color-brand-200: #cdbaee;
+  --color-brand-300: #ab8fe1;
+  --color-brand-400: #8862d1;
+  --color-brand-500: #6d42bd;
+  --color-brand-600: #57339c;
+  --color-brand-700: #45297c;
+  --color-brand-800: #362163;
+  --color-brand-900: #241645;
+
+  /* Legacy flat "accent" token, now sourced from the brand ramp instead of a
+     hardcoded navy hex — every existing bg-accent/text-accent/border-accent/
+     ring-accent usage across the app recolors from this one line. */
+  --color-accent: var(--color-brand-600);
+  --color-paid: #059669;   /* emerald-600 — success / money in */
+  --color-pending: #d97706; /* amber-600 */
+  --color-debt: #d97706;   /* amber-600 — debt / warning */
+  --color-cancel: #e11d48; /* rose-600 — destructive */
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+
+  --shadow-card: 0 1px 3px 0 rgb(15 23 42 / 0.06), 0 1px 2px -1px rgb(15 23 42 / 0.06);
+  --shadow-card-hover: 0 4px 6px -1px rgb(15 23 42 / 0.08), 0 2px 4px -2px rgb(15 23 42 / 0.06);
+}
+
+body {
+  background: var(--color-base);
+  color: #0f172a; /* slate-900 */
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: rgb(15 23 42 / 0.1);
+}
+
+/* Slim, unobtrusive scrollbars inside panels */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: #cbd5e1; /* slate-300 */
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8; /* slate-400 */
+}
+
+@layer components {
+  /* ---------- Surfaces ---------- */
+  .card {
+    @apply rounded-xl border border-slate-200 bg-white p-6 shadow-card;
+  }
+
+  .card-hover {
+    @apply transition-all duration-200 hover:border-slate-300 hover:shadow-card-hover;
+  }
+
+  /* ---------- Typography ---------- */
+  .page-title {
+    @apply text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl;
+  }
+
+  .page-subtitle {
+    @apply mt-1 text-sm text-slate-500;
+  }
+
+  .section-title {
+    @apply text-base font-semibold tracking-tight text-slate-900;
+  }
+
+  .overline {
+    @apply text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500;
+  }
+
+  /* ---------- Buttons ---------- */
+  .btn-primary,
+  .btn-secondary,
+  .btn-ghost,
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-offset-2 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply bg-accent text-white shadow-sm hover:bg-accent/90;
+  }
+
+  .btn-secondary {
+    @apply border border-slate-200 bg-white text-slate-900 shadow-sm hover:bg-slate-50;
+  }
+
+  .btn-ghost {
+    @apply text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+  }
+
+  .btn-danger {
+    @apply bg-cancel text-white shadow-sm hover:bg-cancel/90;
+  }
+
+  .icon-btn,
+  .icon-btn-danger {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-lg transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 active:scale-95 disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .icon-btn {
+    @apply text-slate-500 hover:bg-slate-100 hover:text-slate-900;
+  }
+
+  .icon-btn-danger {
+    @apply text-slate-400 hover:bg-rose-50 hover:text-cancel;
+  }
+
+  /* ---------- Forms ---------- */
+  .label {
+    @apply mb-1.5 block text-[13px] font-medium text-slate-700;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-900 shadow-sm transition-colors duration-150 placeholder:text-slate-400 focus:border-brand-400 focus:outline-none focus:ring-4 focus:ring-brand-500/10 disabled:cursor-not-allowed disabled:bg-slate-50;
+  }
+
+  select.input {
+    @apply cursor-pointer appearance-none pr-10;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 16px;
+  }
+
+  .field-error {
+    @apply mt-1.5 text-xs font-medium text-cancel;
+  }
+
+  /* ---------- Badges ---------- */
+  .badge,
+  .badge-neutral,
+  .badge-success,
+  .badge-warning,
+  .badge-danger,
+  .badge-info {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .badge-neutral {
+    @apply bg-slate-100 text-slate-600;
+  }
+
+  .badge-success {
+    @apply bg-emerald-50 text-emerald-700;
+  }
+
+  .badge-warning {
+    @apply bg-amber-50 text-amber-700;
+  }
+
+  .badge-danger {
+    @apply bg-rose-50 text-cancel;
+  }
+
+  .badge-info {
+    @apply bg-blue-50 text-blue-700;
+  }
+
+  /* ---------- Tables ---------- */
+  .table-wrap {
+    @apply overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-card;
+  }
+
+  .table {
+    @apply w-full text-left text-sm;
+  }
+
+  .table thead th {
+    @apply whitespace-nowrap border-b border-slate-200 bg-slate-50 px-4 py-3 text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500 first:pl-5 last:pr-5;
+  }
+
+  .table tbody td {
+    @apply border-b border-slate-100 px-4 py-3.5 align-middle text-slate-900 first:pl-5 last:pr-5;
+  }
+
+  .table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .table tbody tr {
+    @apply transition-colors duration-150 hover:bg-slate-50;
+  }
+
+  /* ---------- Misc ---------- */
+  .icon-tile {
+    @apply flex h-12 w-12 shrink-0 items-center justify-center rounded-lg;
+  }
+
+  .empty-state {
+    @apply flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 px-6 py-12 text-center text-sm text-slate-500;
+  }
+
+  .divider {
+    @apply border-t border-slate-200;
+  }
+}

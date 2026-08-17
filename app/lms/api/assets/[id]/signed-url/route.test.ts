@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-const getSessionUserMock = vi.fn();
+const requireAuthMock = vi.fn();
 const findUniqueMock = vi.fn();
 const signGetObjectMock = vi.fn();
 const canViewLessonMock = vi.fn();
 
-vi.mock("@/lms/server/auth/session", () => ({
-  getSessionUser: (...args: unknown[]) => getSessionUserMock(...args),
+vi.mock("@/lms/server/auth/require-auth", () => ({
+  requireAuth: (...args: unknown[]) => requireAuthMock(...args),
 }));
 vi.mock("@/shared/lib/db", () => ({
   db: {
@@ -39,14 +39,14 @@ const COMPLETE_PUBLIC_ROW = {
 
 describe("GET /api/assets/[id]/signed-url", () => {
   beforeEach(() => {
-    getSessionUserMock.mockReset();
+    requireAuthMock.mockReset();
     findUniqueMock.mockReset();
     signGetObjectMock.mockReset();
     canViewLessonMock.mockReset();
   });
 
   it("returns 401 when there is no session", async () => {
-    getSessionUserMock.mockResolvedValue(null);
+    requireAuthMock.mockRejectedValue(Object.assign(new Error("unauthorized"), { status: 401 }));
     const { GET } = await import("./route");
 
     const res = await GET(req, ctxFor("asset-1"));
@@ -56,7 +56,7 @@ describe("GET /api/assets/[id]/signed-url", () => {
   });
 
   it("returns 404 when the asset row doesn't exist", async () => {
-    getSessionUserMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    requireAuthMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
     findUniqueMock.mockResolvedValue(null);
     const { GET } = await import("./route");
 
@@ -66,7 +66,7 @@ describe("GET /api/assets/[id]/signed-url", () => {
   });
 
   it("returns 409 asset_not_completed when sizeBytes is 0 (mid-upload)", async () => {
-    getSessionUserMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    requireAuthMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
     findUniqueMock.mockResolvedValue({ ...COMPLETE_PUBLIC_ROW, sizeBytes: 0 });
     const { GET } = await import("./route");
 
@@ -79,7 +79,7 @@ describe("GET /api/assets/[id]/signed-url", () => {
   });
 
   it("returns 403 for a STUDENT when the asset is not public", async () => {
-    getSessionUserMock.mockResolvedValue({ id: "stu-1", role: "STUDENT" });
+    requireAuthMock.mockResolvedValue({ id: "stu-1", role: "STUDENT" });
     findUniqueMock.mockResolvedValue({ ...COMPLETE_PUBLIC_ROW, isPublic: false });
     const { GET } = await import("./route");
 
@@ -90,7 +90,7 @@ describe("GET /api/assets/[id]/signed-url", () => {
   });
 
   it("returns 403 for a STUDENT without an assignment for the lesson", async () => {
-    getSessionUserMock.mockResolvedValue({ id: "stu-1", role: "STUDENT" });
+    requireAuthMock.mockResolvedValue({ id: "stu-1", role: "STUDENT" });
     findUniqueMock.mockResolvedValue(COMPLETE_PUBLIC_ROW);
     canViewLessonMock.mockResolvedValue(false);
     const { GET } = await import("./route");
@@ -102,7 +102,7 @@ describe("GET /api/assets/[id]/signed-url", () => {
   });
 
   it("signs and returns a url for a STUDENT with an active assignment", async () => {
-    getSessionUserMock.mockResolvedValue({ id: "stu-1", role: "STUDENT" });
+    requireAuthMock.mockResolvedValue({ id: "stu-1", role: "STUDENT" });
     findUniqueMock.mockResolvedValue(COMPLETE_PUBLIC_ROW);
     canViewLessonMock.mockResolvedValue(true);
     signGetObjectMock.mockResolvedValue("https://r2.example.com/signed-get");
@@ -116,7 +116,7 @@ describe("GET /api/assets/[id]/signed-url", () => {
   });
 
   it("signs and returns a url for ADMIN without consulting canViewLesson", async () => {
-    getSessionUserMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    requireAuthMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
     findUniqueMock.mockResolvedValue({ ...COMPLETE_PUBLIC_ROW, isPublic: false });
     signGetObjectMock.mockResolvedValue("https://r2.example.com/signed-get");
     const { GET } = await import("./route");
@@ -130,7 +130,7 @@ describe("GET /api/assets/[id]/signed-url", () => {
   });
 
   it("returns 502 when signing fails", async () => {
-    getSessionUserMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    requireAuthMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
     findUniqueMock.mockResolvedValue(COMPLETE_PUBLIC_ROW);
     signGetObjectMock.mockRejectedValue(new Error("r2 down"));
     const { GET } = await import("./route");

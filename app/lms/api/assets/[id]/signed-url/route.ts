@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
-import { getSessionUser } from "@/lms/server/auth/session";
+import { requireAuth } from "@/lms/server/auth/require-auth";
 import { signGetObject } from "@/lms/server/r2/signed";
 import { buildInlineContentDisposition } from "@/lms/lib/lesson-assets";
 import { canViewLesson } from "@/lms/server/access/can-view-lesson";
+import { withApiErrors } from "@/lms/server/http/api-guard";
 
 export const runtime = "nodejs";
 
@@ -18,9 +19,8 @@ async function readAssetId({ params }: Ctx) {
   return id;
 }
 
-export async function GET(_req: NextRequest, ctx: Ctx) {
-  const me = await getSessionUser();
-  if (!me) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+export const GET = withApiErrors(async (_req: NextRequest, ctx: Ctx) => {
+  const me = await requireAuth();
 
   const assetId = await readAssetId(ctx);
   if (!assetId) {
@@ -66,4 +66,4 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     console.error("asset signed url error", { assetId, storageKey: row.storageKey, error });
     return NextResponse.json({ ok: false, error: "signed_url_generation_failed" }, { status: 502 });
   }
-}
+});

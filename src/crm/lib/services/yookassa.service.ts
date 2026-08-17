@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/crm/lib/prisma";
 import { getNotificationProvider } from "@/crm/lib/services/notification.service";
 import { createLogger } from "@/shared/lib/logger";
+import { requireSiteUrl } from "@/shared/lib/env";
 
 const log = createLogger("yookassa");
 
@@ -99,7 +100,7 @@ export const YookassaService = {
     const mode = getPaymentMode();
 
     if (mode === "mock") {
-      const domain = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+      const domain = requireSiteUrl();
       const paymentIntent = await prisma.paymentIntent.create({
         data: {
           studentId,
@@ -223,7 +224,12 @@ export async function finalizeSuccessfulPayment({
   try {
     revalidatePath("/parent/dashboard");
     revalidatePath(`/students/${studentId}`);
-  } catch {}
+  } catch (err) {
+    log.error("Не удалось инвалидировать кэш после оплаты", err, {
+      paymentId,
+      studentId,
+    });
+  }
 
   try {
     const student = await prisma.student.findUnique({

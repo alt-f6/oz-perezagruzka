@@ -22,6 +22,9 @@ const productionSchema = z
   .object({
     CRM_TELEGRAM_BOT_TOKEN: z.string({ message: "CRM_TELEGRAM_BOT_TOKEN is required in production" }).min(1),
     CRON_SECRET: z.string({ message: "CRON_SECRET is required in production" }).min(1),
+    NEXT_PUBLIC_SITE_URL: z
+      .string({ message: "NEXT_PUBLIC_SITE_URL is required in production (used to build payment return URLs)" })
+      .url("NEXT_PUBLIC_SITE_URL must be a valid absolute URL, e.g. https://example.com"),
     CRM_RESEND_API_KEY: z.string().min(1).optional(),
     CRM_NOTIFICATION_FROM_EMAIL: z.string().min(1).optional(),
   })
@@ -60,6 +63,25 @@ export function validateEnv(): void {
 function formatIssues(issues: { path: PropertyKey[]; message: string }[]): string {
   const lines = issues.map((issue) => `  - ${issue.path.join(".") || "(root)"}: ${issue.message}`).join("\n");
   return `Invalid or missing environment variables:\n${lines}`;
+}
+
+// Base URL used to build absolute links (e.g. YooKassa payment return URLs)
+// handed off to third parties or end users. Unlike most CRM feature flags,
+// there is no safe runtime fallback for this in production: a missing value
+// would silently point real payment redirects at localhost, so this throws
+// instead of degrading. Local/dev/test keep the localhost fallback since
+// validateEnv() only enforces NEXT_PUBLIC_SITE_URL when NODE_ENV=production.
+export function requireSiteUrl(): string {
+  const url = process.env.NEXT_PUBLIC_SITE_URL;
+  if (url) return url;
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "NEXT_PUBLIC_SITE_URL is required in production (used to build payment return URLs) but is not set.",
+    );
+  }
+
+  return "http://localhost:3000";
 }
 
 // Feature-scoped vars that have a working fallback (mock provider, disabled

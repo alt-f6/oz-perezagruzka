@@ -22,6 +22,28 @@ export const groupSchema = z.object({
     .min(2, { message: "Название группы должно быть не короче 2 символов" }),
 });
 
+// Full server-side input for createGroup, including the fields GroupsClient
+// reads from raw FormData outside react-hook-form's registered fields.
+// Kept separate from `groupSchema` so the client form's `useForm<GroupValues>`
+// typing (which only registers `name`) isn't affected.
+export const createGroupSchema = groupSchema.extend({
+  teacherId: z.uuid({ message: "Выберите преподавателя" }).optional(),
+  price: z.coerce
+    .number()
+    .min(0, { message: "Цена не может быть отрицательной" })
+    .max(1_000_000, { message: "Слишком большая цена" })
+    .optional(),
+});
+
+export const balanceAdjustmentSchema = z.object({
+  amount: z.coerce
+    .number()
+    .refine((v) => v !== 0, { message: "Сумма не может быть нулевой" })
+    .refine((v) => Number.isFinite(v), { message: "Некорректная сумма" })
+    .refine((v) => Math.abs(v) <= 1_000_000, { message: "Слишком большая сумма" }),
+  description: z.string().optional().or(z.literal("")),
+});
+
 export const studentSchema = z.object({
   name: z.string().min(2, { message: "Введите имя студента" }),
   phone: russianPhoneOptionalSchema,
@@ -119,3 +141,4 @@ export type ExamResultValues = z.infer<typeof examResultSchema>;
 export type LeadStatusValue = z.infer<typeof leadStatusEnum>;
 export type LeadValues = z.infer<typeof leadSchema>;
 export type PaymentAmountValues = z.infer<typeof paymentAmountSchema>;
+export type BalanceAdjustmentValues = z.infer<typeof balanceAdjustmentSchema>;

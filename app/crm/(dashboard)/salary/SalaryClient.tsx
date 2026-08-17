@@ -138,7 +138,6 @@ export function SalaryClient({
         teacherId: calculation.teacherId,
         periodFrom: calcPeriod.from,
         periodTo: calcPeriod.to,
-        amount: calculation.amount,
       });
       if (!result.success) {
         setCalcError(result.error);

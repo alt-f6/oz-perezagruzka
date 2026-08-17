@@ -41,7 +41,12 @@ export default async function GroupsPage() {
         })
       : Promise.resolve([]),
     db.student.findMany({
-      where: { deletedAt: null },
+      where: {
+        deletedAt: null,
+        ...(isTeacher
+          ? { groups: { some: { group: { teacherId: sessionUser.id } } } }
+          : {}),
+      },
       select: {
         id: true,
         fullName: true,

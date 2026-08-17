@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { groupSchema, type GroupValues } from "@/crm/lib/schemas";
+import { createGroupSchema, type GroupValues } from "@/crm/lib/schemas";
 import { requireSessionUser } from "@/shared/lib/auth";
 import { db } from "@/shared/lib/db";
 import type { ActionResult } from "@/crm/lib/types";
@@ -26,19 +26,19 @@ export async function createGroup(
 ): Promise<ActionResult> {
   const sessionUser = await requireSessionUser(["ADMIN", "MANAGER"]);
 
-  const parsed = groupSchema.safeParse(values);
+  const parsed = createGroupSchema.safeParse(values);
   if (!parsed.success) {
-    return { error: "Некорректные данные группы" };
+    return { error: parsed.error.issues[0]?.message ?? "Некорректные данные группы" };
   }
 
-  const finalTeacherId = values.teacherId || sessionUser.id;
+  const finalTeacherId = parsed.data.teacherId || sessionUser.id;
 
   try {
     await db.group.create({
       data: {
         name: parsed.data.name,
         teacherId: finalTeacherId,
-        pricePerLesson: values.price || 0,
+        pricePerLesson: parsed.data.price ?? 0,
       },
     });
   } catch (error) {

@@ -11,6 +11,14 @@ const log = createLogger("crm-login");
 
 const RATE_LIMIT_MAX_ATTEMPTS = 5;
 const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
+// A client can freely set its own X-Forwarded-For header on a direct request
+// (there's no verified trusted-proxy chain here), so a per-(ip,email) limit
+// alone can be bypassed by sending a different spoofed IP on every attempt.
+// This aggregate, email-only cap can't be bypassed by IP spoofing since it
+// doesn't key on IP at all. Threshold is higher than the per-IP one so
+// legitimate users sharing an IP pool (NAT, corporate network) aren't
+// penalized for each other's mistyped passwords.
+const EMAIL_RATE_LIMIT_MAX_ATTEMPTS = 20;
 
 function extractIp(req: NextRequest): string {
   const forwarded = req.headers.get("x-forwarded-for");
@@ -27,10 +35,16 @@ function extractIp(req: NextRequest): string {
 
 async function isRateLimited(ip: string, email: string): Promise<boolean> {
   const row = await db.loginAttempt.findUnique({ where: { ipAddress_email: { ipAddress: ip, email } } });
-  if (!row) return false;
+  const withinWindow = row ? Date.now() - row.lastAttempt.getTime() < RATE_LIMIT_WINDOW_MS : false;
+  if (withinWindow && row!.attemptCount >= RATE_LIMIT_MAX_ATTEMPTS) return true;
 
-  const withinWindow = Date.now() - row.lastAttempt.getTime() < RATE_LIMIT_WINDOW_MS;
-  return withinWindow && row.attemptCount >= RATE_LIMIT_MAX_ATTEMPTS;
+  const emailRows = await db.loginAttempt.findMany({ where: { email } });
+  const windowStart = Date.now() - RATE_LIMIT_WINDOW_MS;
+  const totalRecentAttempts = emailRows
+    .filter((r) => r.lastAttempt.getTime() >= windowStart)
+    .reduce((sum, r) => sum + r.attemptCount, 0);
+
+  return totalRecentAttempts >= EMAIL_RATE_LIMIT_MAX_ATTEMPTS;
 }
 
 async function recordFailedAttempt(ip: string, email: string): Promise<void> {

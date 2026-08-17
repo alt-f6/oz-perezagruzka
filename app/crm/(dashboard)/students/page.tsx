@@ -20,9 +20,16 @@ export default async function StudentsPage() {
     redirect("/");
   }
 
+  const isTeacher = sessionUser.role === "TEACHER";
+
   const [students, groups] = await Promise.all([
     db.student.findMany({
-      where: { deletedAt: null },
+      where: {
+        deletedAt: null,
+        ...(isTeacher
+          ? { groups: { some: { group: { teacherId: sessionUser.id } } } }
+          : {}),
+      },
       take: 1000,
       orderBy: { createdAt: "asc" },
       select: {
@@ -39,7 +46,10 @@ export default async function StudentsPage() {
     }),
 
     db.group.findMany({
-      where: { deletedAt: null },
+      where: {
+        deletedAt: null,
+        ...(isTeacher ? { teacherId: sessionUser.id } : {}),
+      },
       orderBy: { createdAt: "asc" },
       select: { id: true, name: true, teacherId: true },
     }),

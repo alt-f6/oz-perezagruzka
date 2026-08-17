@@ -5,7 +5,10 @@ import { Prisma } from "@prisma/client";
 import { getSessionUser, requireSessionUser } from "@/shared/lib/auth";
 import { db } from "@/shared/lib/db";
 import { buildAbsoluteUrl } from "@/shared/lib/url";
+import { createLogger } from "@/shared/lib/logger";
 import type { ActionResult } from "@/crm/lib/types";
+
+const log = createLogger("crm-team");
 
 const INVITE_TTL_MS = 48 * 60 * 60 * 1000;
 
@@ -56,7 +59,8 @@ export async function createInvite(
 export async function getActiveInvites() {
   try {
     await requireSessionUser(["ADMIN"]);
-  } catch {
+  } catch (err) {
+    log.error("Отказано в доступе к списку приглашений", err);
     return [];
   }
 
@@ -65,7 +69,8 @@ export async function getActiveInvites() {
       where: { acceptedAt: null, expiresAt: { gt: new Date() } },
       orderBy: { createdAt: "desc" },
     });
-  } catch {
+  } catch (err) {
+    log.error("Не удалось получить список приглашений", err);
     return [];
   }
 }

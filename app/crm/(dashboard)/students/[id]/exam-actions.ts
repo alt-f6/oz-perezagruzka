@@ -6,7 +6,7 @@ import { getSessionUser } from "@/shared/lib/auth";
 import { examGoalSchema, examResultSchema } from "@/crm/lib/schemas";
 import type { ActionResult } from "@/crm/lib/types";
 
-async function requireTeachingStaff() {
+async function requireTeachingStaff(studentId: string) {
   const sessionUser = await getSessionUser();
   if (!sessionUser) {
     return { error: "Требуется авторизация" } as const;
@@ -14,6 +14,16 @@ async function requireTeachingStaff() {
 
   if (!["ADMIN", "TEACHER"].includes(sessionUser.role)) {
     return { error: "У вас нет прав для редактирования целей по экзаменам" } as const;
+  }
+
+  if (sessionUser.role === "TEACHER") {
+    const taughtStudent = await db.groupStudent.findFirst({
+      where: { studentId, group: { teacherId: sessionUser.id } },
+      select: { studentId: true },
+    });
+    if (!taughtStudent) {
+      return { error: "Этот студент не закреплён за вами" } as const;
+    }
   }
 
   return { user: sessionUser } as const;
@@ -28,7 +38,7 @@ export async function saveStudentExamGoal(
     return { error: parsed.error.issues[0]?.message ?? "Некорректные данные" };
   }
 
-  const auth = await requireTeachingStaff();
+  const auth = await requireTeachingStaff(studentId);
   if ("error" in auth) return auth;
 
   try {
@@ -66,7 +76,7 @@ export async function addExamResult(
     return { error: parsed.error.issues[0]?.message ?? "Некорректные данные" };
   }
 
-  const auth = await requireTeachingStaff();
+  const auth = await requireTeachingStaff(studentId);
   if ("error" in auth) return auth;
 
   try {
@@ -94,8 +104,16 @@ export async function deleteExamResult(
   resultId: string,
   studentId: string,
 ): Promise<ActionResult> {
-  const auth = await requireTeachingStaff();
+  const auth = await requireTeachingStaff(studentId);
   if ("error" in auth) return auth;
+
+  const result = await db.studentExamResult.findUnique({
+    where: { id: resultId },
+    select: { studentId: true },
+  });
+  if (!result || result.studentId !== studentId) {
+    return { error: "Результат не найден" };
+  }
 
   try {
     await db.studentExamResult.delete({ where: { id: resultId } });

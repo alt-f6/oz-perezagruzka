@@ -4,11 +4,11 @@ import { getSessionUser } from "@/shared/lib/auth";
 import { db } from "@/shared/lib/db";
 import { paymentAmountSchema } from "@/crm/lib/schemas";
 import { YookassaService } from "@/crm/lib/services/yookassa.service";
+import { requireSiteUrl } from "@/shared/lib/env";
 import type { ActionResult } from "@/crm/lib/types";
 
 function buildReturnUrl(studentId: string): string {
-  const domain = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  return `${domain}/parent/dashboard?studentId=${studentId}`;
+  return `${requireSiteUrl()}/parent/dashboard?studentId=${studentId}`;
 }
 
 export async function createParentPaymentSession(

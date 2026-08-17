@@ -1,9 +1,13 @@
 "use server";
 
 import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import { db } from "@/shared/lib/db";
 import { getSessionUser, type SessionUser } from "@/shared/lib/auth";
 import { computeTeacherSalary } from "@/crm/lib/services/salary.service";
+import { createLogger } from "@/shared/lib/logger";
+
+const log = createLogger("crm-salary");
 
 type ActionResult<T> =
   | { success: true; data: T }
@@ -29,9 +33,7 @@ const SalaryPeriodSchema = z.object({
   periodTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Дата в формате YYYY-MM-DD"),
 });
 
-const CreatePayoutSchema = SalaryPeriodSchema.extend({
-  amount: z.number().positive(),
-});
+const CreatePayoutSchema = SalaryPeriodSchema;
 
 export interface SalaryCalculation {
   teacherId: string;
@@ -201,18 +203,45 @@ export async function createTeacherPayout(
     return { success: false, error: authCheck.error, code: authCheck.code };
   }
 
-  const { teacherId, periodFrom, periodTo, amount } = validation.data;
+  const { teacherId, periodFrom, periodTo } = validation.data;
 
   const bounds = periodBounds(periodFrom, periodTo);
   if (bounds.gte >= bounds.lt) {
     return { success: false, error: "Начало периода позже конца", code: "VALIDATION_ERROR" };
   }
 
+  // The payout amount is never trusted from the client -- it's re-derived
+  // server-side from the teacher's current rate and actual attendance/billing
+  // records for the period, the same computation calculateTeacherSalary
+  // shows the admin before they confirm. This closes off a tampered-amount
+  // payload from ever reaching the ledger.
+  let computed;
+  try {
+    computed = await computeTeacherSalary(teacherId, bounds.gte, bounds.lt);
+  } catch (err) {
+    log.error("compute_teacher_salary_failed", err, { teacherId, periodFrom, periodTo });
+    return { success: false, error: "Database query failed", code: "DB_ERROR" };
+  }
+  if (!computed) {
+    return {
+      success: false,
+      error: "У преподавателя не настроена ставка",
+      code: "NO_RATE",
+    };
+  }
+  if (computed.amount <= 0) {
+    return {
+      success: false,
+      error: "Сумма выплаты за период равна нулю",
+      code: "ZERO_AMOUNT",
+    };
+  }
+
   try {
     const payout = await db.teacherPayout.create({
       data: {
         teacherId,
-        amount,
+        amount: computed.amount,
         periodFrom: new Date(`${periodFrom}T00:00:00.000Z`),
         periodTo: new Date(`${periodTo}T00:00:00.000Z`),
       },
@@ -236,7 +265,19 @@ export async function createTeacherPayout(
         createdAt: payout.createdAt.toISOString(),
       },
     };
-  } catch {
+  } catch (err) {
+    // Unique constraint on (teacherId, periodFrom, periodTo) blocks a
+    // double-submitted payout form (or a retried request) from paying the
+    // same teacher twice for the same period.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return {
+        success: false,
+        error: "Выплата за этот период уже была создана ранее",
+        code: "DUPLICATE_PAYOUT",
+      };
+    }
+
+    log.error("create_teacher_payout_failed", err, { teacherId, periodFrom, periodTo });
     return { success: false, error: "Failed to create payout", code: "INSERT_FAILED" };
   }
 }

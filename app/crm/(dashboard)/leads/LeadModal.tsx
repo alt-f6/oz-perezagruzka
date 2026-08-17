@@ -73,6 +73,12 @@ export function LeadModal({ lead, trigger, triggerLabel, triggerClassName }: Lea
       return;
     }
 
+    if (!isEdit && "merged" in result && result.merged) {
+      showToast("Заявка с этим номером телефона уже существует — данные обновлены");
+      close();
+      return;
+    }
+
     showToast(isEdit ? "Заявка обновлена" : "Заявка создана");
     close();
   };

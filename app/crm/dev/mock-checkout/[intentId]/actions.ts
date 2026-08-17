@@ -2,9 +2,10 @@
 
 import { prisma } from "@/crm/lib/prisma";
 import { finalizeSuccessfulPayment, getPaymentMode } from "@/crm/lib/services/yookassa.service";
+import { requireSessionUser } from "@/shared/lib/auth";
 import type { ActionResult } from "@/crm/lib/types";
 
-function assertMockToolAllowed(): ActionResult {
+async function assertMockToolAllowed(): Promise<ActionResult> {
   if (process.env.NODE_ENV === "production") {
     return { error: "Симулятор недоступен в production" };
   }
@@ -12,6 +13,11 @@ function assertMockToolAllowed(): ActionResult {
     return {
       error: "YOOKASSA_SECRET_KEY указывает на реальный режим (test/live) — симулятор отключён",
     };
+  }
+  try {
+    await requireSessionUser(["ADMIN", "MANAGER"]);
+  } catch {
+    return { error: "Требуется авторизация" };
   }
   return {};
 }
@@ -25,7 +31,7 @@ async function loadMockIntent(intentId: string) {
 }
 
 export async function simulateMockPaymentSucceeded(intentId: string): Promise<ActionResult> {
-  const guard = assertMockToolAllowed();
+  const guard = await assertMockToolAllowed();
   if (guard.error) return guard;
 
   const intent = await loadMockIntent(intentId);
@@ -43,7 +49,7 @@ export async function simulateMockPaymentSucceeded(intentId: string): Promise<Ac
 }
 
 export async function simulateMockPaymentCanceled(intentId: string): Promise<ActionResult> {
-  const guard = assertMockToolAllowed();
+  const guard = await assertMockToolAllowed();
   if (guard.error) return guard;
 
   const intent = await loadMockIntent(intentId);

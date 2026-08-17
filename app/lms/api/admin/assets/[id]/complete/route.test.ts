@@ -69,7 +69,18 @@ describe("POST /api/admin/assets/[id]/complete", () => {
     expect(headObjectMock).not.toHaveBeenCalled();
   });
 
-  it("returns 404 when the asset row doesn't exist or belongs to a different lesson", async () => {
+  it("returns 404 when the asset row doesn't exist", async () => {
+    findUniqueMock.mockResolvedValue(null);
+    const { POST } = await import("./route");
+
+    const res = await POST(makeReq({ lessonId: "lesson-1", sizeBytes: 1000 }), ctxFor("asset-1"));
+    const json = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(json).toEqual({ ok: false, error: "not_found" });
+  });
+
+  it("returns 404 when the asset belongs to a different lesson", async () => {
     findUniqueMock.mockResolvedValue({ ...BASE_ROW, lessonId: "other-lesson" });
     const { POST } = await import("./route");
 

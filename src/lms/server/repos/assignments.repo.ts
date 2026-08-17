@@ -5,6 +5,7 @@ export async function listStudents() {
     where: { role: "STUDENT" },
     select: { id: true, email: true, role: true },
     orderBy: { id: "asc" },
+    take: 1000,
   });
 }
 
@@ -12,6 +13,7 @@ export async function listLessons() {
   return db.lesson.findMany({
     select: { id: true, title: true, isPublished: true, order: true },
     orderBy: [{ order: "asc" }, { id: "asc" }],
+    take: 1000,
   });
 }
 

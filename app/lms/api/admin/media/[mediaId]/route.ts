@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { db } from "@/shared/lib/db";
 import { requireRoleApi } from "@/lms/server/auth/require-role-api";
 import { withApiErrors } from "@/lms/server/http/api-guard";
+import { createLogger } from "@/shared/lib/logger";
 import type { LessonMedia } from "@prisma/client";
 
 export const runtime = "nodejs";
+
+const log = createLogger("lms-admin-media");
 
 type Ctx = { params: Promise<{ mediaId: string }> };
 
@@ -139,6 +143,15 @@ export const DELETE = withApiErrors(async (_: NextRequest, ctx: Ctx) => {
   const id = await readMediaId(ctx);
   if (!id) return NextResponse.json({ ok: false, error: "bad id" }, { status: 400 });
 
-  await db.lessonMedia.delete({ where: { id } }).catch(() => null);
+  try {
+    await db.lessonMedia.delete({ where: { id } });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+      return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+    }
+    log.error("Не удалось удалить медиа", err);
+    return NextResponse.json({ ok: false, error: "delete_failed" }, { status: 500 });
+  }
+
   return NextResponse.json({ ok: true });
 });

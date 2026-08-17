@@ -18,6 +18,7 @@ export const GET = withApiErrors(async () => {
     where: { role: "STUDENT" },
     select: { id: true, email: true, role: true, fullName: true },
     orderBy: { id: "desc" },
+    take: 1000,
   });
 
   return NextResponse.json({ ok: true, students });

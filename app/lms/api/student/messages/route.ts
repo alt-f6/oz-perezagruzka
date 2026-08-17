@@ -32,6 +32,7 @@ export const GET = withApiErrors(async (req: NextRequest) => {
     where: { lessonId, studentId: session.id },
     orderBy: { createdAt: "asc" },
     include: { lesson: { select: { title: true } } },
+    take: 500,
   });
 
   const messages = rows.map((m) => ({

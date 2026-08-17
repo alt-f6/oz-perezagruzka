@@ -10,6 +10,7 @@ export const GET = withApiErrors(async () => {
     where: { studentId: user.id, lesson: { isPublished: true } },
     include: { lesson: { include: { progress: { where: { studentId: user.id } } } } },
     orderBy: [{ lesson: { order: "asc" } }, { lesson: { id: "asc" } }],
+    take: 500,
   });
 
   const lessons = assignments.map((a) => ({

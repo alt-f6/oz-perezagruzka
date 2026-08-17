@@ -11,6 +11,7 @@ export default async function LessonsPage() {
     db.classSession.findMany({
       where: isTeacher ? { teacherId: sessionUser.id } : undefined,
       orderBy: { scheduledAt: "desc" },
+      take: 1000,
       select: {
         id: true,
         groupId: true,

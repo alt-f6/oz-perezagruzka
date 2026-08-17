@@ -6,6 +6,7 @@ import { db } from "@/shared/lib/db";
 import { getSessionUser } from "@/shared/lib/auth";
 import { buildAbsoluteUrl } from "@/shared/lib/url";
 import { russianPhoneSchema } from "@/shared/validation/phone";
+import { emailSchema } from "@/shared/validation/email";
 import type { ActionResult } from "@/crm/lib/types";
 
 const INVITE_TTL_MS = 48 * 60 * 60 * 1000;
@@ -35,6 +36,11 @@ export async function inviteStudentPortal(
   if ("error" in auth) return auth;
   const { staffId } = auth;
 
+  const parsedEmail = emailSchema.safeParse(email);
+  if (!parsedEmail.success) {
+    return { error: parsedEmail.error.issues[0]?.message ?? "Некорректный email" };
+  }
+
   const student = await db.student.findUnique({
     where: { id: studentId },
     select: { id: true, userId: true },
@@ -51,7 +57,7 @@ export async function inviteStudentPortal(
   try {
     invite = await db.invite.create({
       data: {
-        email: email.trim().toLowerCase(),
+        email: parsedEmail.data,
         role: "STUDENT",
         invitedBy: staffId,
         studentId,
@@ -93,6 +99,11 @@ export async function inviteParentPortal(
   }
   const phone = parsedPhone.data;
 
+  const parsedEmail = emailSchema.safeParse(email);
+  if (!parsedEmail.success) {
+    return { error: parsedEmail.error.issues[0]?.message ?? "Некорректный email" };
+  }
+
   const student = await db.student.findUnique({
     where: { id: studentId },
     select: { id: true },
@@ -127,7 +138,7 @@ export async function inviteParentPortal(
 
     const invite = await db.invite.create({
       data: {
-        email: email.trim().toLowerCase(),
+        email: parsedEmail.data,
         role: "PARENT",
         invitedBy: staffId,
         studentId,

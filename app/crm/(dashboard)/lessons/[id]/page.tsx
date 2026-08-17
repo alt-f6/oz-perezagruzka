@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/shared/lib/db";
-import { getSessionUser } from "@/shared/lib/auth";
+import { requireSessionUser } from "@/shared/lib/auth";
 import type {
   AttendanceRecord,
   ClassSessionWithGroup,
@@ -20,13 +20,14 @@ export default async function LessonDetailPage({
 }) {
   const { id } = await params;
 
-  const sessionUser = await getSessionUser();
+  const sessionUser = await requireSessionUser(["ADMIN", "MANAGER", "TEACHER"]);
 
   const lesson = await db.classSession.findUnique({
     where: { id },
     select: {
       id: true,
       groupId: true,
+      teacherId: true,
       scheduledAt: true,
       status: true,
       group: { select: { id: true, name: true, teacherId: true } },
@@ -34,6 +35,10 @@ export default async function LessonDetailPage({
   });
 
   if (!lesson) {
+    notFound();
+  }
+
+  if (sessionUser.role === "TEACHER" && lesson.teacherId !== sessionUser.id) {
     notFound();
   }
 
@@ -114,7 +119,7 @@ export default async function LessonDetailPage({
       lesson={lesson as unknown as ClassSessionWithGroup}
       students={students}
       attendance={attendanceWithMakeup as unknown as AttendanceRecord[]}
-      userRole={sessionUser?.role}
+      userRole={sessionUser.role}
       makeupOptions={makeupOptions as unknown as MakeupLessonOption[]}
     />
   );

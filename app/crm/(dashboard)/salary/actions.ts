@@ -96,6 +96,7 @@ export async function getTeacherRates(): Promise<ActionResult<TeacherRate[]>> {
   try {
     const rates = await db.teacherRate.findMany({
       orderBy: { createdAt: "desc" },
+      take: 500,
       select: { id: true, teacherId: true, rateType: true, value: true, createdAt: true },
     });
 

@@ -12,8 +12,10 @@ export function withApiErrors<TCtx>(
   handler: (req: NextRequest, ctx: TCtx) => MaybePromise<AnyResponse>
 ): (req: NextRequest, ctx: TCtx) => Promise<AnyResponse>;
 
-export function withApiErrors(handler: any) {
-  return async (req: NextRequest, ctx?: any) => {
+export function withApiErrors<TCtx>(
+  handler: (req: NextRequest, ctx?: TCtx) => MaybePromise<AnyResponse>
+) {
+  return async (req: NextRequest, ctx?: TCtx) => {
     try {
       return await handler(req, ctx);
     } catch (e) {

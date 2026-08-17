@@ -53,23 +53,23 @@ export const POST = withApiErrors(async (req: NextRequest) => {
     return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   }
 
-  const body = await req.json().catch(() => ({} as any));
-  const action = String((body as any).action || "");
-  const studentId = String((body as any).studentId || "");
+  const body: Record<string, unknown> = await req.json().catch(() => ({}));
+  const action = String(body.action ?? "");
+  const studentId = String(body.studentId ?? "");
 
   if (!studentId) {
     return NextResponse.json({ ok: false, error: "studentId required" }, { status: 400 });
   }
 
   if (action === "set") {
-    const lessonIdsRaw = (body as any).lessonIds;
+    const lessonIdsRaw = body.lessonIds;
 
     if (!Array.isArray(lessonIdsRaw)) {
       return NextResponse.json({ ok: false, error: "lessonIds must be array" }, { status: 400 });
     }
 
     const lessonIds = lessonIdsRaw
-      .map((x: any) => String(x))
+      .map((x: unknown) => String(x))
       .filter((x: string) => x.length > 0);
 
     await setAssignmentsForStudent(studentId, lessonIds);
@@ -77,7 +77,7 @@ export const POST = withApiErrors(async (req: NextRequest) => {
   }
 
   if (action === "grant" || action === "revoke") {
-    const lessonId = String((body as any).lessonId || "");
+    const lessonId = String(body.lessonId ?? "");
 
     if (!lessonId) {
       return NextResponse.json({ ok: false, error: "lessonId required" }, { status: 400 });

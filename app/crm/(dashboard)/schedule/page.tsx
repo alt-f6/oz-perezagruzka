@@ -15,6 +15,7 @@ export default async function SchedulePage() {
     db.classSession.findMany({
       where: isTeacher ? { teacherId: sessionUser.id } : undefined,
       orderBy: { scheduledAt: "asc" },
+      take: 1000,
       select: {
         id: true,
         scheduledAt: true,

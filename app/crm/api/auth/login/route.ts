@@ -38,11 +38,13 @@ async function isRateLimited(ip: string, email: string): Promise<boolean> {
   const withinWindow = row ? Date.now() - row.lastAttempt.getTime() < RATE_LIMIT_WINDOW_MS : false;
   if (withinWindow && row!.attemptCount >= RATE_LIMIT_MAX_ATTEMPTS) return true;
 
-  const emailRows = await db.loginAttempt.findMany({ where: { email } });
-  const windowStart = Date.now() - RATE_LIMIT_WINDOW_MS;
-  const totalRecentAttempts = emailRows
-    .filter((r) => r.lastAttempt.getTime() >= windowStart)
-    .reduce((sum, r) => sum + r.attemptCount, 0);
+  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MS);
+  const emailRows = await db.loginAttempt.findMany({
+    where: { email, lastAttempt: { gte: windowStart } },
+    select: { attemptCount: true },
+    take: 500,
+  });
+  const totalRecentAttempts = emailRows.reduce((sum, r) => sum + r.attemptCount, 0);
 
   return totalRecentAttempts >= EMAIL_RATE_LIMIT_MAX_ATTEMPTS;
 }
@@ -59,8 +61,11 @@ async function recordFailedAttempt(ip: string, email: string): Promise<void> {
   });
 }
 
-async function clearFailedAttempts(ip: string, email: string): Promise<void> {
-  await db.loginAttempt.deleteMany({ where: { ipAddress: ip, email } });
+// Clears every ipAddress/email row for this email, not just the caller's IP —
+// otherwise a rotating-IP attacker's stale rows would accumulate unbounded
+// even after the legitimate owner logs in successfully.
+async function clearFailedAttempts(email: string): Promise<void> {
+  await db.loginAttempt.deleteMany({ where: { email } });
 }
 
 export const POST = withApiErrors(async (req: NextRequest) => {
@@ -87,7 +92,7 @@ export const POST = withApiErrors(async (req: NextRequest) => {
     return NextResponse.json({ ok: false, error: "invalid credentials" }, { status: 401 });
   }
 
-  await clearFailedAttempts(ip, email);
+  await clearFailedAttempts(email);
   log.info("login_success", { userId: user.id, role: user.role });
 
   const { token, expiresAt } = await createUserSession(user.id);

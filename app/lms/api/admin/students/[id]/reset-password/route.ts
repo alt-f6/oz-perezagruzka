@@ -27,9 +27,9 @@ export const POST = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
   const id = await readId(ctx);
   if (!id) return NextResponse.json({ ok: false, error: "bad_id" }, { status: 400 });
 
-  const body = await req.json().catch(() => ({} as any));
-  const newPassword = String((body as any).newPassword || "");
-  const confirmPassword = String((body as any).confirmPassword || "");
+  const body: Record<string, unknown> = await req.json().catch(() => ({}));
+  const newPassword = String(body.newPassword ?? "");
+  const confirmPassword = String(body.confirmPassword ?? "");
 
   if (!newPassword) {
     return NextResponse.json({ ok: false, error: "new_password_required" }, { status: 400 });

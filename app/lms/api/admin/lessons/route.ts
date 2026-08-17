@@ -26,6 +26,7 @@ export const GET = withApiErrors(async () => {
 
   const lessons = await db.lesson.findMany({
     orderBy: [{ order: "asc" }, { id: "asc" }],
+    take: 1000,
   });
 
   return NextResponse.json({ ok: true, lessons: lessons.map(toLessonJson) });

@@ -6,6 +6,7 @@ import { getSessionUser, requireSessionUser } from "@/shared/lib/auth";
 import { db } from "@/shared/lib/db";
 import { buildAbsoluteUrl } from "@/shared/lib/url";
 import { createLogger } from "@/shared/lib/logger";
+import { emailSchema } from "@/shared/validation/email";
 import type { ActionResult } from "@/crm/lib/types";
 
 const log = createLogger("crm-team");
@@ -27,11 +28,16 @@ export async function createInvite(
     return { error: "У вас нет прав для приглашения сотрудников" };
   }
 
+  const parsedEmail = emailSchema.safeParse(email);
+  if (!parsedEmail.success) {
+    return { error: parsedEmail.error.issues[0]?.message ?? "Некорректный email" };
+  }
+
   let invite;
   try {
     invite = await db.invite.create({
       data: {
-        email: email.trim().toLowerCase(),
+        email: parsedEmail.data,
         role,
         invitedBy: sessionUser.id,
         expiresAt: new Date(Date.now() + INVITE_TTL_MS),
@@ -68,6 +74,7 @@ export async function getActiveInvites() {
     return await db.invite.findMany({
       where: { acceptedAt: null, expiresAt: { gt: new Date() } },
       orderBy: { createdAt: "desc" },
+      take: 200,
     });
   } catch (err) {
     log.error("Не удалось получить список приглашений", err);

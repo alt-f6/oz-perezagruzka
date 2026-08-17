@@ -56,8 +56,8 @@ export default function AdminMessagesClient() {
       }
       setAnswers((prev) => ({ ...prev, [id]: "" }));
       await load();
-    } catch (err: any) {
-      setError(err?.message || "Сетевая ошибка");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Сетевая ошибка");
     } finally {
       setBusyId(null);
     }

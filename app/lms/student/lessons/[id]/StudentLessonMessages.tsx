@@ -60,8 +60,8 @@ export function StudentLessonMessages({ lessonId }: { lessonId: string }) {
       }
       setText("");
       await load();
-    } catch (err: any) {
-      setError(err?.message || "Сетевая ошибка");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Сетевая ошибка");
     } finally {
       setBusy(false);
     }

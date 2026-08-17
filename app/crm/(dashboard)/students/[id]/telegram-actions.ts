@@ -27,6 +27,14 @@ export async function updateParentTelegramChatId(
   if ("error" in auth) return auth;
 
   try {
+    const link = await db.parentStudent.findUnique({
+      where: { parentId_studentId: { parentId, studentId } },
+      select: { parentId: true },
+    });
+    if (!link) {
+      return { error: "Родитель не привязан к этому ученику" };
+    }
+
     await db.parent.update({
       where: { id: parentId },
       data: { telegramChatId: telegramChatId.trim() || null },

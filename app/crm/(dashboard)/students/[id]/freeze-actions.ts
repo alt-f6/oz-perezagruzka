@@ -30,21 +30,27 @@ export async function createFreeze(
     return { error: parsed.error.issues[0]?.message ?? "Некорректный период" };
   }
 
-  const student = await db.student.findUnique({
-    where: { id: studentId },
-    select: { id: true },
-  });
-  if (!student) {
-    return { error: "Ученик не найден" };
-  }
+  try {
+    const student = await db.student.findUnique({
+      where: { id: studentId },
+      select: { id: true },
+    });
+    if (!student) {
+      return { error: "Ученик не найден" };
+    }
 
-  await db.freeze.create({
-    data: {
-      studentId,
-      startDate: new Date(`${parsed.data.startDate}T00:00:00.000Z`),
-      endDate: new Date(`${parsed.data.endDate}T00:00:00.000Z`),
-    },
-  });
+    await db.freeze.create({
+      data: {
+        studentId,
+        startDate: new Date(`${parsed.data.startDate}T00:00:00.000Z`),
+        endDate: new Date(`${parsed.data.endDate}T00:00:00.000Z`),
+      },
+    });
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Ошибка создания заморозки",
+    };
+  }
 
   revalidatePath(`/students/${studentId}`);
   return {};
@@ -57,16 +63,24 @@ export async function deleteFreeze(freezeId: string): Promise<ActionResult> {
     return { error: "Недостаточно прав" };
   }
 
-  const freeze = await db.freeze.findUnique({
-    where: { id: freezeId },
-    select: { studentId: true },
-  });
-  if (!freeze) {
-    return { error: "Заморозка не найдена" };
+  let studentId: string;
+  try {
+    const freeze = await db.freeze.findUnique({
+      where: { id: freezeId },
+      select: { studentId: true },
+    });
+    if (!freeze) {
+      return { error: "Заморозка не найдена" };
+    }
+    studentId = freeze.studentId;
+
+    await db.freeze.delete({ where: { id: freezeId } });
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Ошибка удаления заморозки",
+    };
   }
 
-  await db.freeze.delete({ where: { id: freezeId } });
-
-  revalidatePath(`/students/${freeze.studentId}`);
+  revalidatePath(`/students/${studentId}`);
   return {};
 }

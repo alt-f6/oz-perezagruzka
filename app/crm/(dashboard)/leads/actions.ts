@@ -1,21 +1,25 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { leadSchema, type LeadValues } from "@/crm/lib/schemas";
 import { db } from "@/shared/lib/db";
-import { getSessionUser, requireSessionUser } from "@/shared/lib/auth";
+import { requireSessionUser } from "@/shared/lib/auth";
 import { performLeadConversion } from "@/crm/lib/services/lead-conversion.service";
 import { LEAD_STATUS_ORDER, type ActionResult, type LeadStatus } from "@/crm/lib/types";
 
-export async function createLead(values: LeadValues): Promise<ActionResult> {
+export async function createLead(
+  values: LeadValues,
+): Promise<ActionResult & { merged?: boolean }> {
   const parsed = leadSchema.safeParse({ ...values, status: "NEW" });
   if (!parsed.success) {
     return { error: "Некорректные данные заявки" };
   }
 
-  const sessionUser = await getSessionUser();
-  if (!sessionUser) {
-    return { error: "Требуется авторизация" };
+  try {
+    await requireSessionUser(["ADMIN", "MANAGER"]);
+  } catch {
+    return { error: "Недостаточно прав для создания заявки" };
   }
 
   try {
@@ -33,6 +37,36 @@ export async function createLead(values: LeadValues): Promise<ActionResult> {
       },
     });
   } catch (err) {
+    // Lead.phone is unique -- a repeat inquiry for a phone we've already
+    // captured should merge into the existing lead instead of failing with
+    // a raw constraint error surfaced to the user.
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      try {
+        await db.lead.update({
+          where: { phone: parsed.data.phone },
+          data: {
+            name: parsed.data.studentName,
+            parentName: parsed.data.parentName || null,
+            subject: parsed.data.subject || null,
+            notes: parsed.data.notes || null,
+            utmSource: parsed.data.utmSource || null,
+            utmMedium: parsed.data.utmMedium || null,
+            utmCampaign: parsed.data.utmCampaign || null,
+          },
+        });
+      } catch (mergeErr) {
+        return {
+          error:
+            mergeErr instanceof Error
+              ? mergeErr.message
+              : "Заявка с этим номером телефона уже существует, но обновить её не удалось",
+        };
+      }
+
+      revalidatePath("/leads");
+      return { merged: true };
+    }
+
     return {
       error: err instanceof Error ? err.message : "Ошибка создания заявки",
     };
@@ -55,6 +89,19 @@ export async function updateLead(
     await requireSessionUser(["ADMIN", "MANAGER"]);
   } catch {
     return { error: "Недостаточно прав для изменения заявки" };
+  }
+
+  // CONVERTED must only be reached through performLeadConversion, which
+  // atomically provisions the linked User + Student. Setting it here would
+  // leave convertedUserId null -- a lead marked "converted" with no student.
+  const existingLead = await db.lead.findUnique({
+    where: { id: leadId },
+    select: { status: true },
+  });
+  if (parsed.data.status === "CONVERTED" && existingLead?.status !== "CONVERTED") {
+    return {
+      error: "Используйте конвертацию лида, чтобы перевести его в статус «Конвертирован».",
+    };
   }
 
   try {

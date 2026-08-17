@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { Sidebar } from "@/crm/components/Sidebar";
-import { getSessionUser } from "@/shared/lib/auth";
+import { CRM_ROLES, getSessionUser } from "@/shared/lib/auth";
 
 export default async function DashboardLayout({
   children,
@@ -12,6 +12,10 @@ export default async function DashboardLayout({
 
   if (!user) {
     redirect("/admin/login");
+  }
+
+  if (!CRM_ROLES.includes(user.role)) {
+    redirect("/");
   }
 
   return (

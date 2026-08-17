@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { studentSchema, type StudentValues } from "@/crm/lib/schemas";
+import { randomUUID } from "crypto";
+import { studentSchema, balanceAdjustmentSchema, type StudentValues } from "@/crm/lib/schemas";
 import { db } from "@/shared/lib/db";
 import { requireSessionUser } from "@/shared/lib/auth";
 import type { ActionResult } from "@/crm/lib/types";
@@ -16,28 +17,23 @@ export async function createStudent(
     return { error: "Некорректные данные студента" };
   }
 
-  let student;
   try {
-    student = await db.student.create({
-      data: { fullName: parsed.data.name, phone: parsed.data.phone || null },
-      select: { id: true },
+    await db.$transaction(async (tx) => {
+      const student = await tx.student.create({
+        data: { fullName: parsed.data.name, phone: parsed.data.phone || null },
+        select: { id: true },
+      });
+
+      if (parsed.data.groupId) {
+        await tx.groupStudent.create({
+          data: { groupId: parsed.data.groupId, studentId: student.id },
+        });
+      }
     });
   } catch (err) {
     return {
       error: err instanceof Error ? err.message : "Ошибка создания студента",
     };
-  }
-
-  if (parsed.data.groupId) {
-    try {
-      await db.groupStudent.create({
-        data: { groupId: parsed.data.groupId, studentId: student.id },
-      });
-    } catch (err) {
-      return {
-        error: err instanceof Error ? err.message : "Ошибка привязки к группе",
-      };
-    }
   }
 
   revalidatePath("/students");
@@ -114,13 +110,21 @@ export async function updateStudentBalance(
 ): Promise<ActionResult> {
   await requireSessionUser(["ADMIN"]);
 
+  const parsed = balanceAdjustmentSchema.safeParse({ amount, description });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Некорректная сумма" };
+  }
+
   try {
     await db.transaction.create({
       data: {
         studentId: studentId,
-        amount: amount,
-        type: amount >= 0 ? "PAYMENT" : "ADJUSTMENT",
-        description: description || "Ручное изменение баланса администратором",
+        amount: parsed.data.amount,
+        type: parsed.data.amount >= 0 ? "PAYMENT" : "ADJUSTMENT",
+        description: parsed.data.description || "Ручное изменение баланса администратором",
+        // Manual admin adjustment has no natural external dedup key; a fresh
+        // UUID satisfies the required unique constraint without colliding.
+        idempotencyKey: randomUUID(),
       },
     });
   } catch (err) {

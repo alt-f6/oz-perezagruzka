@@ -1,4 +1,5 @@
 import type { AttendanceStatus } from "@prisma/client";
+import { randomUUID } from "crypto";
 import { prisma } from "@/crm/lib/prisma";
 import { getNotificationProvider } from "@/crm/lib/services/notification.service";
 import { createLogger } from "@/shared/lib/logger";
@@ -79,6 +80,10 @@ export class BillingService {
               classSessionId,
               amount: transactionAmount,
               type: "LESSON_CHARGE",
+              // Deterministic per (session, student, type): a retried charge for
+              // the same lesson/student naturally collides on this key instead
+              // of relying solely on the separate composite unique constraint.
+              idempotencyKey: `lesson_charge:${classSessionId}:${studentId}`,
             },
           });
         }

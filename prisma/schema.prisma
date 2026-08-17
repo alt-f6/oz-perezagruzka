@@ -109,6 +109,9 @@ model User {
   assignments    Assignment[]
   lessonMessages LessonMessage[]
   sessions       Session[]
+
+  // Covers role-filtered lookups (getTeachers, salary/schedule/team pages).
+  @@index([role])
 }
 
 // Per-IP/email login throttling, shared by the CRM and LMS bcrypt login routes.
@@ -120,6 +123,7 @@ model LoginAttempt {
   lastAttempt  DateTime @default(now())
 
   @@unique([ipAddress, email])
+  @@index([email])
 }
 
 // Durable, cross-instance rate-limit counters for AI endpoints (chat, readiness
@@ -177,6 +181,8 @@ model Student {
   paymentIntents PaymentIntent[]
 
   @@index([userId])
+  // Covers the "active students" filter used on dashboard/groups/students pages.
+  @@index([deletedAt])
 }
 
 model ParentStudent {
@@ -274,8 +280,8 @@ model Attendance {
   comment           String?
   createdAt         DateTime         @default(now())
 
-  classSession ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
-  student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classSession ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Restrict)
+  student      Student      @relation(fields: [studentId], references: [id], onDelete: Restrict)
 
   makeupProvided MakeupLesson? @relation("ExcusedAbsence")
 
@@ -313,7 +319,7 @@ model Transaction {
   amount         Decimal         @db.Decimal(10, 2)
   type           TransactionType
   description    String?
-  idempotencyKey String?         @unique
+  idempotencyKey String          @unique
   classSessionId String?
   createdAt      DateTime        @default(now())
 
@@ -351,7 +357,7 @@ model TeacherRate {
   value     Decimal  @db.Decimal(10, 2)
   createdAt DateTime @default(now())
 
-  teacher User @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  teacher User @relation(fields: [teacherId], references: [id], onDelete: Restrict)
 
   // Matches computeTeacherSalary's "latest rate for teacher" lookup.
   @@index([teacherId, createdAt])
@@ -365,8 +371,11 @@ model TeacherPayout {
   periodTo   DateTime @db.Date
   createdAt  DateTime @default(now())
 
-  teacher User @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  teacher User @relation(fields: [teacherId], references: [id], onDelete: Restrict)
 
+  // Prevents a double-submitted payout form (or a retried request) from
+  // paying the same teacher twice for the same period.
+  @@unique([teacherId, periodFrom, periodTo])
   @@index([teacherId])
 }
 

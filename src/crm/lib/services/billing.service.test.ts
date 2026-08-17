@@ -74,6 +74,7 @@ describe("BillingService.markAttendanceAndCharge", () => {
         classSessionId: "session_1",
         amount: -1000,
         type: "LESSON_CHARGE",
+        idempotencyKey: "lesson_charge:session_1:student_1",
       },
     });
   });
@@ -123,6 +124,7 @@ describe("BillingService.markAttendanceAndCharge", () => {
         classSessionId: "session_1",
         amount: -1000,
         type: "LESSON_CHARGE",
+        idempotencyKey: "lesson_charge:session_1:student_1",
       },
     });
   });
@@ -165,7 +167,13 @@ describe("BillingService.markAttendanceAndCharge — freeze UTC day-boundary edg
     await BillingService.markAttendanceAndCharge("session_1", "student_1", "PRESENT");
 
     expect(tx.transaction.create).toHaveBeenCalledWith({
-      data: { studentId: "student_1", classSessionId: "session_1", amount: -1000, type: "LESSON_CHARGE" },
+      data: {
+        studentId: "student_1",
+        classSessionId: "session_1",
+        amount: -1000,
+        type: "LESSON_CHARGE",
+        idempotencyKey: "lesson_charge:session_1:student_1",
+      },
     });
   });
 
@@ -177,7 +185,13 @@ describe("BillingService.markAttendanceAndCharge — freeze UTC day-boundary edg
     await BillingService.markAttendanceAndCharge("session_1", "student_1", "PRESENT");
 
     expect(tx.transaction.create).toHaveBeenCalledWith({
-      data: { studentId: "student_1", classSessionId: "session_1", amount: -1000, type: "LESSON_CHARGE" },
+      data: {
+        studentId: "student_1",
+        classSessionId: "session_1",
+        amount: -1000,
+        type: "LESSON_CHARGE",
+        idempotencyKey: "lesson_charge:session_1:student_1",
+      },
     });
   });
 });

@@ -52,7 +52,7 @@ describe("canViewLesson", () => {
     expect(result).toBe(false);
   });
 
-  it("returns false for TEACHER/PARENT even if an assignment row happens to exist", async () => {
+  it("returns true for TEACHER/PARENT when the studentId happens to match an assignment row (no dedicated role gate)", async () => {
     findUniqueMock.mockResolvedValue({ studentId: "teacher-1", lessonId: "lesson-1" });
     const { canViewLesson } = await import("./can-view-lesson");
 

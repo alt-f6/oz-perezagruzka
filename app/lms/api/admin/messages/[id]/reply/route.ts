@@ -1,19 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
-import { getSessionUser } from "@/lms/server/auth/session";
+import { requireRoleApi } from "@/lms/server/auth/require-role-api";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 
 export const POST = withApiErrors(async (
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) => {
-  const session = await getSessionUser();
-  if (!session) {
-    return NextResponse.json({ ok: false }, { status: 401 });
-  }
-  if (session.role !== "ADMIN" && session.role !== "MANAGER") {
-    return NextResponse.json({ ok: false }, { status: 403 });
-  }
+  const session = await requireRoleApi(["ADMIN", "MANAGER"]);
 
   const { id } = await context.params;
   if (!id) {

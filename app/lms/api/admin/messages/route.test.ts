@@ -5,6 +5,7 @@ const dummyRequest = () => new NextRequest("http://localhost/api/admin/messages"
 
 const requireRoleApiMock = vi.fn();
 const findManyMock = vi.fn();
+const enforceRateLimitMock = vi.fn();
 
 vi.mock("@/lms/server/auth/require-role-api", () => ({
   requireRoleApi: (...args: unknown[]) => requireRoleApiMock(...args),
@@ -14,11 +15,16 @@ vi.mock("@/shared/lib/db", () => ({
     lessonMessage: { findMany: (...args: unknown[]) => findManyMock(...args) },
   },
 }));
+vi.mock("@/lms/server/http/rate-limit", () => ({
+  enforceRateLimit: (...args: unknown[]) => enforceRateLimitMock(...args),
+}));
 
 describe("GET /api/admin/messages", () => {
   beforeEach(() => {
     requireRoleApiMock.mockReset();
     findManyMock.mockReset();
+    enforceRateLimitMock.mockReset();
+    enforceRateLimitMock.mockResolvedValue(undefined);
   });
 
   it("returns 401 when unauthenticated", async () => {
@@ -38,6 +44,17 @@ describe("GET /api/admin/messages", () => {
     const res = await GET(dummyRequest());
 
     expect(res.status).toBe(403);
+  });
+
+  it("returns 429 when the caller is rate-limited", async () => {
+    requireRoleApiMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
+    enforceRateLimitMock.mockRejectedValue(Object.assign(new Error("rate_limited"), { status: 429 }));
+    const { GET } = await import("./route");
+
+    const res = await GET(dummyRequest());
+
+    expect(res.status).toBe(429);
+    expect(findManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 with mapped messages for MANAGER", async () => {

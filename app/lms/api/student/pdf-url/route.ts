@@ -1,33 +1,17 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lms/server/auth/require-auth";
 import { db } from "@/shared/lib/db";
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { canViewLesson } from "@/lms/server/access/can-view-lesson";
-
-function must(name: string) {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing env ${name}`);
-  return v;
-}
-
-const r2 = new S3Client({
-  region: process.env.R2_REGION || "auto",
-  endpoint: must("R2_ENDPOINT"),
-  credentials: {
-    accessKeyId: must("R2_ACCESS_KEY_ID"),
-    secretAccessKey: must("R2_SECRET_ACCESS_KEY"),
-  },
-  forcePathStyle: true,
-});
-
-const BUCKET = must("R2_BUCKET");
+import { signGetObject } from "@/lms/server/r2/signed";
+import { enforceRateLimit } from "@/lms/server/http/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export const GET = withApiErrors(async (req: Request) => {
   const user = await requireAuth();
+
+  await enforceRateLimit(`lms:pdf-url:${user.id}`, 60, 60_000);
 
   const { searchParams } = new URL(req.url);
   const assetId = searchParams.get("assetId");
@@ -53,16 +37,10 @@ export const GET = withApiErrors(async (req: Request) => {
     }
   }
 
-  const ttl = Number(process.env.R2_SIGNED_URL_TTL_SECONDS || "180");
-
-  const cmd = new GetObjectCommand({
-    Bucket: BUCKET,
-    Key: asset.storageKey,
-    ResponseContentType: asset.mimeType || "application/pdf",
-    ResponseContentDisposition: "inline",
+  const url = await signGetObject(asset.storageKey, {
+    responseContentType: asset.mimeType || "application/pdf",
+    responseContentDisposition: "inline",
   });
 
-  const url = await getSignedUrl(r2, cmd, { expiresIn: ttl });
-
-  return NextResponse.json({ ok: true, url, expiresIn: ttl });
+  return NextResponse.json({ ok: true, url });
 });

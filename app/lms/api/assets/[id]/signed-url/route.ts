@@ -5,6 +5,7 @@ import { signGetObject } from "@/lms/server/r2/signed";
 import { buildInlineContentDisposition } from "@/lms/lib/lesson-assets";
 import { canViewLesson } from "@/lms/server/access/can-view-lesson";
 import { withApiErrors } from "@/lms/server/http/api-guard";
+import { enforceRateLimit } from "@/lms/server/http/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -21,6 +22,8 @@ async function readAssetId({ params }: Ctx) {
 
 export const GET = withApiErrors(async (_req: NextRequest, ctx: Ctx) => {
   const me = await requireAuth();
+
+  await enforceRateLimit(`lms:asset-signed-url:${me.id}`, 60, 60_000);
 
   const assetId = await readAssetId(ctx);
   if (!assetId) {

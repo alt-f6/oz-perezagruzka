@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 const requireRoleApiMock = vi.fn();
 const findUniqueMock = vi.fn();
 const createMock = vi.fn();
+const enforceRateLimitMock = vi.fn();
 
 vi.mock("@/lms/server/auth/require-role-api", () => ({
   requireRoleApi: (...args: unknown[]) => requireRoleApiMock(...args),
@@ -15,6 +16,9 @@ vi.mock("@/shared/lib/db", () => ({
       create: (...args: unknown[]) => createMock(...args),
     },
   },
+}));
+vi.mock("@/lms/server/http/rate-limit", () => ({
+  enforceRateLimit: (...args: unknown[]) => enforceRateLimitMock(...args),
 }));
 
 function makeReq(body: unknown) {
@@ -32,6 +36,8 @@ describe("POST /api/admin/messages/[id]/reply", () => {
     requireRoleApiMock.mockReset();
     findUniqueMock.mockReset();
     createMock.mockReset();
+    enforceRateLimitMock.mockReset();
+    enforceRateLimitMock.mockResolvedValue(undefined);
   });
 
   it("returns 401 when unauthenticated", async () => {
@@ -50,6 +56,17 @@ describe("POST /api/admin/messages/[id]/reply", () => {
     const res = await POST(makeReq({ text: "hi" }), ctxFor("msg-1"));
 
     expect(res.status).toBe(403);
+  });
+
+  it("returns 429 when the caller is rate-limited", async () => {
+    requireRoleApiMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
+    enforceRateLimitMock.mockRejectedValue(Object.assign(new Error("rate_limited"), { status: 429 }));
+    const { POST } = await import("./route");
+
+    const res = await POST(makeReq({ text: "hi" }), ctxFor("msg-1"));
+
+    expect(res.status).toBe(429);
+    expect(findUniqueMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 for blank text", async () => {

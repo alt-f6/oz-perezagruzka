@@ -3,6 +3,7 @@ import { db } from "@/shared/lib/db";
 import { requireRoleApi } from "@/lms/server/auth/require-role-api";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { signPutObject } from "@/lms/server/r2/signed";
+import { enforceRateLimit } from "@/lms/server/http/rate-limit";
 import { LESSON_ASSET_MAX_SIZE_BYTES, LESSON_ASSET_PDF_MIME } from "@/lms/lib/lesson-assets";
 
 export const runtime = "nodejs";
@@ -27,7 +28,9 @@ async function readLessonId({ params }: Ctx) {
 }
 
 export const POST = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
-  await requireRoleApi(["ADMIN", "MANAGER"]);
+  const admin = await requireRoleApi(["ADMIN", "MANAGER"]);
+
+  await enforceRateLimit(`lms:asset-presign:${admin.id}`, 30, 60_000);
 
   const lessonId = await readLessonId(ctx);
   if (!lessonId) {

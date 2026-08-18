@@ -6,6 +6,7 @@ const lessonFindUniqueMock = vi.fn();
 const transactionMock = vi.fn();
 const lessonAssetDeleteMock = vi.fn();
 const signPutObjectMock = vi.fn();
+const enforceRateLimitMock = vi.fn();
 
 vi.mock("@/lms/server/auth/require-role-api", () => ({
   requireRoleApi: (...args: unknown[]) => requireRoleApiMock(...args),
@@ -19,6 +20,9 @@ vi.mock("@/shared/lib/db", () => ({
 }));
 vi.mock("@/lms/server/r2/signed", () => ({
   signPutObject: (...args: unknown[]) => signPutObjectMock(...args),
+}));
+vi.mock("@/lms/server/http/rate-limit", () => ({
+  enforceRateLimit: (...args: unknown[]) => enforceRateLimitMock(...args),
 }));
 
 function makeReq(body: unknown) {
@@ -39,6 +43,8 @@ describe("POST /api/admin/lessons/[id]/assets/presign", () => {
     transactionMock.mockReset();
     lessonAssetDeleteMock.mockReset();
     signPutObjectMock.mockReset();
+    enforceRateLimitMock.mockReset();
+    enforceRateLimitMock.mockResolvedValue(undefined);
   });
 
   it("returns 401 when requireRoleApi rejects an unauthenticated caller", async () => {
@@ -58,6 +64,17 @@ describe("POST /api/admin/lessons/[id]/assets/presign", () => {
     const res = await POST(makeReq({}), ctxFor("lesson-1"));
 
     expect(res.status).toBe(403);
+  });
+
+  it("returns 429 when the caller is rate-limited", async () => {
+    requireRoleApiMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    enforceRateLimitMock.mockRejectedValue(Object.assign(new Error("rate_limited"), { status: 429 }));
+    const { POST } = await import("./route");
+
+    const res = await POST(makeReq({}), ctxFor("lesson-1"));
+
+    expect(res.status).toBe(429);
+    expect(lessonFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("rejects a non-PDF mimeType with 400", async () => {

@@ -19,6 +19,7 @@ import {
   BANK_BIK,
   BANK_ACCOUNT,
   BANK_CORR_ACCOUNT,
+  LEGAL_DOCUMENT_VERSION_DISPLAY,
 } from "@/landing/lib/legal";
 
 export const metadata: Metadata = {
@@ -659,7 +660,7 @@ export default function TermsPage() {
           Публичная оферта на оказание платных образовательных услуг
         </h1>
         <p className="mt-3 text-sm text-ink-500">
-          {ENTITY_NAME} · дата размещения актуальной редакции: 10 июля 2026 г.
+          {ENTITY_NAME} · дата размещения актуальной редакции: {LEGAL_DOCUMENT_VERSION_DISPLAY}
         </p>
 
         <ProtectedDocumentViewer>

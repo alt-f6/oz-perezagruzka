@@ -12,6 +12,7 @@ import {
   CONTACT_EMAIL,
   CONTACT_PHONE,
   DIRECTOR_NAME_SHORT,
+  LEGAL_DOCUMENT_VERSION_DISPLAY,
 } from "@/landing/lib/legal";
 
 export const metadata: Metadata = {
@@ -249,7 +250,7 @@ export default function PepPage() {
           Правила использования простой электронной подписи
         </h1>
         <p className="mt-3 text-sm text-ink-500">
-          {ENTITY_NAME} · дата вступления в силу: 1 июля 2026 г.
+          {ENTITY_NAME} · дата вступления в силу: {LEGAL_DOCUMENT_VERSION_DISPLAY}
         </p>
 
         <ProtectedDocumentViewer>

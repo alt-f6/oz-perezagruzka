@@ -19,6 +19,7 @@ import {
   IP_NAME,
   IP_INN,
   IP_RKN_REGISTRATION,
+  LEGAL_DOCUMENT_VERSION_DISPLAY,
 } from "@/landing/lib/legal";
 
 export const metadata: Metadata = {
@@ -380,7 +381,7 @@ export default function PrivacyPolicyPage() {
         <h1 className="mt-6 text-3xl font-black tracking-tight text-ink-900 sm:text-4xl">
           Политика обработки персональных данных
         </h1>
-        <p className="mt-3 text-sm text-ink-500">Дата утверждения: 10 июля 2026 г.</p>
+        <p className="mt-3 text-sm text-ink-500">Дата утверждения: {LEGAL_DOCUMENT_VERSION_DISPLAY}</p>
 
         <ProtectedDocumentViewer>
           <div className="mt-10 space-y-10">

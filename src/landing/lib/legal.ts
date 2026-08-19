@@ -39,3 +39,12 @@ export const BANK_CORR_ACCOUNT = "30101 810 8 0000 0000651";
 // changes — recorded on every ConsentLog row so a signed document's version
 // at the time of signing can always be reconstructed.
 export const LEGAL_DOCUMENT_VERSION = "2026-08-08";
+
+// Human-readable Russian rendering of LEGAL_DOCUMENT_VERSION, so /privacy,
+// /terms, and /pep display one date that can never drift from the version
+// actually recorded on ConsentLog rows.
+export const LEGAL_DOCUMENT_VERSION_DISPLAY = new Intl.DateTimeFormat("ru-RU", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+}).format(new Date(`${LEGAL_DOCUMENT_VERSION}T00:00:00Z`));

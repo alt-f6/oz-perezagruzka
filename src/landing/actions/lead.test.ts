@@ -16,9 +16,6 @@ vi.mock("@/landing/lib/db", () => ({
     consentLog: { create: vi.fn() },
   },
 }));
-vi.mock("@/landing/lib/telegram", () => ({
-  sendTelegramNotification: vi.fn().mockResolvedValue(undefined),
-}));
 const recordConsentMock = vi.fn();
 vi.mock("@/landing/lib/consent-log", () => ({
   recordConsent: (...args: unknown[]) => recordConsentMock(...args),

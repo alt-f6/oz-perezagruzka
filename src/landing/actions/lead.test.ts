@@ -12,7 +12,7 @@ vi.mock("next/headers", () => ({
 vi.mock("@/landing/lib/db", () => ({
   prisma: {
     lead: { update: vi.fn(), findUnique: vi.fn() },
-    aiChatLog: { findFirst: vi.fn() },
+    aiChatLog: { updateMany: vi.fn() },
     consentLog: { create: vi.fn() },
   },
 }));
@@ -92,8 +92,6 @@ describe("attachLeadContact bot defense", () => {
       sessionId: "session-1",
       readinessScore: 80,
     } as never);
-    vi.mocked(prisma.aiChatLog.findFirst).mockReset();
-    vi.mocked(prisma.aiChatLog.findFirst).mockResolvedValue(null as never);
     recordConsentMock.mockReset();
     recordConsentMock.mockResolvedValue(undefined);
 

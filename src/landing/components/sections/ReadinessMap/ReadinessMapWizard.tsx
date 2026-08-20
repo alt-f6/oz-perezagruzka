@@ -282,7 +282,7 @@ export default function ReadinessMapWizard() {
   const isMaxSubjectsReached = selectedSubjects.length >= 2;
 
   return (
-    <section id="readiness-map" className="relative overflow-hidden py-16 md:py-24 scroll-mt-20">
+    <section id="readiness-map" className="relative overflow-hidden pt-16 pb-40 md:py-24 scroll-mt-20">
       <Atmosphere variant="mixed" intensity="premium" />
       <div
         aria-hidden

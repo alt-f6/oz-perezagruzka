@@ -31,9 +31,9 @@ export function ConsentBanner() {
           transition={{ duration: prefersReducedMotion ? 0.15 : 0.35, ease: [0.16, 1, 0.3, 1] }}
           role="region"
           aria-label="Уведомление об использовании cookie"
-          className="fixed inset-x-0 bottom-0 z-50 p-4 sm:p-6"
+          className="fixed inset-x-0 bottom-0 z-50 p-3 sm:p-6"
         >
-          <div className="mx-auto flex max-w-3xl flex-col items-start gap-4 rounded-2xl border border-ink-100 bg-white/95 p-5 shadow-2xl shadow-ink-900/10 backdrop-blur-xl sm:flex-row sm:items-center sm:p-6">
+          <div className="mx-auto flex max-w-3xl flex-col items-start gap-4 rounded-2xl border border-ink-100 bg-white/95 p-4 shadow-2xl shadow-ink-900/10 backdrop-blur-xl sm:flex-row sm:items-center sm:p-6">
             <p className="text-xs leading-relaxed text-ink-600 sm:text-sm">
               Мы используем файлы cookie и обрабатываем персональные данные
               для улучшения работы сайта. Оставаясь на сайте, вы соглашаетесь
@@ -53,7 +53,7 @@ export function ConsentBanner() {
                 whileHover={prefersReducedMotion ? undefined : { y: -2 }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: "spring", stiffness: 400, damping: 22 }}
-                className="flex-1 rounded-xl border border-ink-200 bg-white px-5 py-3 text-sm font-bold text-ink-600 transition-colors duration-200 hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-300 focus-visible:ring-offset-2 sm:flex-none"
+                className="flex-1 rounded-xl border border-ink-200 bg-white px-5 py-2.5 text-sm font-bold text-ink-600 transition-colors duration-200 hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink-300 focus-visible:ring-offset-2 sm:flex-none sm:py-3"
               >
                 Отклонить
               </motion.button>
@@ -63,7 +63,7 @@ export function ConsentBanner() {
                 whileHover={prefersReducedMotion ? undefined : { y: -2 }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: "spring", stiffness: 400, damping: 22 }}
-                className="flex-1 rounded-xl bg-accent-500 px-6 py-3 text-sm font-extrabold text-ink-900 shadow-md shadow-accent-500/25 transition-shadow duration-300 hover:shadow-lg hover:shadow-accent-500/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2 sm:flex-none"
+                className="flex-1 rounded-xl bg-accent-500 px-6 py-2.5 text-sm font-extrabold text-ink-900 shadow-md shadow-accent-500/25 transition-shadow duration-300 hover:shadow-lg hover:shadow-accent-500/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2 sm:flex-none sm:py-3"
               >
                 Согласен
               </motion.button>

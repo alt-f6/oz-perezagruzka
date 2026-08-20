@@ -137,7 +137,7 @@ export default function Hero() {
                 className="flex items-center gap-1.5 rounded-full border border-white/40 bg-white/70 px-3.5 py-1.5 shadow-card backdrop-blur-xl"
               >
                 <dt className="sr-only">Родители по рекомендации</dt>
-                <dd>4 из 5 родителей — по рекомендации</dd>
+                <dd>80% родителей — по рекомендации</dd>
               </motion.div>
             </dl>
           </div>

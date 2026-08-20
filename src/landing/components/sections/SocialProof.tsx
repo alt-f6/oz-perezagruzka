@@ -191,7 +191,7 @@ export default function SocialProof() {
       <div className="relative mx-auto max-w-6xl px-6">
         <div className="mb-12 text-center">
           <span className="inline-block rounded-full border border-brand-200 bg-brand-50 px-4 py-1.5 text-sm font-bold text-brand-700">
-            3 из 3 родителей приходят по рекомендации
+            80% родителей — по рекомендации
           </span>
           <h2 className="mt-5 font-bold tracking-tight text-ink-900">
             Как выглядит прогресс ученика

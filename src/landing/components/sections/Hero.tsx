@@ -129,8 +129,8 @@ export default function Hero() {
                 {...floatY(prefersReducedMotion, 4.5)}
                 className="flex items-center gap-1.5 rounded-full border border-white/40 bg-white/70 px-3.5 py-1.5 shadow-card backdrop-blur-xl"
               >
-                <dt className="sr-only">Сдавшие ЕГЭ ученики</dt>
-                <dd>2000 учеников сдали ЕГЭ</dd>
+                <dt className="sr-only">Сдавшие ОГЭ ученики</dt>
+                <dd>2000 учеников сдали ОГЭ</dd>
               </motion.div>
               <motion.div
                 {...floatY(prefersReducedMotion, 5)}

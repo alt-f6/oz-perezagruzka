@@ -4,6 +4,7 @@ import { Manrope } from "next/font/google";
 import { MotionConfig } from "framer-motion";
 import Script from "next/script";
 import ConsentBanner from "@/landing/components/ui/ConsentBannerClient";
+import FloatingWhatsApp from "@/landing/components/ui/FloatingWhatsApp";
 
 const manrope = Manrope({ subsets: ["latin", "cyrillic-ext"], variable: "--font-manrope" });
 
@@ -76,6 +77,7 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
       <MotionConfig reducedMotion="user">
         {children}
         <ConsentBanner />
+        <FloatingWhatsApp />
       </MotionConfig>
     </div>
   );

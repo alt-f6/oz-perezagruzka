@@ -1,4 +1,4 @@
-import { ENTITY_FULL_NAME, INN, OGRN, LEGAL_ADDRESS, CONTACT_EMAIL } from "@/landing/lib/legal";
+import { ENTITY_FULL_NAME, INN, OGRN, LEGAL_ADDRESS, CONTACT_EMAIL, CONTACT_PHONE } from "@/landing/lib/legal";
 import { NAV_LINKS } from "@/landing/lib/navigation";
 
 const LEGAL_LINKS = [
@@ -68,7 +68,14 @@ export default function Footer() {
         </div>
 
         <div className="mt-12 border-t border-white/10 pt-6 text-xs leading-relaxed text-ink-400">
-          {ENTITY_FULL_NAME}, ИНН {INN}, ОГРН {OGRN}. Адрес: {LEGAL_ADDRESS}. Email: {CONTACT_EMAIL}.
+          {ENTITY_FULL_NAME}, ИНН {INN}, ОГРН {OGRN}. Адрес: {LEGAL_ADDRESS}. Email: {CONTACT_EMAIL}. Телефон:{" "}
+          <a
+            href={`tel:+${CONTACT_PHONE.replace(/\D/g, "")}`}
+            className="font-semibold text-ink-100 underline decoration-ink-500 underline-offset-2 hover:text-white"
+          >
+            {CONTACT_PHONE}
+          </a>
+          .
         </div>
 
         <div className="mt-4 flex flex-col gap-4 text-xs text-ink-400 sm:flex-row sm:items-center sm:justify-between">

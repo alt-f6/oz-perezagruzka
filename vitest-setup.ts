@@ -15,4 +15,15 @@ if (typeof document !== "undefined") {
   // mount (e.g. ResultSuccess) would otherwise log a noisy but harmless
   // "Not implemented" error to stderr on every render.
   window.scrollTo = () => {};
+
+  // Mock IntersectionObserver for framer-motion's whileInView
+  global.IntersectionObserver = class IntersectionObserver {
+    constructor() {}
+    disconnect() {}
+    observe() {}
+    takeRecords() {
+      return [];
+    }
+    unobserve() {}
+  } as any;
 }

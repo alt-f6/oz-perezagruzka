@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -157,6 +157,18 @@ export default function ReadinessMapWizard() {
   const [selectedDeadline, setSelectedDeadline] = useState<ReadinessInput["deadline"] | "">("");
   const formRenderedAtRef = useRef(Date.now());
   const honeypotRef = useRef<HTMLInputElement>(null);
+
+  // The loading-fallback div and the real <section> both use id="readiness-map",
+  // but they're different elements — the browser's one-time anchor-scroll on
+  // page load targets whichever one existed at that moment. If it was the
+  // (shorter) fallback, the page can be left scrolled to the wrong spot once
+  // this component replaces it. Re-run the scroll once after mount to correct
+  // any drift, but only when the URL was actually opened with this hash.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.location.hash !== "#readiness-map") return;
+    document.getElementById("readiness-map")?.scrollIntoView();
+  }, []);
 
   const form = useForm<ReadinessInput>({
     resolver: zodResolver(readinessInputSchema),

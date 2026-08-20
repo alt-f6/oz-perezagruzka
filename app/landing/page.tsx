@@ -34,8 +34,13 @@ function faqJsonLd() {
 const ReadinessMapWizard = dynamic(
   () => import("@/landing/components/sections/ReadinessMap/ReadinessMapWizard"),
   {
+    // id + scroll-mt-20 match the real section (ReadinessMapWizard.tsx) so a
+    // direct link to #readiness-map has a scroll target immediately, even
+    // before the code-split chunk resolves.
     loading: () => (
-      <div className="p-8 text-center text-ink-400">Загрузка...</div>
+      <div id="readiness-map" className="scroll-mt-20 p-8 text-center text-ink-400">
+        Загрузка...
+      </div>
     ),
   },
 );

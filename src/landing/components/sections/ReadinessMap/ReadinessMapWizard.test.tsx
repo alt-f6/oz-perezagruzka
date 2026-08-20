@@ -45,10 +45,33 @@ async function completeAllStepsExceptConsent(user: ReturnType<typeof userEvent.s
   await user.click(screen.getByRole("button", { name: "3–6 месяцев" }));
 }
 
+function setHash(hash: string) {
+  window.history.replaceState(null, "", hash ? `#${hash}` : window.location.pathname);
+}
+
 describe("ReadinessMapWizard", () => {
   beforeEach(() => {
     submitReadinessMapMock.mockReset();
     reachGoalMock.mockReset();
+  });
+
+  it("re-scrolls #readiness-map into view on mount when the URL was opened with that hash", () => {
+    setHash("readiness-map");
+    const scrollIntoViewMock = vi.fn();
+    // jsdom has no layout engine, so scrollIntoView must be stubbed per element.
+    const originalGetElementById = document.getElementById.bind(document);
+    vi.spyOn(document, "getElementById").mockImplementation((id) => {
+      const el = originalGetElementById(id);
+      if (el && id === "readiness-map") el.scrollIntoView = scrollIntoViewMock;
+      return el;
+    });
+
+    render(<ReadinessMapWizard />);
+
+    expect(scrollIntoViewMock).toHaveBeenCalled();
+
+    setHash("");
+    vi.restoreAllMocks();
   });
 
   it("renders the first step with the step counter", () => {

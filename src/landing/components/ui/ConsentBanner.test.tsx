@@ -25,10 +25,16 @@ describe("ConsentBanner", () => {
 
   it("still accepts and declines consent correctly", async () => {
     const { setCookieConsent } = await import("@/landing/lib/cookie-consent");
-    render(<ConsentBanner />);
+    const { unmount } = render(<ConsentBanner />);
 
     screen.getByRole("button", { name: "Согласен" }).click();
-
     expect(setCookieConsent).toHaveBeenCalledWith("granted");
+
+    vi.clearAllMocks();
+    unmount();
+    render(<ConsentBanner />);
+
+    screen.getByRole("button", { name: "Отклонить" }).click();
+    expect(setCookieConsent).toHaveBeenCalledWith("denied");
   });
 });

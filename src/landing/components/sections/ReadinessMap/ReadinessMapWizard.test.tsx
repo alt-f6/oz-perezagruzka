@@ -10,6 +10,10 @@ vi.mock("@/landing/actions/readiness", () => ({
 vi.mock("./attribution", () => ({
   useAttribution: () => ({ sessionId: "session-1", utm: {} }),
 }));
+const reachGoalMock = vi.fn();
+vi.mock("@/landing/lib/analytics", () => ({
+  reachGoal: (...args: unknown[]) => reachGoalMock(...args),
+}));
 
 // Step transitions are animated with framer-motion's <AnimatePresence
 // mode="wait">, which keeps the outgoing step's content mounted until its
@@ -44,6 +48,7 @@ async function completeAllStepsExceptConsent(user: ReturnType<typeof userEvent.s
 describe("ReadinessMapWizard", () => {
   beforeEach(() => {
     submitReadinessMapMock.mockReset();
+    reachGoalMock.mockReset();
   });
 
   it("renders the first step with the step counter", () => {
@@ -51,6 +56,16 @@ describe("ReadinessMapWizard", () => {
 
     expect(screen.getByText("Шаг 1 из 6: Имя ученика")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Например, Аня")).toBeInTheDocument();
+  });
+
+  it("fires a quiz_step_N_completed goal when advancing a step", async () => {
+    const user = userEvent.setup();
+    render(<ReadinessMapWizard />);
+
+    await user.click(screen.getByRole("button", { name: "Далее" }));
+    await screen.findByText("В каком он классе?");
+
+    expect(reachGoalMock).toHaveBeenCalledWith("quiz_step_1_completed");
   });
 
   it("advances through steps on valid input and reaches the consent checkbox on the last step", async () => {
@@ -107,6 +122,7 @@ describe("ReadinessMapWizard", () => {
     // blocks (whatISee, attentionZones, etc.) instead, so assert on those.
     expect(await screen.findByText("Карта готовности")).toBeInTheDocument();
     expect(screen.getByText("Хорошая база")).toBeInTheDocument();
+    expect(reachGoalMock).toHaveBeenCalledWith("quiz_submitted");
   });
 
   it("renders the fallback view (with its own ContactForm) when the API call fails Zod validation server-side", async () => {

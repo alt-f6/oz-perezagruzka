@@ -5,6 +5,7 @@ import Image from "next/image";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Atmosphere from "@/landing/components/ui/Atmosphere";
 import { floatY } from "@/landing/components/ui/motion";
+import { reachGoal } from "@/landing/lib/analytics";
 
 const HERO_FACES = [
   "photo_2023-06-19_11-11-04.jpg",
@@ -68,6 +69,7 @@ export default function Hero() {
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center md:justify-start pt-2">
               <motion.a
                   href="#readiness-map"
+                  onClick={() => reachGoal("quiz_start")}
                   whileHover={{ y: -2 }}
                   whileTap={{ scale: 0.98 }}
                   transition={{ type: "spring", stiffness: 90, damping: 18 }}

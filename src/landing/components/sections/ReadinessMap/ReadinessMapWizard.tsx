@@ -14,6 +14,7 @@ import {
   type ReadinessInput,
 } from "@/landing/lib/validations/readiness";
 import { submitReadinessMap, type ReadinessActionResult } from "@/landing/actions/readiness";
+import { reachGoal } from "@/landing/lib/analytics";
 import { LegalCheckbox } from "@/landing/components/ui/LegalCheckbox";
 import Atmosphere from "@/landing/components/ui/Atmosphere";
 
@@ -219,6 +220,8 @@ export default function ReadinessMapWizard() {
     const valid = await form.trigger(currentStep.key);
     if (!valid) return;
 
+    reachGoal(`quiz_step_${stepIndex + 1}_completed`);
+
     if (!isLastStep) {
       setDirection(1);
       setStepIndex((i) => i + 1);
@@ -246,13 +249,14 @@ export default function ReadinessMapWizard() {
         setPhase("form");
         return;
       }
+      reachGoal("quiz_submitted");
       setResult(actionResult);
       setPhase("result");
     } catch (error) {
       setSubmitError("Не получилось отправить форму. Проверьте соединение и попробуйте снова.");
       setPhase("form");
     }
-  }, [consent, currentStep.key, form, isLastStep, sessionId, utm]);
+  }, [consent, currentStep.key, form, isLastStep, sessionId, stepIndex, utm]);
 
   const goBack = useCallback(() => {
     setDirection(-1);

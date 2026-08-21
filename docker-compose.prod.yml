@@ -1,10 +1,13 @@
-# Production compose file for a self-hosted deployment.
+# Production compose file for a self-hosted deployment with the database
+# co-located on the same server (152-FZ data localization: Postgres and the
+# app both stay on this RF-hosted VPS, nothing sent to a foreign provider).
 #
-# The app already targets a managed Postgres (Neon/Supabase -- see
-# DATABASE_URL/DIRECT_URL/PG_CA_CERT_B64 in .env.example, which assume a
-# pooled + direct connection pair with SSL). The `db` service below is only
-# needed if you are NOT using a managed provider; if you are, delete it and
-# point DATABASE_URL/DIRECT_URL at your managed instance instead.
+# Three services:
+#   - db:    Postgres, data persisted in the `db_data` volume.
+#   - app:   the Next.js app (landing/crm/lms are one process, routed by
+#            Host header in proxy.ts -- see Caddyfile).
+#   - caddy: reverse proxy + automatic HTTPS (Let's Encrypt) for the three
+#            public domains, forwards to `app` over the internal network.
 services:
   db:
     image: postgres:16-alpine
@@ -29,13 +32,28 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     env_file:
       - .env
     environment:
       NODE_ENV: production
       PORT: 3000
 
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
 volumes:
   db_data:
+  caddy_data:
+  caddy_config:

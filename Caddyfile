@@ -1,0 +1,20 @@
+# Replace the three domains below with your real ones, then point their DNS
+# A records at this server's IP. Caddy issues/renews Let's Encrypt certs for
+# each automatically on first request -- no manual certbot steps needed.
+#
+# proxy.ts (Next middleware) routes by Host header: crm.example.com -> CRM,
+# lms.example.com -> LMS, anything else (example.com) -> landing. Keep that
+# in sync with NEXT_PUBLIC_SITE_URL / NEXT_PUBLIC_CRM_URL / NEXT_PUBLIC_LMS_URL
+# in .env.
+
+example.com, www.example.com {
+	reverse_proxy app:3000
+}
+
+crm.example.com {
+	reverse_proxy app:3000
+}
+
+lms.example.com {
+	reverse_proxy app:3000
+}

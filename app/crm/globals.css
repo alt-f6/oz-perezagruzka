@@ -91,6 +91,7 @@ body {
   }
 
   .overline {
+    text-decoration: none !important;
     @apply text-[11px] font-medium uppercase tracking-[0.08em] text-slate-500;
   }
 

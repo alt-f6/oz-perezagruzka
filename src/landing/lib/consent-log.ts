@@ -1,4 +1,7 @@
 import { prisma } from "@/landing/lib/db";
+import { createLogger } from "@/shared/lib/logger";
+
+const log = createLogger("consent-log");
 
 export interface RecordConsentInput {
   leadId?: string;
@@ -27,7 +30,11 @@ export async function recordConsent(input: RecordConsentInput): Promise<void> {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[ConsentLog] Write failed:", message);
+    log.error("Write failed", error, {
+      leadId: input.leadId,
+      consentType: input.consentType,
+      documentSlug: input.documentSlug,
+      documentVersion: input.documentVersion,
+    });
   }
 }

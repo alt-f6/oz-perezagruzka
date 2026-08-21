@@ -5,35 +5,24 @@ import {
   getSessionUserFromRequest,
 } from "@/shared/lib/auth";
 
-// True subdomains now separate the three apps (crm.*, lms.*, root), so each
-// app's protected-route prefixes only need to be unambiguous within its own
-// host. There are no more cross-app prefix collisions to avoid.
-const CRM_PROTECTED_PREFIXES = [
-  "/dashboard",
-  "/groups",
-  "/leads",
-  "/lessons",
-  "/salary",
-  "/schedule",
-  "/staff",
-  "/team",
-  "/students",
-  "/parent",
-  "/dev",
-];
+// Fail-closed model: every CRM/LMS path requires a session UNLESS it's
+// explicitly listed here as public, or is a static asset request (has a file
+// extension, e.g. /pdf.worker.min.mjs). This is the inverse of an
+// allowlist-of-protected-prefixes, which silently leaves a newly added page
+// or API route unauthenticated at the edge until someone remembers to list
+// it. New routes are protected by default; only these known, intentionally
+// public surfaces opt out.
+const CRM_PUBLIC_PAGE_PREFIXES = ["/admin/login", "/register"];
+// /api/auth/* (login/logout/register) and /api/health/* must stay reachable
+// pre-auth; /api/cron/* is gated by CRON_SECRET, /api/webhooks/* by its own
+// signature/IP checks -- neither uses session auth at all.
+const CRM_PUBLIC_API_PREFIXES = ["/api/auth", "/api/health", "/api/cron", "/api/webhooks"];
 
-// /api/auth/* (login/logout/me) and /api/health/* stay unprotected here so the
-// login flow and health probe remain reachable pre-auth; every other /api/**
-// route already enforces its own requireRoleApi/getSessionUser check, this is
-// a defense-in-depth backstop, not the primary gate.
-const LMS_PROTECTED_PREFIXES = [
-  "/admin",
-  "/learn",
-  "/student",
-  "/api/admin",
-  "/api/student",
-  "/api/assets",
-];
+const LMS_PUBLIC_PAGE_PREFIXES = ["/login"];
+const LMS_PUBLIC_API_PREFIXES = ["/api/auth", "/api/health"];
+
+// PARENT is only ever allowed onto the CRM parent portal, nowhere else.
+const CRM_PARENT_PORTAL_PREFIX = "/parent";
 
 const CRM_LOGIN_PATH = "/admin/login";
 const LMS_LOGIN_PATH = "/login";
@@ -49,6 +38,23 @@ function resolveApp(host: string): AppKind {
 
 function matchesPrefix(pathname: string, prefixes: string[]) {
   return prefixes.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+}
+
+// Static files (icons, worker scripts, sandbox HTML, ...) served from
+// public/<app>/** carry a file extension and are never gated behind a
+// session -- they're either public by nature or only ever fetched by an
+// already-authenticated page that will itself have been gated.
+function isStaticAssetPath(pathname: string) {
+  return /\.[a-zA-Z0-9]+$/.test(pathname);
+}
+
+function isPublicPath(app: "crm" | "lms", pathname: string) {
+  if (isStaticAssetPath(pathname)) return true;
+  const publicPrefixes =
+    app === "crm"
+      ? [...CRM_PUBLIC_PAGE_PREFIXES, ...CRM_PUBLIC_API_PREFIXES]
+      : [...LMS_PUBLIC_PAGE_PREFIXES, ...LMS_PUBLIC_API_PREFIXES];
+  return matchesPrefix(pathname, publicPrefixes);
 }
 
 function rewriteToApp(request: NextRequest, app: AppKind, response: NextResponse) {
@@ -91,10 +97,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(target);
   }
 
-  const protectedPrefixes = app === "crm" ? CRM_PROTECTED_PREFIXES : LMS_PROTECTED_PREFIXES;
-  if (matchesPrefix(pathname, protectedPrefixes)) {
-    // PARENT is only ever allowed onto the CRM parent portal, nowhere else.
-    const isParentPortal = app === "crm" && matchesPrefix(pathname, ["/parent"]);
+  if (!isPublicPath(app, pathname)) {
+    const isParentPortal = app === "crm" && matchesPrefix(pathname, [CRM_PARENT_PORTAL_PREFIX]);
     const allowedRoles: typeof CRM_ROLES = isParentPortal
       ? ["PARENT"]
       : app === "crm"

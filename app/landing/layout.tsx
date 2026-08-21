@@ -1,12 +1,9 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import { Manrope } from "next/font/google";
 import { MotionConfig } from "framer-motion";
 import Script from "next/script";
 import ConsentBanner from "@/landing/components/ui/ConsentBannerClient";
 import FloatingWhatsApp from "@/landing/components/ui/FloatingWhatsApp";
-
-const manrope = Manrope({ subsets: ["latin", "cyrillic-ext"], variable: "--font-manrope" });
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://perezagruzka.ru";
 const ymCounterId = process.env.NEXT_PUBLIC_YM_COUNTER_ID;
@@ -60,7 +57,7 @@ export const metadata: Metadata = {
 // Structural wrapper only. <html>/<body> live in the single root app/layout.tsx.
 export default function LandingLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className={`${manrope.variable} font-sans bg-gradient-to-b from-white to-brand-50/40 text-foreground min-h-screen`}>
+    <div className="font-sans bg-gradient-to-b from-white to-brand-50/40 text-foreground min-h-screen">
       {ymCounterId && (
         <Script id="yandex-metrika" strategy="afterInteractive">
           {`

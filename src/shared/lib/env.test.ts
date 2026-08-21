@@ -92,6 +92,7 @@ describe("validateEnv", () => {
       process.env.CRON_SECRET = "test-secret";
       process.env.CRM_RESEND_API_KEY = "test-resend-key";
       process.env.CRM_NOTIFICATION_FROM_EMAIL = "no-reply@example.com";
+      process.env.NEXT_PUBLIC_SITE_URL = "https://example.com";
       const { validateEnv } = await import("@/shared/lib/env");
 
       expect(() => validateEnv()).toThrow(/CRM_TELEGRAM_BOT_TOKEN/);
@@ -103,6 +104,7 @@ describe("validateEnv", () => {
       delete process.env.CRON_SECRET;
       process.env.CRM_RESEND_API_KEY = "test-resend-key";
       process.env.CRM_NOTIFICATION_FROM_EMAIL = "no-reply@example.com";
+      process.env.NEXT_PUBLIC_SITE_URL = "https://example.com";
       const { validateEnv } = await import("@/shared/lib/env");
 
       expect(() => validateEnv()).toThrow(/CRON_SECRET/);
@@ -114,6 +116,7 @@ describe("validateEnv", () => {
       process.env.CRON_SECRET = "test-secret";
       process.env.CRM_RESEND_API_KEY = "test-resend-key";
       delete process.env.CRM_NOTIFICATION_FROM_EMAIL;
+      process.env.NEXT_PUBLIC_SITE_URL = "https://example.com";
       const { validateEnv } = await import("@/shared/lib/env");
 
       expect(() => validateEnv()).toThrow(/CRM_NOTIFICATION_FROM_EMAIL/);
@@ -125,6 +128,7 @@ describe("validateEnv", () => {
       process.env.CRON_SECRET = "test-secret";
       process.env.CRM_RESEND_API_KEY = "test-resend-key";
       process.env.CRM_NOTIFICATION_FROM_EMAIL = "no-reply@example.com";
+      process.env.NEXT_PUBLIC_SITE_URL = "https://example.com";
       const { validateEnv } = await import("@/shared/lib/env");
 
       expect(() => validateEnv()).not.toThrow();

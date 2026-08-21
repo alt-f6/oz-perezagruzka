@@ -101,18 +101,29 @@ export const POST = withApiErrors(async (request) => {
     return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
+  // Mock mode (local dev) has no real YooKassa traffic. Once a real API key
+  // is configured, the webhook secret becomes mandatory: it must never
+  // silently degrade to relying solely on the source-IP allowlist, which
+  // trusts x-forwarded-for and is spoofable behind a misconfigured proxy.
+  const secretKey = process.env.YOOKASSA_SECRET_KEY;
+  const realPaymentMode = Boolean(secretKey) && secretKey !== "mock";
   const webhookSecret = process.env.YOOKASSA_WEBHOOK_SECRET;
+
+  if (realPaymentMode && !webhookSecret) {
+    log.error(
+      "YOOKASSA_WEBHOOK_SECRET is not configured while YOOKASSA_SECRET_KEY is a real key -- refusing to process the webhook unauthenticated",
+      undefined,
+      { ip },
+    );
+    logWebhook({ outcome: "misconfigured_no_secret", ip });
+    return NextResponse.json({ error: "Webhook misconfigured" }, { status: 500 });
+  }
+
   if (webhookSecret && !secretMatches(request, webhookSecret)) {
     logWebhook({ outcome: "secret_mismatch", ip });
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Mock mode (local dev) has no real YooKassa traffic, so the source-IP
-  // allowlist only applies when a real API key is configured. The escape
-  // hatch covers deployments where x-forwarded-for is not trustworthy end
-  // to end and protection relies on the webhook secret instead.
-  const secretKey = process.env.YOOKASSA_SECRET_KEY;
-  const realPaymentMode = Boolean(secretKey) && secretKey !== "mock";
   const ipCheckDisabled = process.env.YOOKASSA_WEBHOOK_SKIP_IP_CHECK === "true";
   if (realPaymentMode && !ipCheckDisabled && !isYookassaIp(ip)) {
     logWebhook({ outcome: "ip_rejected", ip });

@@ -112,11 +112,12 @@ describe("POST /crm/api/webhooks/yookassa", () => {
 describe("POST /crm/api/webhooks/yookassa — IP allowlist", () => {
   it("rejects a request from an IP outside the YooKassa range in real-payment mode", async () => {
     process.env.YOOKASSA_SECRET_KEY = "live_secret_123";
+    process.env.YOOKASSA_WEBHOOK_SECRET = "correct-secret";
 
     const res = await POST(
       makeRequest(
         { event: "payment.succeeded", object: { id: "pay_1" } },
-        { headers: { "x-forwarded-for": "1.2.3.4" } },
+        { secret: "correct-secret", headers: { "x-forwarded-for": "1.2.3.4" } },
       ),
     );
 
@@ -126,13 +127,14 @@ describe("POST /crm/api/webhooks/yookassa — IP allowlist", () => {
 
   it("accepts a request from an IP inside the YooKassa allowlist in real-payment mode", async () => {
     process.env.YOOKASSA_SECRET_KEY = "live_secret_123";
+    process.env.YOOKASSA_WEBHOOK_SECRET = "correct-secret";
     yookassaMocks.fetchPayment.mockResolvedValue(succeededPayment);
     yookassaMocks.finalizeSuccessfulPayment.mockResolvedValue(true);
 
     const res = await POST(
       makeRequest(
         { event: "payment.succeeded", object: { id: "pay_1" } },
-        { headers: { "x-forwarded-for": "185.71.76.5" } },
+        { secret: "correct-secret", headers: { "x-forwarded-for": "185.71.76.5" } },
       ),
     );
 
@@ -141,6 +143,7 @@ describe("POST /crm/api/webhooks/yookassa — IP allowlist", () => {
 
   it("skips the IP check when YOOKASSA_WEBHOOK_SKIP_IP_CHECK is true, even for an out-of-range IP", async () => {
     process.env.YOOKASSA_SECRET_KEY = "live_secret_123";
+    process.env.YOOKASSA_WEBHOOK_SECRET = "correct-secret";
     process.env.YOOKASSA_WEBHOOK_SKIP_IP_CHECK = "true";
     yookassaMocks.fetchPayment.mockResolvedValue(succeededPayment);
     yookassaMocks.finalizeSuccessfulPayment.mockResolvedValue(true);
@@ -148,7 +151,7 @@ describe("POST /crm/api/webhooks/yookassa — IP allowlist", () => {
     const res = await POST(
       makeRequest(
         { event: "payment.succeeded", object: { id: "pay_1" } },
-        { headers: { "x-forwarded-for": "1.2.3.4" } },
+        { secret: "correct-secret", headers: { "x-forwarded-for": "1.2.3.4" } },
       ),
     );
 
@@ -167,6 +170,20 @@ describe("POST /crm/api/webhooks/yookassa — IP allowlist", () => {
     );
 
     expect(res.status).toBe(200);
+  });
+
+  it("hard-fails with 500 instead of silently degrading to IP-only auth when the webhook secret is unset in real-payment mode", async () => {
+    process.env.YOOKASSA_SECRET_KEY = "live_secret_123";
+
+    const res = await POST(
+      makeRequest(
+        { event: "payment.succeeded", object: { id: "pay_1" } },
+        { headers: { "x-forwarded-for": "185.71.76.5" } },
+      ),
+    );
+
+    expect(res.status).toBe(500);
+    expect(yookassaMocks.fetchPayment).not.toHaveBeenCalled();
   });
 });
 

@@ -359,7 +359,7 @@ model TeacherRate {
 
   teacher User @relation(fields: [teacherId], references: [id], onDelete: Restrict)
 
-  // Matches computeTeacherSalary's "latest rate for teacher" lookup.
+  // Matches computeTeacherSalary's per-teacher, createdAt-ordered rate lookup.
   @@index([teacherId, createdAt])
 }
 

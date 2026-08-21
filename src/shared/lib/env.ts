@@ -27,11 +27,23 @@ const productionSchema = z
       .url("NEXT_PUBLIC_SITE_URL must be a valid absolute URL, e.g. https://example.com"),
     CRM_RESEND_API_KEY: z.string().min(1).optional(),
     CRM_NOTIFICATION_FROM_EMAIL: z.string().min(1).optional(),
+    YOOKASSA_SECRET_KEY: z.string().min(1).optional(),
+    YOOKASSA_WEBHOOK_SECRET: z.string().min(1).optional(),
   })
   .refine((env) => !env.CRM_RESEND_API_KEY || Boolean(env.CRM_NOTIFICATION_FROM_EMAIL), {
     message: "CRM_NOTIFICATION_FROM_EMAIL is required in production when CRM_RESEND_API_KEY is set",
     path: ["CRM_NOTIFICATION_FROM_EMAIL"],
-  });
+  })
+  .refine(
+    (env) =>
+      !(env.YOOKASSA_SECRET_KEY && env.YOOKASSA_SECRET_KEY !== "mock") ||
+      Boolean(env.YOOKASSA_WEBHOOK_SECRET),
+    {
+      message:
+        "YOOKASSA_WEBHOOK_SECRET is required in production when YOOKASSA_SECRET_KEY is set to a real (non-mock) key -- without it the payment webhook falls back to a spoofable IP allowlist",
+      path: ["YOOKASSA_WEBHOOK_SECRET"],
+    },
+  );
 
 let validated = false;
 

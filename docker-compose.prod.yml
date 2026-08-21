@@ -1,0 +1,41 @@
+# Production compose file for a self-hosted deployment.
+#
+# The app already targets a managed Postgres (Neon/Supabase -- see
+# DATABASE_URL/DIRECT_URL/PG_CA_CERT_B64 in .env.example, which assume a
+# pooled + direct connection pair with SSL). The `db` service below is only
+# needed if you are NOT using a managed provider; if you are, delete it and
+# point DATABASE_URL/DIRECT_URL at your managed instance instead.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-app} -d ${POSTGRES_DB:-app}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+
+volumes:
+  db_data:

@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
+  output: "standalone",
   allowedDevOrigins: [
     "wrought-bullhorn-debunk.ngrok-free.dev",
   ],

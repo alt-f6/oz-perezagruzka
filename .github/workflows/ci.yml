@@ -30,3 +30,21 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - run: npm run test:unit
+
+  build:
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://user:password@localhost:5432/dbname?schema=public"
+      COOKIE_SECRET: "ci-placeholder-cookie-secret-0000000000000000"
+      CRM_TELEGRAM_BOT_TOKEN: "ci-placeholder"
+      CRON_SECRET: "ci-placeholder"
+      NEXT_PUBLIC_SITE_URL: "https://example.com"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build

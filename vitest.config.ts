@@ -4,6 +4,11 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
+    env: {
+      // Deterministic wall-clock formatting (e.g. formatTimeRange) across
+      // local/CI machines regardless of their configured timezone.
+      TZ: "UTC",
+    },
     include: [
       "*.test.ts",
       "src/**/*.test.ts",

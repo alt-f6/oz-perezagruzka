@@ -13,6 +13,7 @@ import { useForm } from "react-hook-form";
 import { LessonFormFields } from "@/crm/components/LessonFormFields";
 import { Modal } from "@/crm/components/Modal";
 import { useToast } from "@/crm/components/ToastProvider";
+import { addDays, startOfMonth, startOfWeekMonday, toDateKey } from "@/crm/lib/calendarGrid";
 import { lessonSchema, type LessonValues } from "@/crm/lib/schemas";
 import { createLesson } from "../lessons/actions";
 
@@ -37,29 +38,6 @@ export interface ScheduleTeacher {
 type ViewMode = "day" | "week" | "month";
 
 const WEEKDAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-
-function toDateKey(date: Date): string {
-  return date.toISOString().split("T")[0];
-}
-
-function startOfWeek(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const day = d.getDay();
-  const diff = (day === 0 ? -6 : 1) - day;
-  d.setDate(d.getDate() + diff);
-  return d;
-}
-
-function startOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
-function addDays(date: Date, days: number): Date {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
 
 function getGroupName(lesson: ScheduleLesson): string {
   return lesson.group?.name ?? "Без группы";
@@ -158,9 +136,9 @@ export function ScheduleClient({
 
   const selected = new Date(selectedDate);
   const dayLessons = lessonsByDay.get(selectedDate) ?? [];
-  const weekStart = startOfWeek(selected);
+  const weekStart = startOfWeekMonday(selected);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-  const monthGridStart = startOfWeek(startOfMonth(selected));
+  const monthGridStart = startOfWeekMonday(startOfMonth(selected));
   const monthDays = Array.from({ length: 42 }, (_, i) =>
     addDays(monthGridStart, i),
   );

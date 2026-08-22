@@ -43,6 +43,7 @@ export const GET = withApiErrors(async (req: NextRequest) => {
     where: {
       scheduledAt: { gte: now, lte: windowEnd },
       reminderSentAt: null,
+      status: "scheduled",
     },
     select: {
       id: true,

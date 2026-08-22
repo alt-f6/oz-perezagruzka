@@ -130,4 +130,16 @@ describe("GET /crm/api/cron/lesson-reminders", () => {
     expect(res.status).toBe(401);
     expect(dbMock.classSession.findMany).not.toHaveBeenCalled();
   });
+
+  it("passes status: \"scheduled\" in the findMany filter so cancelled sessions are never reminded", async () => {
+    dbMock.classSession.findMany.mockResolvedValue([]);
+
+    await GET(makeRequest());
+
+    expect(dbMock.classSession.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: "scheduled" }),
+      }),
+    );
+  });
 });

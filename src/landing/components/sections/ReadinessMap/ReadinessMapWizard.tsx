@@ -64,7 +64,7 @@ const STEPS: StepConfig[] = [
     key: "hobbies",
     stepLabel: "Увлечения",
     title: "Чем увлекается в свободное время?",
-    helper: "Выберите одно или несколько увлечений",
+    helper: "Выберите до 4 увлечений",
   },
   {
     key: "deadline",
@@ -124,6 +124,8 @@ const HOBBY_LABELS: Record<(typeof HOBBY_VALUES)[number], string> = {
   "Общение и прогулки с друзьями": "👥 Друзья",
 };
 const HOBBIES_OPTIONS = HOBBY_VALUES.map((value) => ({ value, label: HOBBY_LABELS[value] }));
+
+const MAX_HOBBIES = 4;
 
 const DEADLINE_OPTIONS: { value: ReadinessInput["deadline"]; label: string }[] = [
   { value: "<3m", label: "Меньше 3 месяцев" },
@@ -212,7 +214,13 @@ export default function ReadinessMapWizard() {
   };
 
   const handleHobbyToggle = (value: string) => {
-    const next = selectedHobbies.includes(value)
+    const isAlreadySelected = selectedHobbies.includes(value);
+
+    if (!isAlreadySelected && selectedHobbies.length >= MAX_HOBBIES) {
+      return;
+    }
+
+    const next = isAlreadySelected
       ? selectedHobbies.filter((item) => item !== value)
       : [...selectedHobbies, value];
 
@@ -296,6 +304,7 @@ export default function ReadinessMapWizard() {
 
   const fieldError = form.formState.errors[currentStep.key];
   const isMaxSubjectsReached = selectedSubjects.length >= 2;
+  const isMaxHobbiesReached = selectedHobbies.length >= MAX_HOBBIES;
 
   return (
     <section id="readiness-map" className="relative overflow-hidden pt-16 pb-40 md:py-24 scroll-mt-20">
@@ -401,117 +410,117 @@ export default function ReadinessMapWizard() {
                   )}
 
                   {currentStep.key === "subjects" && (
-                    <div className="relative">
-                      <div className="grid grid-cols-2 gap-3 max-h-[min(280px,40dvh)] overflow-y-auto overscroll-contain pr-1">
-                        {SUBJECT_OPTIONS.map((option) => {
-                          const isSelected = selectedSubjects.includes(option.value);
-                          const isDisabled = isMaxSubjectsReached && !isSelected;
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {SUBJECT_OPTIONS.map((option) => {
+                        const isSelected = selectedSubjects.includes(option.value);
+                        const isDisabled = isMaxSubjectsReached && !isSelected;
 
-                          return (
-                            <button
-                              key={option.value}
-                              type="button"
-                              disabled={isDisabled}
-                              aria-pressed={isSelected}
-                              onClick={() => handleSubjectToggle(option.value)}
-                              className={`rounded-2xl border px-4 py-3 text-left font-bold text-sm transition-all duration-200 flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 active:scale-95 ${
-                                isSelected
-                                  ? "border-brand-500 bg-brand-50 text-brand-700 shadow-sm shadow-brand-900/10"
-                                  : isDisabled
-                                    ? "border-ink-100 bg-ink-50 text-ink-400 opacity-40 cursor-not-allowed"
-                                    : "border-ink-200 bg-white text-ink-700 hover:border-brand-300"
-                              }`}
-                            >
-                              <span className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
-                                isSelected
-                                  ? "border-brand-500 bg-brand-500 text-white"
-                                  : isDisabled
-                                    ? "border-ink-200 bg-ink-50"
-                                    : "border-ink-300 bg-white"
-                              }`}>
-                                {isSelected && <Check className="w-3 h-3" strokeWidth={3} aria-hidden />}
-                              </span>
-                              {option.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white to-transparent" />
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            disabled={isDisabled}
+                            aria-disabled={isDisabled}
+                            aria-pressed={isSelected}
+                            onClick={() => handleSubjectToggle(option.value)}
+                            className={`rounded-2xl border px-4 py-3 text-left font-bold text-sm transition-all duration-200 flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 active:scale-95 ${
+                              isSelected
+                                ? "border-brand-500 bg-brand-50 text-brand-700 shadow-sm shadow-brand-900/10"
+                                : isDisabled
+                                  ? "border-ink-100 bg-ink-50 text-ink-400 opacity-40 cursor-not-allowed"
+                                  : "border-ink-200 bg-white text-ink-700 hover:border-brand-300"
+                            }`}
+                          >
+                            <span className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
+                              isSelected
+                                ? "border-brand-500 bg-brand-500 text-white"
+                                : isDisabled
+                                  ? "border-ink-200 bg-ink-50"
+                                  : "border-ink-300 bg-white"
+                            }`}>
+                              {isSelected && <Check className="w-3 h-3" strokeWidth={3} aria-hidden />}
+                            </span>
+                            {option.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
 
                   {currentStep.key === "studyStyle" && (
-                    <div className="relative">
-                      <div className="flex flex-col gap-3 max-h-[min(280px,40dvh)] overflow-y-auto overscroll-contain pr-1">
-                        {STUDY_STYLE_OPTIONS.map((option) => {
-                          const isSelected = selectedStudyStyle === option.value;
-                          return (
-                            <button
-                              key={option.value}
-                              type="button"
-                              aria-pressed={isSelected}
-                              onClick={() => handleStudyStyleSelect(option.value)}
-                              className={`w-full rounded-2xl border p-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 active:scale-98 flex items-center justify-between ${
-                                isSelected
-                                  ? "border-brand-500 bg-brand-50 text-brand-700 shadow-sm shadow-brand-900/10"
-                                  : "border-ink-200 bg-white text-ink-700 hover:border-brand-300"
-                              }`}
-                            >
-                              <div className="pr-4">
-                                <div className="font-extrabold text-sm sm:text-base text-ink-900">
-                                  {option.title}
-                                </div>
-                                <div className="text-xs text-ink-600 font-medium mt-0.5 leading-tight">
-                                  {option.desc}
-                                </div>
+                    <div className="flex flex-col gap-3">
+                      {STUDY_STYLE_OPTIONS.map((option) => {
+                        const isSelected = selectedStudyStyle === option.value;
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            aria-pressed={isSelected}
+                            onClick={() => handleStudyStyleSelect(option.value)}
+                            className={`w-full rounded-2xl border p-4 text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 active:scale-98 flex items-center justify-between ${
+                              isSelected
+                                ? "border-brand-500 bg-brand-50 text-brand-700 shadow-sm shadow-brand-900/10"
+                                : "border-ink-200 bg-white text-ink-700 hover:border-brand-300"
+                            }`}
+                          >
+                            <div className="pr-4">
+                              <div className="font-extrabold text-sm sm:text-base text-ink-900">
+                                {option.title}
                               </div>
-                              <div className={`w-5 h-5 rounded-full border flex-shrink-0 flex items-center justify-center transition-all ${
-                                isSelected
-                                  ? "border-brand-500 bg-brand-500 text-white"
-                                  : "border-ink-300 bg-white"
-                              }`}>
-                                {isSelected && (
-                                  <div className="w-2.5 h-2.5 rounded-full bg-white" />
-                                )}
+                              <div className="text-xs text-ink-600 font-medium mt-0.5 leading-tight">
+                                {option.desc}
                               </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white to-transparent" />
+                            </div>
+                            <div className={`w-5 h-5 rounded-full border flex-shrink-0 flex items-center justify-center transition-all ${
+                              isSelected
+                                ? "border-brand-500 bg-brand-500 text-white"
+                                : "border-ink-300 bg-white"
+                            }`}>
+                              {isSelected && (
+                                <div className="w-2.5 h-2.5 rounded-full bg-white" />
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
 
                   {currentStep.key === "hobbies" && (
-                    <div className="relative">
-                      <div className="grid grid-cols-2 gap-3 max-h-[min(280px,40dvh)] overflow-y-auto overscroll-contain pr-1">
-                        {HOBBIES_OPTIONS.map((option) => {
-                          const isSelected = selectedHobbies.includes(option.value);
-                          return (
-                            <button
-                              key={option.value}
-                              type="button"
-                              aria-pressed={isSelected}
-                              onClick={() => handleHobbyToggle(option.value)}
-                              className={`rounded-2xl border px-4 py-3.5 text-left font-bold text-sm transition-all duration-200 flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 active:scale-95 ${
-                                isSelected
-                                  ? "border-brand-500 bg-brand-50 text-brand-700 shadow-sm shadow-brand-900/10"
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {HOBBIES_OPTIONS.map((option) => {
+                        const isSelected = selectedHobbies.includes(option.value);
+                        const isDisabled = isMaxHobbiesReached && !isSelected;
+
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            disabled={isDisabled}
+                            aria-disabled={isDisabled}
+                            aria-pressed={isSelected}
+                            onClick={() => handleHobbyToggle(option.value)}
+                            className={`rounded-2xl border px-4 py-3.5 text-left font-bold text-sm transition-all duration-200 flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 active:scale-95 ${
+                              isSelected
+                                ? "border-brand-500 bg-brand-50 text-brand-700 shadow-sm shadow-brand-900/10"
+                                : isDisabled
+                                  ? "border-ink-100 bg-ink-50 text-ink-400 opacity-40 cursor-not-allowed"
                                   : "border-ink-200 bg-white text-ink-700 hover:border-brand-300"
-                              }`}
-                            >
-                              <span className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
-                                isSelected
-                                  ? "border-brand-500 bg-brand-500 text-white"
+                            }`}
+                          >
+                            <span className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
+                              isSelected
+                                ? "border-brand-500 bg-brand-500 text-white"
+                                : isDisabled
+                                  ? "border-ink-200 bg-ink-50"
                                   : "border-ink-300 bg-white"
-                              }`}>
-                                {isSelected && <Check className="w-3 h-3" strokeWidth={3} aria-hidden />}
-                              </span>
-                              {option.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-white to-transparent" />
+                            }`}>
+                              {isSelected && <Check className="w-3 h-3" strokeWidth={3} aria-hidden />}
+                            </span>
+                            {option.label}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
 

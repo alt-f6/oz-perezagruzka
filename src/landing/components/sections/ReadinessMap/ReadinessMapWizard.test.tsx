@@ -55,6 +55,42 @@ describe("ReadinessMapWizard", () => {
     reachGoalMock.mockReset();
   });
 
+  it("disables hobby options once 4 are selected and keeps them clickable to deselect", async () => {
+    const user = userEvent.setup();
+    render(<ReadinessMapWizard />);
+
+    await user.click(screen.getByRole("button", { name: "Далее" }));
+    await screen.findByText("В каком он классе?");
+    await user.click(screen.getByRole("button", { name: "Далее" }));
+    await screen.findByText("К каким предметам нужно подготовиться?");
+    await user.click(screen.getByRole("button", { name: /Математика/ }));
+    await user.click(screen.getByRole("button", { name: "Далее" }));
+    await screen.findByText("Как обычно учится?");
+    await user.click(screen.getByRole("button", { name: /Сам и на отлично/ }));
+    await user.click(screen.getByRole("button", { name: "Далее" }));
+    await screen.findByText("Чем увлекается в свободное время?");
+
+    await user.click(screen.getByRole("button", { name: /Игры \/ IT/ }));
+    await user.click(screen.getByRole("button", { name: /Спорт/ }));
+    await user.click(screen.getByRole("button", { name: /Творчество/ }));
+    await user.click(screen.getByRole("button", { name: /Соцсети/ }));
+
+    const readingButton = screen.getByRole("button", { name: /Чтение/ });
+    const friendsButton = screen.getByRole("button", { name: /Друзья/ });
+    expect(readingButton).toBeDisabled();
+    expect(readingButton).toHaveAttribute("aria-disabled", "true");
+    expect(friendsButton).toBeDisabled();
+
+    // Clicking a disabled option must not add a 5th hobby.
+    await user.click(readingButton);
+    const gamesButton = screen.getByRole("button", { name: /Игры \/ IT/ });
+    expect(gamesButton).toHaveAttribute("aria-pressed", "true");
+
+    // Deselecting one re-enables the rest.
+    await user.click(gamesButton);
+    expect(readingButton).not.toBeDisabled();
+  });
+
   it("re-scrolls #readiness-map into view on mount when the URL was opened with that hash", () => {
     setHash("readiness-map");
     const scrollIntoViewMock = vi.fn();

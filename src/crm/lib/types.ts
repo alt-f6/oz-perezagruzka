@@ -57,12 +57,21 @@ export interface GroupWithDetails extends Group {
   }[];
 }
 
+export type ClassSessionStatus = "scheduled" | "cancelled";
+
+export const CLASS_SESSION_STATUS = {
+  SCHEDULED: "scheduled",
+  CANCELLED: "cancelled",
+} as const satisfies Record<string, ClassSessionStatus>;
+
 export interface ClassSession {
   id: string;
   groupId: string;
   teacherId: string;
   scheduledAt: string;
   status: string;
+  durationMinutes: number;
+  recurrenceGroupId?: string | null;
 }
 
 export interface ClassSessionWithGroup extends ClassSession {

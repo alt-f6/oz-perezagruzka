@@ -52,11 +52,21 @@ export const studentSchema = z.object({
 
 export const recurrencePatternSchema = z.enum(["NONE", "WEEKDAYS", "WEEKLY", "CUSTOM"]);
 
+export const lessonDurationOptions = [30, 45, 60, 90, 120] as const;
+export const lessonDurationSchema = z.union([
+  z.literal(30),
+  z.literal(45),
+  z.literal(60),
+  z.literal(90),
+  z.literal(120),
+]);
+
 export const lessonSchema = z
   .object({
     groupId: z.uuid({ message: "Выберите группу" }),
     date: z.string().min(1, { message: "Укажите дату" }),
     time: z.string().min(1, { message: "Укажите время" }),
+    durationMinutes: lessonDurationSchema.default(60),
     recurrence: recurrencePatternSchema,
     // JS Date#getDay() convention: 0 = Sunday .. 6 = Saturday.
     recurrenceDays: z.array(z.number().int().min(0).max(6)).optional(),

@@ -60,9 +60,10 @@ export const readinessInputSchema = z.object({
       { message: "Недопустимый предмет" },
     ),
   studyStyle: z.enum(STUDY_STYLE_VALUES, "Выберите стиль учёбы"),
-  // Serialized by the wizard as a `"|"`-joined list of HOBBY_VALUES. `"|"` is
-  // used (not `", "`) because several hobby values themselves contain an
-  // internal `", "`, which would make a comma-based split ambiguous.
+  // Serialized by the wizard as a `"|"`-joined list of up to 4 HOBBY_VALUES.
+  // `"|"` is used (not `", "`) because several hobby values themselves
+  // contain an internal `", "`, which would make a comma-based split
+  // ambiguous. Kept in sync with `ReadinessMapWizard`'s hobby-toggle limit.
   hobbies: z
     .string()
     .trim()
@@ -71,8 +72,12 @@ export const readinessInputSchema = z.object({
     .refine(
       (val) => {
         const parts = val.split("|").filter(Boolean);
-        return parts.length >= 1 && parts.every((part) => hobbyEnum.safeParse(part).success);
+        return parts.length >= 1 && parts.length <= 4;
       },
+      { message: "Можно выбрать не более 4 увлечений" },
+    )
+    .refine(
+      (val) => val.split("|").filter(Boolean).every((part) => hobbyEnum.safeParse(part).success),
       { message: "Недопустимое увлечение" },
     ),
   deadline: z.enum(["<3m", "3-6m", "6-12m", ">1y"]),

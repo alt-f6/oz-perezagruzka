@@ -1,12 +1,17 @@
 import dynamic from "next/dynamic";
 import Header from "@/landing/components/sections/Header";
+import ExamToggle from "@/landing/components/ui/ExamToggle";
 import Hero from "@/landing/components/sections/Hero";
 import PainPoints from "@/landing/components/sections/PainPoints";
+import WhatYouGet from "@/landing/components/sections/WhatYouGet";
+import AttestatPredictable from "@/landing/components/sections/AttestatPredictable";
 import StudyingAlone from "@/landing/components/sections/StudyingAlone";
 import Solution from "@/landing/components/sections/Solution";
+import PreparationComposition from "@/landing/components/sections/PreparationComposition";
 import HowItWorks from "@/landing/components/sections/HowItWorks";
 import StudentCarousel from "@/landing/components/sections/StudentCarousel";
 import YandexReviews from "@/landing/components/sections/YandexReviews";
+import PreQuestions from "@/landing/components/sections/PreQuestions";
 import Pricing from "@/landing/components/sections/Pricing";
 import Guarantee from "@/landing/components/sections/Guarantee";
 import FAQ from "@/landing/components/sections/FAQ";
@@ -55,6 +60,7 @@ export default function Home() {
         }}
       />
       <Header />
+      <ExamToggle />
       <main
         id="top"
         className="relative min-h-screen overflow-hidden bg-[#F8F9FB] text-foreground selection:bg-brand-200"
@@ -65,12 +71,16 @@ export default function Home() {
 
         <Hero />
         <PainPoints />
+        <WhatYouGet />
+        <AttestatPredictable />
         <StudyingAlone />
         <Solution />
+        <PreparationComposition />
         <HowItWorks />
         <ReadinessMapWizard />
         <StudentCarousel />
         <YandexReviews />
+        <PreQuestions />
         <Pricing />
         <Guarantee />
         <FAQ />

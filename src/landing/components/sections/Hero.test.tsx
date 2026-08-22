@@ -1,19 +1,58 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import Hero from "./Hero";
+import { ExamProvider } from "@/landing/lib/exam-context";
 
 describe("Hero", () => {
-  it("references ОГЭ, not ЕГЭ, in the pass-count stat, matching the site's OGE positioning", () => {
-    render(<Hero />);
+  it("renders the ОГЭ headline by default, not ЕГЭ", () => {
+    render(
+      <ExamProvider>
+        <Hero />
+      </ExamProvider>,
+    );
 
-    expect(screen.getByText("2000 учеников сдали ОГЭ")).toBeInTheDocument();
-    expect(screen.queryByText(/сдали ЕГЭ/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Подготовим к ОГЭ так, что ребёнок сядет заниматься сам"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Подготовим к ЕГЭ/)).not.toBeInTheDocument();
   });
 
   it("frames the recommendation stat as a percentage instead of '4 из 5'", () => {
-    render(<Hero />);
+    render(
+      <ExamProvider>
+        <Hero />
+      </ExamProvider>,
+    );
 
     expect(screen.getByText("80% родителей — по рекомендации")).toBeInTheDocument();
     expect(screen.queryByText(/4 из 5/)).not.toBeInTheDocument();
+  });
+
+  it("does not show the unconfirmed '2000 учеников' stat", () => {
+    render(
+      <ExamProvider>
+        <Hero />
+      </ExamProvider>,
+    );
+
+    expect(screen.queryByText(/2000 учеников/)).not.toBeInTheDocument();
+  });
+
+  it("shows the target-score guarantee badge and the expert-review CTA", () => {
+    render(
+      <ExamProvider>
+        <Hero />
+      </ExamProvider>,
+    );
+
+    expect(
+      screen.getByText("Целевой балл — в договоре. Не выводим на него — возвращаем деньги"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Записаться на бесплатный разбор с экспертом" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Собрать Карту готовности за 2 минуты" }),
+    ).toBeInTheDocument();
   });
 });

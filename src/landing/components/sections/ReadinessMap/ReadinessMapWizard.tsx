@@ -157,7 +157,7 @@ export default function ReadinessMapWizard() {
   const [selectedStudyStyle, setSelectedStudyStyle] = useState<ReadinessInput["studyStyle"] | "">("");
   const [selectedHobbies, setSelectedHobbies] = useState<string[]>([]);
   const [selectedDeadline, setSelectedDeadline] = useState<ReadinessInput["deadline"] | "">("");
-  const formRenderedAtRef = useRef(Date.now());
+  const [formRenderedAt, setFormRenderedAt] = useState<number | null>(null);
   const honeypotRef = useRef<HTMLInputElement>(null);
 
   // The loading-fallback div and the real <section> both use id="readiness-map",
@@ -170,6 +170,10 @@ export default function ReadinessMapWizard() {
     if (typeof window === "undefined") return;
     if (window.location.hash !== "#readiness-map") return;
     document.getElementById("readiness-map")?.scrollIntoView();
+  }, []);
+
+  useEffect(() => {
+    setFormRenderedAt(Date.now());
   }, []);
 
   const form = useForm<ReadinessInput>({
@@ -262,7 +266,7 @@ export default function ReadinessMapWizard() {
         utm,
         consent,
         honeypot: honeypotRef.current?.value,
-        formRenderedAt: formRenderedAtRef.current,
+        formRenderedAt: formRenderedAt ?? undefined,
       });
       if (actionResult.status === "error") {
         setSubmitError(actionResult.message);
@@ -276,7 +280,7 @@ export default function ReadinessMapWizard() {
       setSubmitError("Не получилось отправить форму. Проверьте соединение и попробуйте снова.");
       setPhase("form");
     }
-  }, [consent, currentStep.key, form, isLastStep, sessionId, stepIndex, utm]);
+  }, [consent, currentStep.key, form, formRenderedAt, isLastStep, sessionId, stepIndex, utm]);
 
   const goBack = useCallback(() => {
     setDirection(-1);
@@ -318,7 +322,7 @@ export default function ReadinessMapWizard() {
         <div className="mb-10 text-center">
           <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-brand-700">
             <Target className="h-3.5 w-3.5" aria-hidden />
-            Персональная диагностика знаний
+            Персональный разбор знаний
           </span>
           <h2 className="font-bold tracking-tight text-ink-900 text-balance">
             Соберите Карту готовности к экзаменам 2026
@@ -620,7 +624,11 @@ export default function ReadinessMapWizard() {
             </div>
           )}
 
-          <div className="mt-8 flex items-center justify-between border-t border-ink-100 pt-6">
+          {/* pb-24 clears the fixed, z-50 ConsentBanner on mobile: it doesn't
+              add compensating body padding (same reasoning documented in
+              FloatingWhatsApp.tsx), so on short viewports it can render
+              directly over this row without the extra clearance. */}
+          <div className="mt-8 flex items-center justify-between border-t border-ink-100 pt-6 pb-24 sm:pb-0">
             <button
               type="button"
               onClick={goBack}

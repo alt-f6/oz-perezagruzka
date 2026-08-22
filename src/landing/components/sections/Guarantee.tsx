@@ -7,7 +7,7 @@ import { fadeInUp, staggerContainer } from "@/landing/components/ui/motion";
 
 const POINTS = [
   {
-    title: "Берём только после диагностики",
+    title: "Берём только после разбора",
     desc: "Сначала оцениваем реальный уровень — и только потом решаем, готовы ли мы взяться.",
   },
 ];

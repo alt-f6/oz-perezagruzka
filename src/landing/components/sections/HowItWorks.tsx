@@ -5,33 +5,14 @@ import Section from "@/landing/components/ui/Section";
 import Atmosphere from "@/landing/components/ui/Atmosphere";
 import Card from "@/landing/components/ui/Card";
 import { fadeInUp, staggerContainer } from "@/landing/components/ui/motion";
-
-const STEPS = [
-  {
-    title: "Диагностика",
-    desc: "Бесплатная встреча с педагогом: смотрим реальный уровень, а не гадаем по оценкам в дневнике.",
-  },
-  {
-    title: "Карта готовности",
-    desc: "Отдаём на руки честную диагностику: что уже хорошо, а над чем предстоит поработать до ОГЭ.",
-  },
-  {
-    title: "Бронь места",
-    desc: "Берём только тех, кому реально сможем помочь — место закрепляется за группой (до 10 человек в группе).",
-  },
-  {
-    title: "Занятия + контроль",
-    desc: "Живой учитель ведёт по программе, ИИ-репетитор на связи 24/7, отчёт вам — каждые 2 недели.",
-  },
-  {
-    title: "Готов к ОГЭ + навык остался",
-    desc: "Ребёнок сдаёт экзамен и выходит с привычкой заниматься самостоятельно и работать с ИИ.",
-  },
-];
+import { useExam } from "@/landing/lib/exam-context";
+import { HOW_IT_WORKS_STEPS, HOW_IT_WORKS_FOOTER } from "@/landing/lib/exam-content";
 
 export default function HowItWorks() {
   const prefersReducedMotion = useReducedMotion();
+  const { exam } = useExam();
   const itemVariants = fadeInUp(prefersReducedMotion);
+  const steps = HOW_IT_WORKS_STEPS[exam];
 
   return (
     <Section id="how-it-works" tone="brand-wash" className="scroll-mt-20">
@@ -39,27 +20,23 @@ export default function HowItWorks() {
       <div className="relative mx-auto max-w-5xl px-6">
         <div className="mb-16 text-center">
           <h2 className="font-bold tracking-tight text-ink-900">
-            Как это работает
+            Как проходит разбор
           </h2>
-          <p className="mx-auto mt-3 max-w-xl text-ink-600">
-            Пять понятных шагов от первого разговора до сданного ОГЭ.
-          </p>
         </div>
 
         <motion.ol
-          variants={staggerContainer(0.12)}
+          variants={staggerContainer(0.1)}
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, margin: "-80px" }}
-          className="relative grid gap-8 sm:grid-cols-3 lg:grid-cols-5"
+          className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4"
         >
-          {STEPS.map((step, i) => (
+          {steps.map((step, i) => (
             <motion.li
               key={step.title}
               variants={itemVariants}
               transition={{ duration: 0.4, ease: "easeOut" }}
               whileHover={prefersReducedMotion ? undefined : { scale: 1.02, y: -5 }}
-              className="relative after:absolute after:top-11 after:left-[calc(100%+1rem)] after:hidden after:h-px after:w-8 after:bg-ink-200 after:content-[''] lg:after:block last:after:hidden"
             >
               <Card
                 tint="glass"
@@ -74,6 +51,8 @@ export default function HowItWorks() {
             </motion.li>
           ))}
         </motion.ol>
+
+        <p className="mt-10 text-center text-sm font-semibold text-ink-500">{HOW_IT_WORKS_FOOTER}</p>
       </div>
     </Section>
   );

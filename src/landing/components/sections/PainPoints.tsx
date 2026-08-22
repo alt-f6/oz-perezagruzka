@@ -1,43 +1,33 @@
 "use client";
 
-import { Quote } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import Section from "@/landing/components/ui/Section";
 import Card from "@/landing/components/ui/Card";
 import { fadeInUp, staggerContainer } from "@/landing/components/ui/motion";
+import { useExam } from "@/landing/lib/exam-context";
+import { PAIN_POINTS_TITLE } from "@/landing/lib/exam-content";
 
-const PAINS = [
-  {
-    text: "«Деньги потрачу — а он всё равно не сдаст ОГЭ»",
-    author: "Елена",
-    role: "мама ученика 8 класса",
-    avatarClass: "bg-rose-100 text-rose-700",
-  },
-  {
-    text: "«Не могу заставить его сесть за учёбу, только скандалы»",
-    author: "Ирина",
-    role: "мама ученика 9 класса",
-    avatarClass: "bg-brand-100 text-brand-700",
-  },
-  {
-    text: "«Сдаст ОГЭ — а дальше что? Не выброшенные ли это деньги?»",
-    author: "Гузель",
-    role: "мама ученика 9 класса",
-    avatarClass: "bg-accent-100 text-accent-800",
-  },
+const PAIRS = [
+  { before: "Репетитора не контролирует никто.", after: "Педагогов контролируем мы сами." },
+  { before: "О проблеме узнаёте через месяцы.", after: "Отчёт каждые 2 недели." },
+  { before: "Ребёнок — один из сотни в потоке.", after: "Мини-группа до 8 человек." },
 ];
 
 export default function PainPoints() {
   const prefersReducedMotion = useReducedMotion();
+  const { exam } = useExam();
 
   const cardVariants = fadeInUp(prefersReducedMotion);
 
   return (
     <Section tone="brand-wash" className="border-y border-ink-100">
-
       <div className="relative mx-auto max-w-6xl px-6">
+        <span className="mb-4 block text-center text-sm font-bold uppercase tracking-wider text-brand-600">
+          Знакомо?
+        </span>
         <h2 className="mb-14 text-center font-bold tracking-tight text-ink-900 text-balance">
-          «Деньги потрачу — а он всё равно не сдаст»
+          {PAIN_POINTS_TITLE[exam]}
         </h2>
 
         <motion.div
@@ -47,9 +37,9 @@ export default function PainPoints() {
           viewport={{ once: true, margin: "-80px" }}
           className="grid gap-6 md:grid-cols-3"
         >
-          {PAINS.map((item) => (
+          {PAIRS.map((pair) => (
             <motion.div
-              key={item.text}
+              key={pair.before}
               variants={cardVariants}
               transition={{ type: "spring", stiffness: 90, damping: 18 }}
               whileHover={prefersReducedMotion ? undefined : { y: -6 }}
@@ -57,29 +47,16 @@ export default function PainPoints() {
               <Card
                 tint="premium"
                 rounded="3xl"
-                className="group relative transition-all duration-300 hover:border-brand-300 hover:shadow-2xl hover:shadow-brand-900/10"
+                className="group relative flex h-full flex-col gap-4 transition-all duration-300 hover:border-brand-300 hover:shadow-2xl hover:shadow-brand-900/10"
               >
-                <Quote
-                  aria-hidden
-                  className="mb-4 h-7 w-7 text-brand-300"
-                  strokeWidth={2.5}
-                />
-                <p className="mb-6 max-w-prose text-lg italic leading-relaxed text-ink-700">
-                  {item.text}
+                <p className="text-base italic leading-relaxed text-ink-400 line-through decoration-ink-300">
+                  {pair.before}
                 </p>
-                <div className="flex items-center gap-3 border-t border-ink-100 pt-4">
-                  <div
-                    aria-hidden
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${item.avatarClass}`}
-                  >
-                    {item.author.charAt(0)}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-x-2">
-                    <p className="text-sm font-semibold text-ink-800">{item.author}</p>
-                    <span aria-hidden className="text-ink-300">·</span>
-                    <p className="text-xs text-ink-400">{item.role}</p>
-                  </div>
+                <div className="flex items-center gap-2 text-brand-500">
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                  <span className="text-xs font-bold uppercase tracking-wider">Стало</span>
                 </div>
+                <p className="text-lg font-bold leading-relaxed text-ink-900">{pair.after}</p>
               </Card>
             </motion.div>
           ))}

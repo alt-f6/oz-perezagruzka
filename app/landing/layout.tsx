@@ -4,8 +4,10 @@ import { MotionConfig } from "framer-motion";
 import Script from "next/script";
 import ConsentBanner from "@/landing/components/ui/ConsentBannerClient";
 import FloatingWhatsApp from "@/landing/components/ui/FloatingWhatsApp";
+import FloatingTelegram from "@/landing/components/ui/FloatingTelegram";
+import { ExamProvider } from "@/landing/lib/exam-context";
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://perezagruzka.ru";
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://perezagruzka-edu.ru";
 const ymCounterId = process.env.NEXT_PUBLIC_YM_COUNTER_ID;
 
 const title = "Перезагрузка — Подготовка к ОГЭ с живым учителем и ИИ-репетитором";
@@ -72,9 +74,10 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
       {/* reducedMotion="user" is a global fallback honoring prefers-reduced-motion for any
           motion.* element that doesn't already check useReducedMotion() itself. */}
       <MotionConfig reducedMotion="user">
-        {children}
+        <ExamProvider>{children}</ExamProvider>
         <ConsentBanner />
         <FloatingWhatsApp />
+        <FloatingTelegram />
       </MotionConfig>
     </div>
   );

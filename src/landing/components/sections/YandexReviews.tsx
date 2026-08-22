@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Star, ShieldCheck } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import Section from "@/landing/components/ui/Section";
 import { fadeInUp, staggerContainer } from "@/landing/components/ui/motion";
+import { useExam } from "@/landing/lib/exam-context";
 
 const YANDEX_REVIEWS_URL =
   "https://yandex.ru/maps/org/reboot/187580247811/reviews/?ll=69.031855%2C61.005101&page=2&z=16";
@@ -15,6 +16,10 @@ interface YandexReview {
   date: string;
   rating: number;
   text: string;
+  // Only set on reviews whose grades/badge explicitly name one exam track —
+  // shown only while that track is active. Reviews without a tag (generic
+  // school-subject feedback) are shown regardless of the toggle.
+  examTag?: "oge" | "ege";
 }
 
 const REVIEWS: YandexReview[] = [
@@ -24,6 +29,7 @@ const REVIEWS: YandexReview[] = [
     date: "9 июня 2023",
     rating: 5,
     text: "Педагог по русскому языку — мастер своего дела! Заниматься начал с марта (когда до ЕГЭ оставалось 3 месяца), в итоге с 40 баллов вытянул на 75+. На каждом уроке комфортная и позитивная атмосфера.",
+    examTag: "ege",
   },
   {
     name: "Ксения 🌸",
@@ -92,6 +98,11 @@ function Stars({ rating }: { rating: number }) {
 
 export default function YandexReviews() {
   const prefersReducedMotion = useReducedMotion();
+  const { exam } = useExam();
+  const visibleReviews = useMemo(
+    () => REVIEWS.filter((r) => !r.examTag || r.examTag === exam),
+    [exam],
+  );
 
   const cardVariants = fadeInUp(prefersReducedMotion);
 
@@ -110,14 +121,14 @@ export default function YandexReviews() {
     const step = card.getBoundingClientRect().width + gap;
     const maxScrollLeft = Math.max(0, track.scrollWidth - track.clientWidth);
     const targets = Array.from(
-      new Set(REVIEWS.map((_, i) => Math.round(Math.min(i * step, maxScrollLeft)))),
+      new Set(visibleReviews.map((_, i) => Math.round(Math.min(i * step, maxScrollLeft)))),
     );
     setScrollTargets((prev) =>
       prev.length === targets.length && prev.every((value, i) => value === targets[i])
         ? prev
         : targets,
     );
-  }, []);
+  }, [visibleReviews]);
 
   const onScroll = useCallback(() => {
     const track = trackRef.current;
@@ -210,7 +221,7 @@ export default function YandexReviews() {
           viewport={{ once: true, margin: "-80px" }}
           className="flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 scrollbar-none md:grid md:grid-cols-2 md:gap-5 md:overflow-visible md:px-0 md:pb-0 lg:grid-cols-4"
         >
-          {REVIEWS.map((review) => (
+          {visibleReviews.map((review) => (
             <motion.article
               key={review.name + review.date}
               variants={cardVariants}

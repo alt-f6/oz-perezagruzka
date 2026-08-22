@@ -203,7 +203,7 @@ export default function AITutor() {
               href="#readiness-map"
               className="inline-block rounded-xl bg-accent-500 px-6 py-3 text-sm font-bold text-ink-900 shadow-md shadow-accent-500/25 transition-all hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 active:scale-95"
             >
-              Пройти диагностику с живым педагогом
+              Пройти разбор с живым педагогом
             </a>
           </div>
         ) : (

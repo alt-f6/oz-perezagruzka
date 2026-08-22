@@ -155,7 +155,7 @@ export function ResultSuccess({ leadId, map }: ResultSuccessProps) {
               <p className="text-sm text-ink-600 leading-relaxed mb-6 font-medium">
                 Запишитесь на индивидуальную бесплатную консультацию. Мы составим пошаговый трек подготовки.
               </p>
-              <ContactForm leadId={leadId} ctaLabel="Записаться на бесплатную диагностику" />
+              <ContactForm leadId={leadId} ctaLabel="Записаться на бесплатный разбор" />
             </div>
 
           </div>

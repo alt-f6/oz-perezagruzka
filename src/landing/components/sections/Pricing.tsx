@@ -4,47 +4,26 @@ import { motion, useReducedMotion } from "framer-motion";
 import Atmosphere from "@/landing/components/ui/Atmosphere";
 import Section from "@/landing/components/ui/Section";
 import { fadeInUp, staggerContainer } from "@/landing/components/ui/motion";
-
-interface PricingPlan {
-  id: string;
-  name: string;
-  price: string;
-  priceSuffix: string;
-  description: string;
-  isBestValue?: boolean;
-}
+import { useExam } from "@/landing/lib/exam-context";
+import { PRICING_PLANS, type PricingPlanContent } from "@/landing/lib/exam-content";
 
 const FEATURES = [
   "Живые занятия до 10 человек в группе",
   "Доступ к ИИ-репетитору 24/7",
   "Отчёты о прогрессе каждые 2 недели",
-  "Практика на реальных пробниках ОГЭ",
+  "Практика на реальных пробниках",
   "Мастер-класс по работе с нейросетями",
   "Чат поддержки для родителей",
 ];
 
-const PLANS: PricingPlan[] = [
-  {
-    id: "single-subject",
-    name: "Один предмет",
-    price: "от 10 000 ₽",
-    priceSuffix: "/ мес",
-    description: "Для тех, кому нужно подтянуть один предмет к ОГЭ.",
-  },
-  {
-    id: "bundle",
-    name: "Пакет из 3 предметов",
-    price: "15 000 ₽",
-    priceSuffix: "/ мес",
-    description: "Полная подготовка сразу по трём предметам — выгоднее и системнее.",
-    isBestValue: true,
-  },
-];
+const PRICING_FOOTER = "✓ Целевой балл фиксируется в договоре — не выводим на него, возвращаем стоимость";
+const PRICING_BUTTON_LABEL = "Записаться на бесплатный разбор";
 
 export default function Pricing() {
   const prefersReducedMotion = useReducedMotion();
-
+  const { exam } = useExam();
   const cardVariants = fadeInUp(prefersReducedMotion);
+  const plans = PRICING_PLANS[exam];
 
   return (
     <Section id="pricing" tone="brand-wash" paddingOverride="py-16 md:py-24">
@@ -65,9 +44,9 @@ export default function Pricing() {
           initial="hidden"
           whileInView="show"
           viewport={{ once: true, margin: "-80px" }}
-          className="grid gap-8 md:grid-cols-2 max-w-4xl mx-auto"
+          className="grid gap-8 md:grid-cols-3 max-w-5xl mx-auto"
         >
-          {PLANS.map((plan) => (
+          {plans.map((plan) => (
             <motion.div
               key={plan.id}
               variants={cardVariants}
@@ -83,7 +62,7 @@ export default function Pricing() {
   );
 }
 
-function PricingCard({ plan }: { plan: PricingPlan }) {
+function PricingCard({ plan }: { plan: PricingPlanContent }) {
   const content = (
     <>
       {plan.isBestValue && (
@@ -99,7 +78,7 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
 
       <div className="my-6 flex items-baseline gap-1.5 border-b border-ink-100 pb-6">
         <span className="text-4xl font-extrabold tracking-tight text-ink-900">{plan.price}</span>
-        <span className="text-sm font-semibold text-ink-600">{plan.priceSuffix}</span>
+        <span className="text-sm font-semibold text-ink-600">/ мес</span>
       </div>
 
       <ul className="flex-1 space-y-4">
@@ -125,11 +104,11 @@ function PricingCard({ plan }: { plan: PricingPlan }) {
             : "bg-brand-600 text-white shadow-brand-900/20 hover:bg-brand-700 hover:shadow-lg"
         }`}
       >
-        Пройти экспресс-диагностику с ИИ
+        {PRICING_BUTTON_LABEL}
       </a>
 
-      <p className="mt-4 text-center text-xs font-semibold text-ink-500 uppercase tracking-wider">
-        до 10 человек в группе
+      <p className="mt-4 text-center text-xs font-semibold text-ink-500">
+        {PRICING_FOOTER}
       </p>
     </>
   );

@@ -6,5 +6,5 @@ export const NAV_LINKS = [
   { label: "Отзывы", href: "#reviews" },
   { label: "Стоимость", href: "#pricing" },
   { label: "Вопросы", href: "#faq" },
-  { label: "Диагностика", href: "#readiness-map" },
+  { label: "Разбор", href: "#readiness-map" },
 ];

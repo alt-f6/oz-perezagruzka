@@ -6,6 +6,8 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Atmosphere from "@/landing/components/ui/Atmosphere";
 import { floatY } from "@/landing/components/ui/motion";
 import { reachGoal } from "@/landing/lib/analytics";
+import { useExam } from "@/landing/lib/exam-context";
+import { HERO_CONTENT } from "@/landing/lib/exam-content";
 
 const HERO_FACES = [
   "photo_2023-06-19_11-11-04.jpg",
@@ -23,14 +25,14 @@ const HERO_BENEFITS = [
 
 export default function Hero() {
   const prefersReducedMotion = useReducedMotion();
-  const [aiReplyVisible, setAiReplyVisible] = useState(false);
+  const [aiReplyTimerFired, setAiReplyTimerFired] = useState(false);
+  const aiReplyVisible = Boolean(prefersReducedMotion) || aiReplyTimerFired;
+  const { exam } = useExam();
+  const { title, subtitle } = HERO_CONTENT[exam];
 
   useEffect(() => {
-    if (prefersReducedMotion) {
-      setAiReplyVisible(true);
-      return;
-    }
-    const timer = setTimeout(() => setAiReplyVisible(true), 1200);
+    if (prefersReducedMotion) return;
+    const timer = setTimeout(() => setAiReplyTimerFired(true), 1200);
     return () => clearTimeout(timer);
   }, [prefersReducedMotion]);
 
@@ -46,12 +48,12 @@ export default function Hero() {
 
           <div className="flex-1 space-y-8 text-center md:text-left">
             <h1 className="font-bold text-white text-balance">
-              Подготовим к ОГЭ так, <br />
-              что ребенок{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent-400 to-accent-200 underline decoration-accent-300 decoration-4 underline-offset-8">
-              сядет заниматься сам
-            </span>
+              {title}
             </h1>
+
+            <p className="max-w-lg text-lg leading-relaxed text-white/70 font-normal">
+              {subtitle}
+            </p>
 
             <ul className="mx-auto max-w-lg space-y-2.5 text-left md:mx-0">
               {HERO_BENEFITS.map((benefit) => (
@@ -61,10 +63,6 @@ export default function Hero() {
                 </li>
               ))}
             </ul>
-
-            <p className="text-sm font-medium text-white/70">
-              Без оплаты и обязательств. На выходе — Карта готовности на руки.
-            </p>
 
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center md:justify-start pt-2">
               <motion.a
@@ -83,19 +81,23 @@ export default function Hero() {
                     transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                   />
                 )}
-                Собрать Карту готовности за 2 мин
+                Записаться на бесплатный разбор с экспертом
               </motion.a>
 
               <motion.a
-                  href="#how-it-works"
+                  href="#readiness-map"
                   whileHover={{ y: -2 }}
                   whileTap={{ scale: 0.98 }}
                   transition={{ type: "spring", stiffness: 90, damping: 18 }}
                   className="rounded-xl border border-ink-200 bg-white px-8 py-4 text-center font-semibold text-ink-700 transition-colors duration-300 hover:bg-ink-50 hover:text-ink-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
               >
-                Как это работает
+                Собрать Карту готовности за 2 минуты
               </motion.a>
             </div>
+
+            <p className="max-w-lg text-sm font-semibold text-white/80">
+              Целевой балл — в договоре. Не выводим на него — возвращаем деньги
+            </p>
 
             <div className="flex items-center justify-center gap-3 pt-4 md:justify-start">
               <div className="flex -space-x-3">
@@ -124,13 +126,6 @@ export default function Hero() {
               >
                 <dt className="sr-only">Опыт практики</dt>
                 <dd>9 лет практики</dd>
-              </motion.div>
-              <motion.div
-                {...floatY(prefersReducedMotion, 4.5)}
-                className="flex items-center gap-1.5 rounded-full border border-white/40 bg-white/70 px-3.5 py-1.5 shadow-card backdrop-blur-xl"
-              >
-                <dt className="sr-only">Сдавшие ОГЭ ученики</dt>
-                <dd>2000 учеников сдали ОГЭ</dd>
               </motion.div>
               <motion.div
                 {...floatY(prefersReducedMotion, 5)}

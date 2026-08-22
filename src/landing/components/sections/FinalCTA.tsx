@@ -30,7 +30,7 @@ export default function FinalCTA() {
             </span>
 
             <h2 className="mt-5 font-bold tracking-tight text-white text-balance">
-              Начните с бесплатной диагностики —<br className="hidden sm:block" /> а решение примете сами
+              Начните с бесплатного разбора —<br className="hidden sm:block" /> а решение примете сами
             </h2>
 
             <motion.a
@@ -40,7 +40,7 @@ export default function FinalCTA() {
               transition={{ type: "spring", stiffness: 90, damping: 18 }}
               className="group relative mt-9 inline-block overflow-hidden rounded-xl bg-accent-500 px-10 py-4 font-bold text-ink-900 shadow-[var(--shadow-accent-glow-0)] transition-all duration-300 hover:shadow-[var(--shadow-accent-glow-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-900"
             >
-              Открыть Карту готовности
+              Записаться на бесплатный разбор с экспертом
             </motion.a>
           </div>
         </motion.div>

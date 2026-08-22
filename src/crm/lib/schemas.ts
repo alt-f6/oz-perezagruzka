@@ -66,7 +66,7 @@ export const lessonSchema = z
     groupId: z.uuid({ message: "Выберите группу" }),
     date: z.string().min(1, { message: "Укажите дату" }),
     time: z.string().min(1, { message: "Укажите время" }),
-    durationMinutes: lessonDurationSchema.default(60),
+    durationMinutes: lessonDurationSchema,
     recurrence: recurrencePatternSchema,
     // JS Date#getDay() convention: 0 = Sunday .. 6 = Saturday.
     recurrenceDays: z.array(z.number().int().min(0).max(6)).optional(),

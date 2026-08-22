@@ -11,9 +11,9 @@ const baseValues = {
 };
 
 describe("lessonSchema durationMinutes", () => {
-  it("defaults to 60 when omitted", () => {
-    const parsed = lessonSchema.parse(baseValues);
-    expect(parsed.durationMinutes).toBe(60);
+  it("is required — rejects a payload that omits it", () => {
+    const result = lessonSchema.safeParse(baseValues);
+    expect(result.success).toBe(false);
   });
 
   it("accepts each allowed chip value", () => {

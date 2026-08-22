@@ -2,7 +2,10 @@
 
 import type { FieldErrors, UseFormRegister, UseFormSetValue, UseFormWatch } from "react-hook-form";
 
+import { formatTimeRange } from "@/crm/lib/lessonTime";
 import type { LessonValues } from "@/crm/lib/schemas";
+import { DatePicker } from "./DatePicker";
+import { DurationChips } from "./DurationChips";
 import { TimeSlotPicker } from "./TimeSlotPicker";
 
 const WEEKDAY_OPTIONS: { value: number; label: string }[] = [
@@ -44,6 +47,9 @@ export function LessonFormFields({
 }) {
   const recurrence = watch("recurrence");
   const selectedDays = watch("recurrenceDays") ?? [];
+  const date = watch("date");
+  const time = watch("time");
+  const durationMinutes = watch("durationMinutes") ?? 60;
 
   const toggleDay = (day: number) => {
     const next = selectedDays.includes(day)
@@ -51,6 +57,14 @@ export function LessonFormFields({
       : [...selectedDays, day];
     setValue("recurrenceDays", next, { shouldValidate: true });
   };
+
+  const rangeLabel =
+    date && time
+      ? formatTimeRange({
+          scheduledAt: `${date}T${time}:00`,
+          durationMinutes,
+        })
+      : null;
 
   return (
     <>
@@ -67,24 +81,42 @@ export function LessonFormFields({
         {errors.groupId && <p className="field-error">{errors.groupId.message}</p>}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="label">Дата</label>
-          <input
-            type="date"
-            disabled={isSubmitting}
-            min={todayIso()}
-            {...register("date")}
-            className="input"
-          />
-          {errors.date && <p className="field-error">{errors.date.message}</p>}
-        </div>
-        <div>
-          <label className="label">Время</label>
-          <TimeSlotPicker disabled={isSubmitting} {...register("time")} />
-          {errors.time && <p className="field-error">{errors.time.message}</p>}
-        </div>
+      <div>
+        <label className="label">Дата</label>
+        <DatePicker
+          value={date ?? ""}
+          onChange={(next) => setValue("date", next, { shouldValidate: true })}
+          min={todayIso()}
+          disabled={isSubmitting}
+        />
+        {errors.date && <p className="field-error">{errors.date.message}</p>}
       </div>
+
+      <div>
+        <label className="label">Время</label>
+        <TimeSlotPicker
+          value={time ?? ""}
+          onChange={(next) => setValue("time", next, { shouldValidate: true })}
+          disabled={isSubmitting}
+        />
+        {errors.time && <p className="field-error">{errors.time.message}</p>}
+      </div>
+
+      <div>
+        <label className="label">Длительность</label>
+        <DurationChips
+          value={durationMinutes}
+          onChange={(next) => setValue("durationMinutes", next, { shouldValidate: true })}
+          disabled={isSubmitting}
+        />
+        {errors.durationMinutes && (
+          <p className="field-error">{errors.durationMinutes.message}</p>
+        )}
+      </div>
+
+      {rangeLabel && (
+        <p className="text-sm font-medium text-slate-600">{rangeLabel}</p>
+      )}
 
       <div>
         <label className="label">Повторять занятие</label>

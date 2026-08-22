@@ -70,7 +70,7 @@ export function ScheduleClient({
     formState: { errors, isSubmitting },
   } = useForm<LessonValues>({
     resolver: zodResolver(lessonSchema),
-    defaultValues: { recurrence: "NONE", recurrenceDays: [] },
+    defaultValues: { recurrence: "NONE", recurrenceDays: [], durationMinutes: 60 },
   });
 
   const onSubmit = async (values: LessonValues) => {

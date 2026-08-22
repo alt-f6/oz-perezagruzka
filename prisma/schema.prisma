@@ -254,6 +254,7 @@ model ClassSession {
   groupId           String
   teacherId         String
   scheduledAt       DateTime
+  durationMinutes   Int       @default(60)
   status            String    @default("scheduled")
   reminderSentAt    DateTime? // set by the lesson-reminders cron so a session is only reminded once
   recurrenceGroupId String? // shared by every occurrence created together from a recurring-lesson batch
@@ -271,6 +272,8 @@ model ClassSession {
   // Covers the lesson-reminders cron's [scheduledAt range] + reminderSentAt:null scan.
   @@index([scheduledAt, reminderSentAt])
   @@index([recurrenceGroupId])
+  // Covers "upcoming & not cancelled" queries used by list/calendar views and bulk-cancel target resolution.
+  @@index([status, scheduledAt])
 }
 
 model Attendance {

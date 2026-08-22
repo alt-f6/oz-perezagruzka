@@ -13,9 +13,13 @@ import { useForm } from "react-hook-form";
 import { LessonFormFields } from "@/crm/components/LessonFormFields";
 import { Modal } from "@/crm/components/Modal";
 import { useToast } from "@/crm/components/ToastProvider";
+import { assignOverlapColumns } from "@/crm/lib/calendarLayout";
 import { addDays, startOfMonth, startOfWeekMonday, toDateKey } from "@/crm/lib/calendarGrid";
+import { formatTimeRange } from "@/crm/lib/lessonTime";
 import { lessonSchema, type LessonValues } from "@/crm/lib/schemas";
 import { createLesson } from "../lessons/actions";
+
+const PIXELS_PER_HOUR = 64;
 
 export interface ScheduleLesson {
   id: string;
@@ -62,6 +66,7 @@ export function ScheduleClient({
   const [groupFilter, setGroupFilter] = useState("");
   const [teacherFilter, setTeacherFilter] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showCancelled, setShowCancelled] = useState(false);
 
   const {
     register,
@@ -97,9 +102,10 @@ export function ScheduleClient({
       lessons.filter(
         (l) =>
           (!groupFilter || l.groupId === groupFilter) &&
-          (!teacherFilter || l.teacherId === teacherFilter),
+          (!teacherFilter || l.teacherId === teacherFilter) &&
+          (showCancelled || l.status !== "cancelled"),
       ),
-    [lessons, groupFilter, teacherFilter],
+    [lessons, groupFilter, teacherFilter, showCancelled],
   );
 
   const lessonsByDay = useMemo(() => {
@@ -235,6 +241,16 @@ export function ScheduleClient({
             </option>
           ))}
         </select>
+
+        <label className="flex items-center gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={showCancelled}
+            onChange={(e) => setShowCancelled(e.target.checked)}
+            aria-label="Показать отменённые"
+          />
+          Показать отменённые
+        </label>
       </div>
 
       {view === "day" && (
@@ -249,43 +265,50 @@ export function ScheduleClient({
           </h2>
 
           {dayLessons.length > 0 ? (
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {dayLessons.map((lesson) => {
-                const isPast = new Date(lesson.scheduledAt) < new Date();
+            <div
+              className="relative rounded-xl border border-slate-200 bg-white"
+              style={{ height: 24 * PIXELS_PER_HOUR }}
+            >
+              {Array.from({ length: 24 }, (_, hour) => (
+                <div
+                  key={hour}
+                  className="absolute left-0 right-0 border-t border-slate-100 text-[10px] text-slate-300"
+                  style={{ top: hour * PIXELS_PER_HOUR }}
+                >
+                  {hour.toString().padStart(2, "0")}:00
+                </div>
+              ))}
+              {assignOverlapColumns(dayLessons).map(({ session: lesson, column, columnCount }) => {
+                const start = new Date(lesson.scheduledAt);
+                const top = ((start.getHours() * 60 + start.getMinutes()) / 60) * PIXELS_PER_HOUR;
+                const height = (lesson.durationMinutes / 60) * PIXELS_PER_HOUR;
+                const widthPct = 100 / columnCount;
+                const isCancelled = lesson.status === "cancelled";
                 return (
-                  <div
+                  <Link
                     key={lesson.id}
-                    className="card card-hover flex flex-col justify-between p-5"
+                    href={`/lessons/${lesson.id}`}
+                    data-testid={`session-block-${lesson.id}`}
+                    style={{
+                      top,
+                      height,
+                      left: `calc(${widthPct * column}% + 48px)`,
+                      width: `calc(${widthPct}% - 52px)`,
+                    }}
+                    className={`absolute overflow-hidden rounded-lg border-l-2 px-2 py-1 text-xs shadow-sm transition-colors ${
+                      isCancelled
+                        ? "border-slate-300 bg-slate-100 text-slate-400"
+                        : "border-accent/60 bg-accent/[0.08] text-slate-900 hover:bg-accent/15"
+                    }`}
                   >
-                    <div className="space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <span
-                          className={
-                            isPast ? "badge-success" : "badge-neutral"
-                          }
-                        >
-                          {isPast ? "Проведен" : "Запланирован"}
-                        </span>
-                        <span className="text-sm font-semibold tabular-nums text-slate-600">
-                          {new Date(lesson.scheduledAt).toLocaleTimeString(
-                            "ru-RU",
-                            { hour: "2-digit", minute: "2-digit" },
-                          )}
-                        </span>
-                      </div>
-                      <h3 className="text-base font-semibold tracking-tight text-slate-900">
-                        {getGroupName(lesson)}
-                      </h3>
-                    </div>
-                    <div className="divider mt-4 flex justify-end pt-3">
-                      <Link
-                        href={`/lessons/${lesson.id}`}
-                        className="flex items-center gap-1 text-xs font-semibold text-slate-600 transition-colors hover:text-slate-900"
-                      >
-                        Перейти к уроку →
-                      </Link>
-                    </div>
-                  </div>
+                    <p className="truncate font-semibold">{getGroupName(lesson)}</p>
+                    <p className="truncate text-[11px] text-slate-500">
+                      {formatTimeRange({
+                        scheduledAt: lesson.scheduledAt,
+                        durationMinutes: lesson.durationMinutes,
+                      })}
+                    </p>
+                  </Link>
                 );
               })}
             </div>
@@ -318,19 +341,26 @@ export function ScheduleClient({
                   {items.length === 0 ? (
                     <p className="text-xs text-slate-300">—</p>
                   ) : (
-                    items.map((lesson) => (
-                      <Link
-                        key={lesson.id}
-                        href={`/lessons/${lesson.id}`}
-                        className="block rounded-lg border-l-2 border-accent/60 bg-accent/[0.06] px-2.5 py-1.5 text-xs font-medium text-slate-900 transition-colors hover:bg-accent/15"
-                      >
-                        {new Date(lesson.scheduledAt).toLocaleTimeString(
-                          "ru-RU",
-                          { hour: "2-digit", minute: "2-digit" },
-                        )}{" "}
-                        · {getGroupName(lesson)}
-                      </Link>
-                    ))
+                    items.map((lesson) => {
+                      const isCancelled = lesson.status === "cancelled";
+                      return (
+                        <Link
+                          key={lesson.id}
+                          href={`/lessons/${lesson.id}`}
+                          className={`block rounded-lg border-l-2 px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                            isCancelled
+                              ? "border-slate-300 bg-slate-100 text-slate-400"
+                              : "border-accent/60 bg-accent/[0.06] text-slate-900 hover:bg-accent/15"
+                          }`}
+                        >
+                          {formatTimeRange({
+                            scheduledAt: lesson.scheduledAt,
+                            durationMinutes: lesson.durationMinutes,
+                          })}{" "}
+                          · {getGroupName(lesson)}
+                        </Link>
+                      );
+                    })
                   )}
                 </div>
               </div>
@@ -369,9 +399,16 @@ export function ScheduleClient({
                   {items.slice(0, 2).map((lesson) => (
                     <p
                       key={lesson.id}
-                      className="truncate rounded bg-accent/[0.08] px-1.5 py-0.5 text-[11px] font-medium text-slate-900"
+                      className={`truncate rounded px-1.5 py-0.5 text-[11px] font-medium ${
+                        lesson.status === "cancelled"
+                          ? "bg-slate-100 text-slate-400"
+                          : "bg-accent/[0.08] text-slate-900"
+                      }`}
                     >
-                      {getGroupName(lesson)}
+                      {formatTimeRange({
+                        scheduledAt: lesson.scheduledAt,
+                        durationMinutes: lesson.durationMinutes,
+                      })}
                     </p>
                   ))}
                   {items.length > 2 && (

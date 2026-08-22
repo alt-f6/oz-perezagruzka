@@ -6,6 +6,7 @@ import { CalendarDays, ChevronRight, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { LessonFormFields } from "@/crm/components/LessonFormFields";
 import { Modal } from "@/crm/components/Modal";
 import { useToast } from "@/crm/components/ToastProvider";
 import { lessonSchema, type LessonValues } from "@/crm/lib/schemas";
@@ -30,9 +31,14 @@ export function LessonsClient({
   const {
     register,
     handleSubmit,
+    watch,
+    setValue,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<LessonValues>({ resolver: zodResolver(lessonSchema) });
+  } = useForm<LessonValues>({
+    resolver: zodResolver(lessonSchema),
+    defaultValues: { recurrence: "NONE", recurrenceDays: [] },
+  });
 
   const onSubmit = async (values: LessonValues) => {
     try {
@@ -43,7 +49,9 @@ export function LessonsClient({
         return;
       }
 
-      showToast("Занятие создано");
+      showToast(
+        values.recurrence === "NONE" ? "Занятие создано" : "Занятия созданы",
+      );
       reset();
       setIsModalOpen(false);
     } catch {
@@ -146,42 +154,14 @@ export function LessonsClient({
         onClose={() => setIsModalOpen(false)}
       >
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <label className="label">
-              Группа
-            </label>
-            <select
-              disabled={isSubmitting}
-              {...register("groupId")}
-              className="input"
-            >
-              <option value="">Выберите группу...</option>
-              {groups.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </select>
-            {errors.groupId && (
-              <p className="field-error">
-                {errors.groupId.message}
-              </p>
-            )}
-          </div>
-          <div>
-            <label className="label">
-              Дата и время
-            </label>
-            <input
-              type="datetime-local"
-              disabled={isSubmitting}
-              {...register("date")}
-              className="input"
-            />
-            {errors.date && (
-              <p className="field-error">{errors.date.message}</p>
-            )}
-          </div>
+          <LessonFormFields
+            register={register}
+            watch={watch}
+            setValue={setValue}
+            errors={errors}
+            groups={groups}
+            isSubmitting={isSubmitting}
+          />
           <button
             type="submit"
             disabled={isSubmitting}

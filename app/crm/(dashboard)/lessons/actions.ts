@@ -8,6 +8,45 @@ import { requireSessionUser } from "@/shared/lib/auth";
 import { BillingService } from "@/crm/lib/services/billing.service";
 import type { ActionResult } from "@/crm/lib/types";
 
+const MAX_RECURRING_SESSIONS = 200;
+
+/**
+ * Expands a recurring-lesson request into every occurrence's Date, capped at
+ * MAX_RECURRING_SESSIONS as a backstop (schema already caps the end date to
+ * ~3 months out, but a daily WEEKDAYS pattern over that range is still
+ * bounded well under this).
+ */
+function expandOccurrences(values: LessonValues): Date[] {
+  const [hours, minutes] = values.time.split(":").map(Number);
+  const start = new Date(values.date);
+  start.setHours(hours, minutes, 0, 0);
+
+  if (values.recurrence === "NONE") {
+    return [start];
+  }
+
+  const endDate = new Date(values.recurrenceEndDate as string);
+  endDate.setHours(23, 59, 59, 999);
+
+  const allowedDays =
+    values.recurrence === "WEEKDAYS"
+      ? new Set([1, 2, 3, 4, 5])
+      : values.recurrence === "WEEKLY"
+        ? new Set([start.getDay()])
+        : new Set(values.recurrenceDays ?? []);
+
+  const occurrences: Date[] = [];
+  const cursor = new Date(start);
+  while (cursor <= endDate && occurrences.length < MAX_RECURRING_SESSIONS) {
+    if (allowedDays.has(cursor.getDay())) {
+      occurrences.push(new Date(cursor));
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return occurrences;
+}
+
 export async function createLesson(
   values: LessonValues,
 ): Promise<ActionResult> {
@@ -26,13 +65,22 @@ export async function createLesson(
     return { error: "Группа не найдена" };
   }
 
+  const occurrences = expandOccurrences(parsed.data);
+  if (occurrences.length === 0) {
+    return { error: "Не удалось рассчитать даты занятий" };
+  }
+
+  const recurrenceGroupId =
+    parsed.data.recurrence === "NONE" ? null : crypto.randomUUID();
+
   try {
-    await db.classSession.create({
-      data: {
+    await db.classSession.createMany({
+      data: occurrences.map((scheduledAt) => ({
         groupId: parsed.data.groupId,
         teacherId: group.teacherId,
-        scheduledAt: new Date(parsed.data.date),
-      },
+        scheduledAt,
+        recurrenceGroupId,
+      })),
     });
   } catch (err) {
     return {
@@ -41,6 +89,7 @@ export async function createLesson(
   }
 
   revalidatePath("/lessons");
+  revalidatePath("/schedule");
   return {};
 }
 

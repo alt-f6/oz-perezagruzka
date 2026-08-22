@@ -50,10 +50,26 @@ export const studentSchema = z.object({
   groupId: z.uuid().or(z.literal("")),
 });
 
-export const lessonSchema = z.object({
-  groupId: z.uuid({ message: "Выберите группу" }),
-  date: z.string().min(1, { message: "Укажите дату и время" }),
-});
+export const recurrencePatternSchema = z.enum(["NONE", "WEEKDAYS", "WEEKLY", "CUSTOM"]);
+
+export const lessonSchema = z
+  .object({
+    groupId: z.uuid({ message: "Выберите группу" }),
+    date: z.string().min(1, { message: "Укажите дату" }),
+    time: z.string().min(1, { message: "Укажите время" }),
+    recurrence: recurrencePatternSchema,
+    // JS Date#getDay() convention: 0 = Sunday .. 6 = Saturday.
+    recurrenceDays: z.array(z.number().int().min(0).max(6)).optional(),
+    recurrenceEndDate: z.string().optional().or(z.literal("")),
+  })
+  .refine(
+    (data) => data.recurrence !== "CUSTOM" || (data.recurrenceDays && data.recurrenceDays.length > 0),
+    { message: "Выберите хотя бы один день недели", path: ["recurrenceDays"] },
+  )
+  .refine((data) => data.recurrence === "NONE" || !!data.recurrenceEndDate, {
+    message: "Укажите дату окончания повтора",
+    path: ["recurrenceEndDate"],
+  });
 
 export const makeupSchema = z.object({
   attendanceId: z.uuid({ message: "Некорректная запись посещаемости" }),

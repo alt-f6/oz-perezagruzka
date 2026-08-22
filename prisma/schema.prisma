@@ -248,12 +248,13 @@ model GroupStudent {
 // Scheduled live tutoring session. Renamed from crm's original `Lesson` to avoid
 // colliding with the LMS course-content `Lesson` model unified below.
 model ClassSession {
-  id             String    @id @default(uuid())
-  groupId        String
-  teacherId      String
-  scheduledAt    DateTime
-  status         String    @default("scheduled")
-  reminderSentAt DateTime? // set by the lesson-reminders cron so a session is only reminded once
+  id                String    @id @default(uuid())
+  groupId           String
+  teacherId         String
+  scheduledAt       DateTime
+  status            String    @default("scheduled")
+  reminderSentAt    DateTime? // set by the lesson-reminders cron so a session is only reminded once
+  recurrenceGroupId String? // shared by every occurrence created together from a recurring-lesson batch
 
   group        Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
   teacher      User          @relation("ClassSessionTeacher", fields: [teacherId], references: [id])
@@ -267,6 +268,7 @@ model ClassSession {
   @@index([teacherId, scheduledAt])
   // Covers the lesson-reminders cron's [scheduledAt range] + reminderSentAt:null scan.
   @@index([scheduledAt, reminderSentAt])
+  @@index([recurrenceGroupId])
 }
 
 model Attendance {

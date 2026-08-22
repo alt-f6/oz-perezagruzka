@@ -13,6 +13,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useToast } from "@/crm/components/ToastProvider";
+import { AppSwitcher } from "@/shared/components/AppSwitcher";
 import type { Role } from "@/shared/lib/auth";
 
 const NAV_ITEMS: { href: string; label: string; icon: typeof Users; roles: Role[] }[] = [
@@ -51,10 +52,11 @@ export function Sidebar({ email, role }: { email: string; role: Role }) {
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-semibold text-white">
           OZ
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-slate-900">Otsek Znaniy</p>
           <p className="truncate text-xs text-slate-500">{email}</p>
         </div>
+        <AppSwitcher role={role} />
       </div>
 
       <div className="mx-5 border-t border-slate-100" />

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { AppSwitcher } from "@/shared/components/AppSwitcher";
+import type { Role } from "@/shared/lib/auth";
 import { cn } from "@/shared/lib/utils";
 import { LogoutButton } from "@/lms/components/LogoutButton";
 
@@ -29,10 +31,11 @@ function NavLink({ href, label }: Item) {
   );
 }
 
-export function TopNav({ title, items }: { title: string; items: Item[] }) {
+export function TopNav({ title, items, role }: { title: string; items: Item[]; role: Role }) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-card/40 px-5 py-3 backdrop-blur-sm">
       <div className="flex flex-wrap items-center gap-4">
+        <AppSwitcher role={role} className="text-muted-foreground" />
         <span className="text-sm font-black uppercase tracking-wide text-muted-foreground">{title}</span>
         <nav className="flex flex-wrap gap-1">
           {items.map((x) => (

@@ -21,7 +21,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-screen">
-      <TopNav title={ROLE_LABELS[user.role]} items={items} />
+      <TopNav title={ROLE_LABELS[user.role]} items={items} role={user.role} />
       <main>{children}</main>
     </div>
   );

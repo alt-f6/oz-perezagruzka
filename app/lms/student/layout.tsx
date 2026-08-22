@@ -11,6 +11,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
       <TopNav
         title={ROLE_LABELS[user.role]}
         items={[{ href: "/student/lessons", label: "Уроки" }]}
+        role={user.role}
       />
       <main>{children}</main>
     </div>

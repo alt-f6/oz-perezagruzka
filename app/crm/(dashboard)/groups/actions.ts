@@ -11,7 +11,7 @@ export async function getTeachers() {
 
   try {
     const data = await db.user.findMany({
-      where: { role: "TEACHER" },
+      where: { role: "TEACHER", isArchived: false },
       select: { id: true, fullName: true, role: true },
     });
     return data;

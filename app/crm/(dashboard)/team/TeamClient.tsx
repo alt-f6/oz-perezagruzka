@@ -1,15 +1,21 @@
 "use client";
 
 import React, { useState, useTransition, useSyncExternalStore } from "react";
-import { Users, Mail, UserPlus, Copy, Check } from "lucide-react";
+import { Users, Mail, UserPlus, Copy, Check, Pencil, Archive, ArchiveRestore } from "lucide-react";
+import { ConfirmDialog } from "@/crm/components/ConfirmDialog";
 import { useToast } from "@/crm/components/ToastProvider";
 import type { Role } from "@/crm/lib/types";
-import { createInvite } from "./actions";
+import { createInvite, setTeamMemberArchived } from "./actions";
+import { EditTeamMemberModal } from "./EditTeamMemberModal";
 
 interface Member {
   id: string;
   fullName: string | null;
+  email: string | null;
+  phone: string | null;
   role: Role;
+  subjects: string | null;
+  isArchived: boolean;
   createdAt: string;
 }
 
@@ -51,10 +57,34 @@ export function TeamClient({
   currentUserRole,
 }: TeamClientProps) {
   const showToast = useToast();
-  const [activeTab, setActiveTab] = useState<"members" | "invites">("members");
+  const [activeTab, setActiveTab] = useState<"members" | "archived" | "invites">("members");
   const [isPending, startTransition] = useTransition();
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [editingMember, setEditingMember] = useState<Member | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<Member | null>(null);
+  const [archiveBusy, setArchiveBusy] = useState(false);
+
+  const activeMembers = initialMembers.filter((m) => !m.isArchived);
+  const archivedMembers = initialMembers.filter((m) => m.isArchived);
+
+  const handleToggleArchive = async () => {
+    if (!archiveTarget) return;
+    setArchiveBusy(true);
+    try {
+      const result = await setTeamMemberArchived(archiveTarget.id, !archiveTarget.isArchived);
+      if (result?.error) {
+        showToast(result.error, "error");
+        return;
+      }
+      showToast(archiveTarget.isArchived ? "Сотрудник восстановлен" : "Сотрудник архивирован");
+      setArchiveTarget(null);
+    } catch {
+      showToast("Не удалось изменить статус сотрудника", "error");
+    } finally {
+      setArchiveBusy(false);
+    }
+  };
   // Client-only value read hydration-safely: "" on the server snapshot,
   // window.location.origin once mounted in the browser.
   const origin = useSyncExternalStore(
@@ -196,7 +226,18 @@ export function TeamClient({
             }`}
           >
             <Users className="w-4 h-4" />
-            Команда ({initialMembers.length})
+            Команда ({activeMembers.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("archived")}
+            className={`flex items-center gap-2 py-3 px-4 border-b-2 text-sm font-medium transition-colors ${
+              activeTab === "archived"
+                ? "border-accent text-slate-900"
+                : "border-transparent text-slate-500 hover:text-slate-900"
+            }`}
+          >
+            <Archive className="w-4 h-4" />
+            Архив ({archivedMembers.length})
           </button>
           <button
             onClick={() => setActiveTab("invites")}
@@ -214,30 +255,85 @@ export function TeamClient({
         <div className="p-4">
           {activeTab === "members" ? (
             <div className="divide-y divide-slate-100">
-              {initialMembers.length === 0 ? (
+              {activeMembers.length === 0 ? (
                 <p className="py-8 text-center text-xs text-slate-500">
                   Нет зарегистрированных участников команды.
                 </p>
               ) : (
-                initialMembers.map((member) => {
-                  return (
-                    <div
-                      key={member.id}
-                      className="flex items-center justify-between py-3 first:pt-0 last:pb-0"
-                    >
-                      <div className="space-y-0.5">
-                        <p className="text-sm font-semibold text-slate-900">
-                          {member.fullName || "Имя не указано"}
-                        </p>
-                      </div>
+                activeMembers.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+                    <div className="min-w-0 space-y-0.5">
+                      <p className="truncate text-sm font-semibold text-slate-900">
+                        {member.fullName || "Имя не указано"}
+                      </p>
+                      {member.subjects && (
+                        <p className="truncate text-xs text-slate-500">{member.subjects}</p>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
                       <span
                         className={`text-xs px-2.5 py-0.5 rounded-full border font-medium ${ROLE_CLASSES[member.role]}`}
                       >
                         {ROLE_LABELS[member.role]}
                       </span>
+                      <button
+                        type="button"
+                        onClick={() => setEditingMember(member)}
+                        className="icon-btn h-8 w-8"
+                        title="Редактировать"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setArchiveTarget(member)}
+                        className="icon-btn-danger h-8 w-8"
+                        title="Архивировать"
+                      >
+                        <Archive className="h-3.5 w-3.5" />
+                      </button>
                     </div>
-                  );
-                })
+                  </div>
+                ))
+              )}
+            </div>
+          ) : activeTab === "archived" ? (
+            <div className="divide-y divide-slate-100">
+              {archivedMembers.length === 0 ? (
+                <p className="py-8 text-center text-xs text-slate-500">
+                  В архиве пока никого нет.
+                </p>
+              ) : (
+                archivedMembers.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+                  >
+                    <div className="min-w-0 space-y-0.5">
+                      <p className="truncate text-sm font-semibold text-slate-500">
+                        {member.fullName || "Имя не указано"}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span
+                        className={`text-xs px-2.5 py-0.5 rounded-full border font-medium ${ROLE_CLASSES[member.role]}`}
+                      >
+                        {ROLE_LABELS[member.role]}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setArchiveTarget(member)}
+                        className="icon-btn h-8 w-8"
+                        title="Восстановить"
+                      >
+                        <ArchiveRestore className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           ) : (
@@ -286,6 +382,27 @@ export function TeamClient({
           )}
         </div>
       </div>
+
+      <EditTeamMemberModal
+        member={editingMember}
+        open={editingMember !== null}
+        onClose={() => setEditingMember(null)}
+      />
+
+      <ConfirmDialog
+        open={archiveTarget !== null}
+        title={archiveTarget?.isArchived ? "Восстановить сотрудника?" : "Архивировать сотрудника?"}
+        message={
+          archiveTarget?.isArchived
+            ? "Сотрудник снова получит доступ и появится в общем списке команды."
+            : "Сотрудник потеряет доступ к системе. История уроков и выплат сохранится."
+        }
+        confirmLabel={archiveTarget?.isArchived ? "Восстановить" : "Архивировать"}
+        danger={!archiveTarget?.isArchived}
+        busy={archiveBusy}
+        onConfirm={handleToggleArchive}
+        onClose={() => setArchiveTarget(null)}
+      />
     </div>
   );
 }

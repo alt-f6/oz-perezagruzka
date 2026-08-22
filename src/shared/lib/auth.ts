@@ -110,7 +110,7 @@ export async function authenticateWithPassword(
 ): Promise<SessionUser | null> {
   const user = await db.user.findUnique({ where: { email } });
 
-  if (!user || !user.passwordHash) {
+  if (!user || !user.passwordHash || user.isArchived) {
     await bcrypt.compare(password, await getDummyHash());
     return null;
   }
@@ -144,7 +144,7 @@ async function getUserBySessionToken(token: string): Promise<SessionUser | null>
     where: { token },
     include: { user: true },
   });
-  if (!session || session.expiresAt <= new Date()) return null;
+  if (!session || session.expiresAt <= new Date() || session.user.isArchived) return null;
   return { id: session.user.id, email: session.user.email, role: session.user.role };
 }
 

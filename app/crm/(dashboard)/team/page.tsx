@@ -19,7 +19,16 @@ export default async function TeamPage() {
   const [profiles, invites] = await Promise.all([
     db.user.findMany({
       where: { role: { in: CRM_ROLES } },
-      select: { id: true, fullName: true, role: true, createdAt: true },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        role: true,
+        subjects: true,
+        isArchived: true,
+        createdAt: true,
+      },
       orderBy: { createdAt: "asc" },
     }),
     db.invite.findMany({
@@ -42,7 +51,11 @@ export default async function TeamPage() {
         initialMembers={profiles.map((p) => ({
           id: p.id,
           fullName: p.fullName,
+          email: p.email,
+          phone: p.phone,
           role: p.role,
+          subjects: p.subjects,
+          isArchived: p.isArchived,
           createdAt: p.createdAt.toISOString(),
         }))}
         initialInvites={invites.map((i) => ({

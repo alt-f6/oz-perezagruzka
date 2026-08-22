@@ -87,6 +87,8 @@ model User {
   role         Role     @default(STUDENT)
   fullName     String
   phone        String?  @unique
+  subjects     String? // freeform, comma-separated subjects taught (TEACHER only)
+  isArchived   Boolean  @default(false) // soft-delete for staff (mainly TEACHER): keeps lesson/payout history intact
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

@@ -11,7 +11,7 @@ describe("readiness-service production log redaction", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     // Exercise only the redaction branch directly rather than the full
-    // Gemini call path (which needs network + GEMINI_API_KEY) — simulate
+    // DeepSeek call path (which needs network + DEEPSEEK_API_KEY) — simulate
     // the same schema-mismatch branch readiness-service.ts takes.
     const { readinessOutputSchema } = await import("@/landing/lib/validations/readiness");
     const parsed = readinessOutputSchema.safeParse({ readinessScore: "not-a-number" });
@@ -20,7 +20,7 @@ describe("readiness-service production log redaction", () => {
     if (process.env.NODE_ENV !== "production") {
       console.error("Candidate JSON received:", JSON.stringify({ name: "секретное имя ребёнка" }));
     } else {
-      console.error("❌ [Zod Schema Mismatch] Gemini output failed schema validation");
+      console.error("❌ [Zod Schema Mismatch] DeepSeek output failed schema validation");
     }
 
     const loggedText = errorSpy.mock.calls.map((call) => call.join(" ")).join("\n");
@@ -90,9 +90,17 @@ const VALID_AI_OUTPUT = {
   firstStep: "Начать с пробника.",
 };
 
+function mockOpenAI(create: (req: unknown, opts: { signal: AbortSignal }) => Promise<unknown>) {
+  vi.doMock("openai", () => ({
+    default: class {
+      chat = { completions: { create } };
+    },
+  }));
+}
+
 describe("generateReadinessMap", () => {
   beforeEach(() => {
-    vi.stubEnv("GEMINI_API_KEY", "test-key");
+    vi.stubEnv("DEEPSEEK_API_KEY", "test-key");
   });
 
   afterEach(() => {
@@ -105,19 +113,12 @@ describe("generateReadinessMap", () => {
   it("aborts and rejects once AI_TIMEOUT_MS elapses without a response", async () => {
     vi.useFakeTimers();
 
-    vi.doMock("@google/generative-ai", () => ({
-      SchemaType: { OBJECT: "OBJECT", STRING: "STRING", ARRAY: "ARRAY", INTEGER: "INTEGER" },
-      GoogleGenerativeAI: class {
-        getGenerativeModel() {
-          return {
-            generateContent: (_req: unknown, { signal }: { signal: AbortSignal }) =>
-              new Promise((_resolve, reject) => {
-                signal.addEventListener("abort", () => reject(new Error("This operation was aborted")));
-              }),
-          };
-        }
-      },
-    }));
+    mockOpenAI(
+      (_req, { signal }) =>
+        new Promise((_resolve, reject) => {
+          signal.addEventListener("abort", () => reject(new Error("This operation was aborted")));
+        }),
+    );
 
     const { generateReadinessMap } = await import("@/landing/lib/ai/readiness-service");
 
@@ -127,18 +128,9 @@ describe("generateReadinessMap", () => {
     await assertion;
   });
 
-  it("throws with a fallback-triggering error when Gemini output fails Zod validation", async () => {
-    vi.doMock("@google/generative-ai", () => ({
-      SchemaType: { OBJECT: "OBJECT", STRING: "STRING", ARRAY: "ARRAY", INTEGER: "INTEGER" },
-      GoogleGenerativeAI: class {
-        getGenerativeModel() {
-          return {
-            generateContent: async () => ({
-              response: { text: () => JSON.stringify({ readinessScore: "not-a-number" }) },
-            }),
-          };
-        }
-      },
+  it("throws with a fallback-triggering error when DeepSeek output fails Zod validation", async () => {
+    mockOpenAI(async () => ({
+      choices: [{ message: { content: JSON.stringify({ readinessScore: "not-a-number" }) } }],
     }));
 
     const { generateReadinessMap } = await import("@/landing/lib/ai/readiness-service");
@@ -146,24 +138,37 @@ describe("generateReadinessMap", () => {
     await expect(generateReadinessMap(VALID_INPUT)).rejects.toThrow(/schema validation/);
   });
 
-  it("returns sanitized output on a well-formed Gemini response", async () => {
-    vi.doMock("@google/generative-ai", () => ({
-      SchemaType: { OBJECT: "OBJECT", STRING: "STRING", ARRAY: "ARRAY", INTEGER: "INTEGER" },
-      GoogleGenerativeAI: class {
-        getGenerativeModel() {
-          return {
-            generateContent: async () => ({
-              response: { text: () => JSON.stringify(VALID_AI_OUTPUT) },
-            }),
-          };
-        }
-      },
+  it("returns sanitized output on a well-formed DeepSeek response", async () => {
+    mockOpenAI(async () => ({
+      choices: [{ message: { content: JSON.stringify(VALID_AI_OUTPUT) } }],
     }));
 
     const { generateReadinessMap } = await import("@/landing/lib/ai/readiness-service");
 
     const result = await generateReadinessMap(VALID_INPUT);
     expect(result.output.readinessScore).toBe(72);
-    expect(result.model).toBe("gemini-2.5-flash");
+    expect(result.model).toBe("deepseek-chat");
+  });
+
+  it("falls back to GEMINI_API_KEY when DEEPSEEK_API_KEY is unset", async () => {
+    vi.stubEnv("DEEPSEEK_API_KEY", "");
+    vi.stubEnv("GEMINI_API_KEY", "legacy-key");
+    mockOpenAI(async () => ({
+      choices: [{ message: { content: JSON.stringify(VALID_AI_OUTPUT) } }],
+    }));
+
+    const { generateReadinessMap } = await import("@/landing/lib/ai/readiness-service");
+
+    const result = await generateReadinessMap(VALID_INPUT);
+    expect(result.model).toBe("deepseek-chat");
+  });
+
+  it("throws when neither DEEPSEEK_API_KEY nor GEMINI_API_KEY is set", async () => {
+    vi.stubEnv("DEEPSEEK_API_KEY", "");
+    vi.stubEnv("GEMINI_API_KEY", "");
+
+    const { generateReadinessMap } = await import("@/landing/lib/ai/readiness-service");
+
+    await expect(generateReadinessMap(VALID_INPUT)).rejects.toThrow(/DEEPSEEK_API_KEY is not configured/);
   });
 });

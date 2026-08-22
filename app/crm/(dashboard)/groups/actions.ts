@@ -5,6 +5,7 @@ import { createGroupSchema, type GroupValues } from "@/crm/lib/schemas";
 import { requireSessionUser } from "@/shared/lib/auth";
 import { db } from "@/shared/lib/db";
 import type { ActionResult } from "@/crm/lib/types";
+import { bulkCancelSessions, type BulkCancelResult } from "../lessons/actions";
 
 export async function getTeachers() {
   await requireSessionUser(["ADMIN", "MANAGER", "TEACHER"]);
@@ -67,4 +68,15 @@ export async function deleteGroup(groupId: string): Promise<ActionResult> {
   revalidatePath("/students");
   revalidatePath("/lessons");
   return {};
+}
+
+/**
+ * "Clear upcoming schedule": cancels every future, still-scheduled session
+ * in this group regardless of recurrence series. Delegates its RBAC and
+ * transaction/scoping guarantees to bulkCancelSessions.
+ */
+export async function cancelGroupUpcomingSessions(
+  groupId: string,
+): Promise<BulkCancelResult> {
+  return bulkCancelSessions({ groupId });
 }

@@ -13,6 +13,7 @@
     "test": "tsx scripts/qa-invariants.ts",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
+    "logs": "docker compose -f docker-compose.prod.yml logs -f --tail=200 app | tsx scripts/format-logs.ts",
     "prepare": "husky install"
   },
   "dependencies": {

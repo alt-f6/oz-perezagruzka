@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Trash2, Users, Banknote, UserPlus, X } from "lucide-react";
+import { Plus, Trash2, Users, Banknote, UserPlus, X, CalendarX } from "lucide-react";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { ConfirmDialog } from "@/crm/components/ConfirmDialog";
@@ -13,7 +13,7 @@ import {
   assignStudentToGroup,
   removeStudentFromGroup,
 } from "../students/actions";
-import { createGroup, deleteGroup } from "./actions";
+import { cancelGroupUpcomingSessions, createGroup, deleteGroup } from "./actions";
 
 interface StudentLookup {
   id: string;
@@ -41,6 +41,8 @@ export function GroupsClient({
   const [deleteCandidateId, setDeleteCandidateId] = useState<string | null>(
     null,
   );
+  const [clearScheduleCandidateId, setClearScheduleCandidateId] = useState<string | null>(null);
+  const [isClearingSchedule, setIsClearingSchedule] = useState(false);
   const [isUpdatingStudents, setIsUpdatingStudents] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
 
@@ -100,6 +102,23 @@ export function GroupsClient({
       showToast("Не удалось удалить группу", "error");
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleClearSchedule = async (groupId: string) => {
+    setIsClearingSchedule(true);
+    try {
+      const result = await cancelGroupUpcomingSessions(groupId);
+      if (result?.error) {
+        showToast(result.error, "error");
+      } else {
+        showToast("Расписание группы очищено");
+      }
+    } catch {
+      showToast("Не удалось очистить расписание", "error");
+    } finally {
+      setIsClearingSchedule(false);
+      setClearScheduleCandidateId(null);
     }
   };
 
@@ -179,14 +198,23 @@ export function GroupsClient({
                   {group.name}
                 </h3>
                 {!isTeacher && (
-                  <button
-                    onClick={() => setDeleteCandidateId(group.id)}
-                    disabled={deletingId === group.id}
-                    className="icon-btn-danger -mr-1.5 -mt-1"
-                    title="Удалить группу"
-                  >
-                    <Trash2 size={17} />
-                  </button>
+                  <div className="-mr-1.5 -mt-1 flex items-center gap-1">
+                    <button
+                      onClick={() => setClearScheduleCandidateId(group.id)}
+                      className="icon-btn-danger"
+                      title="Очистить будущее расписание"
+                    >
+                      <CalendarX size={17} />
+                    </button>
+                    <button
+                      onClick={() => setDeleteCandidateId(group.id)}
+                      disabled={deletingId === group.id}
+                      className="icon-btn-danger"
+                      title="Удалить группу"
+                    >
+                      <Trash2 size={17} />
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -251,6 +279,21 @@ export function GroupsClient({
         busy={deletingId !== null}
         onConfirm={() => deleteCandidateId && handleDelete(deleteCandidateId)}
         onClose={() => setDeleteCandidateId(null)}
+      />
+
+      <ConfirmDialog
+        open={clearScheduleCandidateId !== null}
+        title="Очистить будущее расписание группы?"
+        message="Будут отменены все предстоящие занятия этой группы. Прошедшие занятия и история посещаемости затронуты не будут."
+        confirmLabel="Очистить"
+        danger
+        busy={isClearingSchedule}
+        reasonLabel="Причина"
+        reasonPlaceholder="Например: группа расформирована"
+        onConfirm={() =>
+          clearScheduleCandidateId && handleClearSchedule(clearScheduleCandidateId)
+        }
+        onClose={() => setClearScheduleCandidateId(null)}
       />
 
       {!isTeacher && (

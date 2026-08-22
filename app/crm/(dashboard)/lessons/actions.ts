@@ -79,6 +79,7 @@ export async function createLesson(
         groupId: parsed.data.groupId,
         teacherId: group.teacherId,
         scheduledAt,
+        durationMinutes: parsed.data.durationMinutes,
         recurrenceGroupId,
       })),
     });
@@ -96,16 +97,95 @@ export async function createLesson(
 export async function deleteLesson(lessonId: string): Promise<ActionResult> {
   await requireSessionUser(["ADMIN", "MANAGER"]);
 
+  const session = await db.classSession.findUnique({
+    where: { id: lessonId },
+    select: { status: true, scheduledAt: true },
+  });
+  if (!session) {
+    return { error: "Занятие не найдено" };
+  }
+  if (session.status !== "scheduled" || new Date(session.scheduledAt) <= new Date()) {
+    return { error: "Можно отменить только предстоящее запланированное занятие" };
+  }
+
   try {
-    await db.classSession.delete({ where: { id: lessonId } });
+    await db.classSession.update({
+      where: { id: lessonId },
+      data: { status: "cancelled" },
+    });
   } catch (err) {
     return {
-      error: err instanceof Error ? err.message : "Не удалось удалить занятие",
+      error: err instanceof Error ? err.message : "Не удалось отменить занятие",
     };
   }
 
   revalidatePath("/lessons");
+  revalidatePath("/schedule");
   return {};
+}
+
+export type BulkCancelSelector =
+  | { sessionIds: string[] }
+  | { recurrenceGroupId: string }
+  | { groupId: string };
+
+export type BulkCancelResult =
+  | { error: string }
+  | { error?: undefined; cancelledCount: number; skippedCount: number };
+
+/**
+ * Backs every bulk-cancellation entry point (ad-hoc multi-select, whole
+ * recurring series, whole group). Never deletes rows -- only flips eligible
+ * sessions to status="cancelled" inside a single transaction, scoped to
+ * sessions that are still scheduled and in the future so past/attended
+ * history (billing, salary) is never touched.
+ */
+export async function bulkCancelSessions(
+  selector: BulkCancelSelector,
+): Promise<BulkCancelResult> {
+  await requireSessionUser(["ADMIN", "MANAGER"]);
+
+  const where =
+    "sessionIds" in selector
+      ? { id: { in: selector.sessionIds } }
+      : "recurrenceGroupId" in selector
+        ? { recurrenceGroupId: selector.recurrenceGroupId }
+        : { groupId: selector.groupId };
+
+  try {
+    const result = await db.$transaction(async (tx) => {
+      const targets = await tx.classSession.findMany({
+        where,
+        select: { id: true, status: true, scheduledAt: true },
+      });
+
+      const now = new Date();
+      const eligibleIds = targets
+        .filter((t) => t.status === "scheduled" && new Date(t.scheduledAt) > now)
+        .map((t) => t.id);
+
+      if (eligibleIds.length > 0) {
+        await tx.classSession.updateMany({
+          where: { id: { in: eligibleIds } },
+          data: { status: "cancelled" },
+        });
+      }
+
+      return {
+        cancelledCount: eligibleIds.length,
+        skippedCount: targets.length - eligibleIds.length,
+      };
+    });
+
+    revalidatePath("/lessons");
+    revalidatePath("/schedule");
+    revalidatePath("/groups");
+    return result;
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Не удалось отменить занятия",
+    };
+  }
 }
 
 export async function setAttendance(

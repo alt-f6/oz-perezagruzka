@@ -17,6 +17,8 @@ export default async function LessonsPage() {
         groupId: true,
         scheduledAt: true,
         status: true,
+        durationMinutes: true,
+        recurrenceGroupId: true,
         group: { select: { id: true, name: true, teacherId: true } },
       },
     }),

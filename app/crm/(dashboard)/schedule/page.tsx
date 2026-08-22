@@ -21,6 +21,8 @@ export default async function SchedulePage() {
         scheduledAt: true,
         groupId: true,
         teacherId: true,
+        status: true,
+        durationMinutes: true,
         group: { select: { id: true, name: true } },
       },
     }),

@@ -22,6 +22,8 @@ export interface ScheduleLesson {
   scheduledAt: string;
   groupId: string;
   teacherId: string;
+  status: string;
+  durationMinutes: number;
   group?: { id: string; name: string } | null;
 }
 

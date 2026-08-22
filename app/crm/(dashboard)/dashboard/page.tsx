@@ -25,6 +25,30 @@ export default async function DashboardPage() {
   const isTeacher = profile?.role === "TEACHER";
   const teacherId = sessionUser?.id ?? "";
 
+  const [myGroups, myStudents] = isTeacher
+    ? await Promise.all([
+        db.group.findMany({
+          where: { teacherId, deletedAt: null },
+          select: {
+            id: true,
+            name: true,
+            capacity: true,
+            _count: { select: { students: true } },
+          },
+          orderBy: { name: "asc" },
+        }),
+        db.student.findMany({
+          where: {
+            deletedAt: null,
+            groups: { some: { group: { teacherId, deletedAt: null } } },
+          },
+          select: { id: true, fullName: true },
+          orderBy: { fullName: "asc" },
+          take: 20,
+        }),
+      ])
+    : [[], []];
+
   const [studentsCount, groupsCount, lessons] = await Promise.all([
     isTeacher
       ? db.groupStudent
@@ -221,37 +245,61 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="card space-y-4">
-          <h2 className="section-title">Быстрые разделы</h2>
-          <div className="space-y-2">
-            <Link
-              href="/students"
-              className="group flex items-center justify-between rounded-xl bg-slate-50 p-3.5 text-sm font-medium text-slate-900 transition-all duration-200 hover:bg-slate-100"
-            >
-              <span>База студентов</span>
-              <span className="text-slate-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-slate-900">
-                →
-              </span>
-            </Link>
-            <Link
-              href="/groups"
-              className="group flex items-center justify-between rounded-xl bg-slate-50 p-3.5 text-sm font-medium text-slate-900 transition-all duration-200 hover:bg-slate-100"
-            >
-              <span>Учебные группы</span>
-              <span className="text-slate-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-slate-900">
-                →
-              </span>
-            </Link>
-            <Link
-              href="/schedule"
-              className="group flex items-center justify-between rounded-xl bg-slate-50 p-3.5 text-sm font-medium text-slate-900 transition-all duration-200 hover:bg-slate-100"
-            >
-              <span>Расписание и слоты</span>
-              <span className="text-slate-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-slate-900">
-                →
-              </span>
-            </Link>
-            {!isTeacher && (
+        {isTeacher ? (
+          <div className="card space-y-4">
+            <h2 className="section-title">Мои активные группы</h2>
+            <div className="space-y-2">
+              {myGroups.length > 0 ? (
+                myGroups.map((group) => (
+                  <Link
+                    key={group.id}
+                    href="/groups"
+                    className="group flex items-center justify-between rounded-xl bg-slate-50 p-3.5 text-sm font-medium text-slate-900 transition-all duration-200 hover:bg-slate-100"
+                  >
+                    <span className="truncate">{group.name}</span>
+                    <span className="shrink-0 text-xs font-normal text-slate-500">
+                      {group._count.students}/{group.capacity}
+                    </span>
+                  </Link>
+                ))
+              ) : (
+                <p className="py-6 text-center text-sm text-slate-500">
+                  У вас пока нет закрепленных групп
+                </p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="card space-y-4">
+            <h2 className="section-title">Быстрые разделы</h2>
+            <div className="space-y-2">
+              <Link
+                href="/students"
+                className="group flex items-center justify-between rounded-xl bg-slate-50 p-3.5 text-sm font-medium text-slate-900 transition-all duration-200 hover:bg-slate-100"
+              >
+                <span>База студентов</span>
+                <span className="text-slate-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-slate-900">
+                  →
+                </span>
+              </Link>
+              <Link
+                href="/groups"
+                className="group flex items-center justify-between rounded-xl bg-slate-50 p-3.5 text-sm font-medium text-slate-900 transition-all duration-200 hover:bg-slate-100"
+              >
+                <span>Учебные группы</span>
+                <span className="text-slate-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-slate-900">
+                  →
+                </span>
+              </Link>
+              <Link
+                href="/schedule"
+                className="group flex items-center justify-between rounded-xl bg-slate-50 p-3.5 text-sm font-medium text-slate-900 transition-all duration-200 hover:bg-slate-100"
+              >
+                <span>Расписание и слоты</span>
+                <span className="text-slate-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-slate-900">
+                  →
+                </span>
+              </Link>
               <Link
                 href="/leads"
                 className="group flex items-center justify-between rounded-xl bg-slate-50 p-3.5 text-sm font-medium text-slate-900 transition-all duration-200 hover:bg-slate-100"
@@ -261,10 +309,33 @@ export default async function DashboardPage() {
                   →
                 </span>
               </Link>
-            )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
+
+      {isTeacher && (
+        <div className="card space-y-4">
+          <h2 className="section-title">Мои ученики</h2>
+          {myStudents.length > 0 ? (
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {myStudents.map((student) => (
+                <Link
+                  key={student.id}
+                  href={`/students/${student.id}`}
+                  className="truncate rounded-xl bg-slate-50 p-3 text-sm font-medium text-slate-900 transition-colors duration-200 hover:bg-slate-100"
+                >
+                  {student.fullName}
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="py-6 text-center text-sm text-slate-500">
+              К вашим группам пока не прикреплены ученики
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

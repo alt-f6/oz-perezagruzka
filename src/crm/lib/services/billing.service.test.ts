@@ -128,6 +128,19 @@ describe("BillingService.markAttendanceAndCharge", () => {
       },
     });
   });
+
+  it("re-stamps priceAtTime to the current group price on every upsert, including status-change updates", async () => {
+    const tx = makeTx({ classSession: classSessionFixture });
+    runWithTx(tx);
+
+    await BillingService.markAttendanceAndCharge("session_1", "student_1", "PRESENT");
+
+    expect(tx.attendance.upsert).toHaveBeenCalledWith({
+      where: { classSessionId_studentId: { classSessionId: "session_1", studentId: "student_1" } },
+      update: { status: "PRESENT", priceAtTime: 1000 },
+      create: { classSessionId: "session_1", studentId: "student_1", status: "PRESENT", priceAtTime: 1000 },
+    });
+  });
 });
 
 describe("BillingService.markAttendanceAndCharge — freeze UTC day-boundary edge cases", () => {

@@ -56,6 +56,7 @@ export class BillingService {
           },
           update: {
             status,
+            priceAtTime: currentPrice,
           },
           create: {
             classSessionId,

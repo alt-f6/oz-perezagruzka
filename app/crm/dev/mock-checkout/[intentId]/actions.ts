@@ -2,7 +2,7 @@
 
 import { prisma } from "@/crm/lib/prisma";
 import { finalizeSuccessfulPayment, getPaymentMode } from "@/crm/lib/services/yookassa.service";
-import { requireSessionUser } from "@/shared/lib/auth";
+import { requireRole } from "@/shared/lib/rbac";
 import type { ActionResult } from "@/crm/lib/types";
 
 async function assertMockToolAllowed(): Promise<ActionResult> {
@@ -15,7 +15,7 @@ async function assertMockToolAllowed(): Promise<ActionResult> {
     };
   }
   try {
-    await requireSessionUser(["ADMIN", "MANAGER"]);
+    await requireRole(["ADMIN", "MANAGER"]);
   } catch {
     return { error: "Требуется авторизация" };
   }

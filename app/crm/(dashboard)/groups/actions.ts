@@ -2,13 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { createGroupSchema, type GroupValues } from "@/crm/lib/schemas";
-import { requireSessionUser } from "@/shared/lib/auth";
+import { requireRole } from "@/shared/lib/rbac";
 import { db } from "@/shared/lib/db";
 import type { ActionResult } from "@/crm/lib/types";
 import { bulkCancelSessions, type BulkCancelResult } from "../lessons/actions";
 
 export async function getTeachers() {
-  await requireSessionUser(["ADMIN", "MANAGER", "TEACHER"]);
+  await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
 
   try {
     const data = await db.user.findMany({
@@ -25,7 +25,7 @@ export async function getTeachers() {
 export async function createGroup(
   values: GroupValues & { teacherId?: string; price?: number },
 ): Promise<ActionResult> {
-  const sessionUser = await requireSessionUser(["ADMIN", "MANAGER"]);
+  const sessionUser = await requireRole(["ADMIN", "MANAGER"]);
 
   const parsed = createGroupSchema.safeParse(values);
   if (!parsed.success) {
@@ -52,7 +52,7 @@ export async function createGroup(
 }
 
 export async function deleteGroup(groupId: string): Promise<ActionResult> {
-  await requireSessionUser(["ADMIN"]);
+  await requireRole(["ADMIN"]);
 
   try {
     await db.group.update({

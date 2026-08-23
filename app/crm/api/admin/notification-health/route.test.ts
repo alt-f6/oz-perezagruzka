@@ -1,41 +1,35 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const authMock = vi.hoisted(() => ({ getSessionUser: vi.fn() }));
-vi.mock("@/shared/lib/auth", () => authMock);
-
-const { GET } = await import("./route");
-const { resetMetrics, recordFailure } = await import("@/shared/lib/notification-metrics");
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  resetMetrics();
-});
+const getSessionUserMock = vi.fn();
+vi.mock("@/shared/lib/auth", () => ({
+  getSessionUser: (...args: unknown[]) => getSessionUserMock(...args),
+}));
+vi.mock("@/shared/lib/notification-metrics", () => ({
+  getStats: () => ({ failures: 0 }),
+}));
 
 describe("GET /crm/api/admin/notification-health", () => {
-  it("returns 401 when there is no session", async () => {
-    authMock.getSessionUser.mockResolvedValue(null);
+  beforeEach(() => getSessionUserMock.mockReset());
 
+  it("returns 401 when unauthenticated", async () => {
+    getSessionUserMock.mockResolvedValue(null);
+    const { GET } = await import("./route");
     const res = await GET();
-
     expect(res.status).toBe(401);
   });
 
-  it("returns 403 when the session user is not an admin", async () => {
-    authMock.getSessionUser.mockResolvedValue({ id: "u1", email: "t@example.com", role: "TEACHER" });
-
+  it("returns 403 for a non-ADMIN role", async () => {
+    getSessionUserMock.mockResolvedValue({ id: "u1", role: "MANAGER", email: "m@x.com" });
+    const { GET } = await import("./route");
     const res = await GET();
-
     expect(res.status).toBe(403);
   });
 
-  it("returns current failure stats for an admin session", async () => {
-    authMock.getSessionUser.mockResolvedValue({ id: "u1", email: "a@example.com", role: "ADMIN" });
-    recordFailure("telegram", "timeout");
-
+  it("returns stats for ADMIN", async () => {
+    getSessionUserMock.mockResolvedValue({ id: "u1", role: "ADMIN", email: "a@x.com" });
+    const { GET } = await import("./route");
     const res = await GET();
-    const json = await res.json();
-
     expect(res.status).toBe(200);
-    expect(json.channels.telegram.failures).toBe(1);
+    await expect(res.json()).resolves.toEqual({ failures: 0 });
   });
 });

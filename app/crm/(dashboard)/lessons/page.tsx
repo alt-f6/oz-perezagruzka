@@ -1,10 +1,10 @@
 import { db } from "@/shared/lib/db";
-import { requireSessionUser } from "@/shared/lib/auth";
+import { requireRole } from "@/shared/lib/rbac";
 import type { ClassSessionWithGroup } from "@/crm/lib/types";
 import { LessonsClient } from "./LessonsClient";
 
 export default async function LessonsPage() {
-  const sessionUser = await requireSessionUser(["ADMIN", "MANAGER", "TEACHER"]);
+  const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
   const isTeacher = sessionUser.role === "TEACHER";
 
   const [lessons, groups] = await Promise.all([

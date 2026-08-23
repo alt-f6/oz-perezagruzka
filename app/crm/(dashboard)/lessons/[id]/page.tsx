@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/shared/lib/db";
-import { requireSessionUser } from "@/shared/lib/auth";
+import { requireRole } from "@/shared/lib/rbac";
 import type {
   AttendanceRecord,
   ClassSessionWithGroup,
@@ -20,7 +20,7 @@ export default async function LessonDetailPage({
 }) {
   const { id } = await params;
 
-  const sessionUser = await requireSessionUser(["ADMIN", "MANAGER", "TEACHER"]);
+  const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
 
   const lesson = await db.classSession.findUnique({
     where: { id },

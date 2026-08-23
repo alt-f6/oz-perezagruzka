@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/shared/lib/db";
-import { requireSessionUser } from "@/shared/lib/auth";
+import { requireRole } from "@/shared/lib/rbac";
 import { PaymentModal } from "@/crm/components/PaymentModal";
 import { ExamTrackerSection } from "./ExamTrackerSection";
 import { FreezeSection } from "./FreezeSection";
@@ -13,7 +13,7 @@ export default async function StudentDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const sessionUser = await requireSessionUser(["ADMIN", "MANAGER", "TEACHER"]);
+  const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
 
   const { id } = await params;
 

@@ -1,5 +1,5 @@
 import { db } from "@/shared/lib/db";
-import { requireSessionUser } from "@/shared/lib/auth";
+import { requireRole } from "@/shared/lib/rbac";
 import {
   ScheduleClient,
   type ScheduleGroup,
@@ -8,7 +8,7 @@ import {
 } from "./ScheduleClient";
 
 export default async function SchedulePage() {
-  const sessionUser = await requireSessionUser(["ADMIN", "MANAGER", "TEACHER"]);
+  const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
   const isTeacher = sessionUser.role === "TEACHER";
 
   const [lessons, groups, teachers] = await Promise.all([

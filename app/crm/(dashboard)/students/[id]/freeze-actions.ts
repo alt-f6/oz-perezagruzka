@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/shared/lib/db";
-import { requireSessionUser } from "@/shared/lib/auth";
+import { requireRole } from "@/shared/lib/rbac";
 import type { ActionResult } from "@/crm/lib/types";
 
 const FreezePeriodSchema = z
@@ -20,7 +20,7 @@ export async function createFreeze(
   values: unknown,
 ): Promise<ActionResult> {
   try {
-    await requireSessionUser(["ADMIN", "MANAGER"]);
+    await requireRole(["ADMIN", "MANAGER"]);
   } catch {
     return { error: "Недостаточно прав" };
   }
@@ -58,7 +58,7 @@ export async function createFreeze(
 
 export async function deleteFreeze(freezeId: string): Promise<ActionResult> {
   try {
-    await requireSessionUser(["ADMIN", "MANAGER"]);
+    await requireRole(["ADMIN", "MANAGER"]);
   } catch {
     return { error: "Недостаточно прав" };
   }

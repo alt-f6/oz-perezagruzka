@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
-import { getSessionUser, requireSessionUser } from "@/shared/lib/auth";
+import { getSessionUser } from "@/shared/lib/auth";
+import { requireRole } from "@/shared/lib/rbac";
 import { db } from "@/shared/lib/db";
 import { buildAbsoluteUrl } from "@/shared/lib/url";
 import { createLogger } from "@/shared/lib/logger";
@@ -26,7 +27,7 @@ const updateTeamMemberSchema = z.object({
 export async function updateTeamMember(
   values: z.infer<typeof updateTeamMemberSchema>,
 ): Promise<ActionResult> {
-  await requireSessionUser(["ADMIN"]);
+  await requireRole(["ADMIN"]);
 
   const parsed = updateTeamMemberSchema.safeParse(values);
   if (!parsed.success) {
@@ -62,7 +63,7 @@ export async function setTeamMemberArchived(
   id: string,
   isArchived: boolean,
 ): Promise<ActionResult> {
-  const sessionUser = await requireSessionUser(["ADMIN"]);
+  const sessionUser = await requireRole(["ADMIN"]);
 
   if (id === sessionUser.id) {
     return { error: "Нельзя архивировать собственную учетную запись" };
@@ -130,7 +131,7 @@ export async function createInvite(
 
 export async function getActiveInvites() {
   try {
-    await requireSessionUser(["ADMIN"]);
+    await requireRole(["ADMIN"]);
   } catch (err) {
     log.error("Отказано в доступе к списку приглашений", err);
     return [];

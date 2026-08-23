@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { leadSchema, type LeadValues } from "@/crm/lib/schemas";
 import { db } from "@/shared/lib/db";
-import { requireSessionUser } from "@/shared/lib/auth";
+import { requireRole } from "@/shared/lib/rbac";
 import { performLeadConversion } from "@/crm/lib/services/lead-conversion.service";
 import { LEAD_STATUS_ORDER, type ActionResult, type LeadStatus } from "@/crm/lib/types";
 
@@ -17,7 +17,7 @@ export async function createLead(
   }
 
   try {
-    await requireSessionUser(["ADMIN", "MANAGER"]);
+    await requireRole(["ADMIN", "MANAGER"]);
   } catch {
     return { error: "Недостаточно прав для создания заявки" };
   }
@@ -86,7 +86,7 @@ export async function updateLead(
   }
 
   try {
-    await requireSessionUser(["ADMIN", "MANAGER"]);
+    await requireRole(["ADMIN", "MANAGER"]);
   } catch {
     return { error: "Недостаточно прав для изменения заявки" };
   }
@@ -144,7 +144,7 @@ export async function advanceLeadStatus(
   const nextStatus = LEAD_STATUS_ORDER[currentIndex + 1];
 
   try {
-    await requireSessionUser(["ADMIN", "MANAGER"]);
+    await requireRole(["ADMIN", "MANAGER"]);
   } catch {
     return { error: "Недостаточно прав для изменения статуса" };
   }
@@ -173,7 +173,7 @@ export async function markLeadLost(
   }
 
   try {
-    await requireSessionUser(["ADMIN", "MANAGER"]);
+    await requireRole(["ADMIN", "MANAGER"]);
   } catch {
     return { error: "Недостаточно прав для изменения заявки" };
   }
@@ -198,7 +198,7 @@ export async function markLeadLost(
 
 export async function deleteLead(leadId: string): Promise<ActionResult> {
   try {
-    await requireSessionUser(["ADMIN", "MANAGER"]);
+    await requireRole(["ADMIN", "MANAGER"]);
   } catch {
     return { error: "Недостаточно прав для удаления заявки" };
   }
@@ -223,7 +223,7 @@ export async function convertLeadToStudent(
   leadId: string,
 ): Promise<ActionResult> {
   try {
-    await requireSessionUser(["ADMIN", "MANAGER"]);
+    await requireRole(["ADMIN", "MANAGER"]);
   } catch {
     return { error: "Недостаточно прав для конвертации лида" };
   }

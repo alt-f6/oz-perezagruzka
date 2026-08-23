@@ -179,24 +179,3 @@ export async function getSessionUserFromRequest(
 
   return getUserBySessionToken(token);
 }
-
-export function isRoleAllowed(role: Role, allowed: Role[]): boolean {
-  return allowed.includes(role);
-}
-
-/**
- * Server Components / Server Actions gate: reads the current session and
- * throws if unauthenticated or not in `allowedRoles`. Centralizes the
- * "am I logged in, what's my role" check that used to be duplicated per
- * CRM action/page file via ad-hoc Supabase `authId` lookups.
- */
-export async function requireSessionUser(allowedRoles?: Role[]): Promise<SessionUser> {
-  const user = await getSessionUser();
-  if (!user) {
-    throw new Error("unauthorized");
-  }
-  if (allowedRoles && !isRoleAllowed(user.role, allowedRoles)) {
-    throw new Error("forbidden");
-  }
-  return user;
-}

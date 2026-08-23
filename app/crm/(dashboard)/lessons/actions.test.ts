@@ -12,12 +12,12 @@ const dbMock = vi.hoisted(() => ({
   $transaction: vi.fn(),
 }));
 
-const authMock = vi.hoisted(() => ({
-  requireSessionUser: vi.fn(),
+const rbacMock = vi.hoisted(() => ({
+  requireRole: vi.fn(),
 }));
 
 vi.mock("@/shared/lib/db", () => ({ db: dbMock }));
-vi.mock("@/shared/lib/auth", () => authMock);
+vi.mock("@/shared/lib/rbac", () => rbacMock);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 const { createLesson, deleteLesson, bulkCancelSessions } = await import("./actions");
@@ -26,7 +26,7 @@ const ADMIN = { id: "user_1", email: "a@a.com", role: "ADMIN" };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  authMock.requireSessionUser.mockResolvedValue(ADMIN);
+  rbacMock.requireRole.mockResolvedValue(ADMIN);
 });
 
 describe("createLesson", () => {
@@ -147,7 +147,7 @@ describe("bulkCancelSessions", () => {
   });
 
   it("rejects a non-ADMIN/MANAGER caller", async () => {
-    authMock.requireSessionUser.mockRejectedValue(new Error("forbidden"));
+    rbacMock.requireRole.mockRejectedValue(new Error("forbidden"));
 
     await expect(bulkCancelSessions({ sessionIds: ["a"] })).rejects.toThrow("forbidden");
     expect(dbMock.$transaction).not.toHaveBeenCalled();

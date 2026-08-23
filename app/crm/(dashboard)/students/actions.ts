@@ -4,13 +4,13 @@ import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { studentSchema, balanceAdjustmentSchema, type StudentValues } from "@/crm/lib/schemas";
 import { db } from "@/shared/lib/db";
-import { requireSessionUser } from "@/shared/lib/auth";
+import { requireRole } from "@/shared/lib/rbac";
 import type { ActionResult } from "@/crm/lib/types";
 
 export async function createStudent(
   values: StudentValues,
 ): Promise<ActionResult> {
-  await requireSessionUser(["ADMIN", "MANAGER"]);
+  await requireRole(["ADMIN", "MANAGER"]);
 
   const parsed = studentSchema.safeParse(values);
   if (!parsed.success) {
@@ -42,7 +42,7 @@ export async function createStudent(
 }
 
 export async function deleteStudent(studentId: string): Promise<ActionResult> {
-  await requireSessionUser(["ADMIN"]);
+  await requireRole(["ADMIN"]);
 
   try {
     await db.student.update({
@@ -63,7 +63,7 @@ export async function assignStudentToGroup(
   studentId: string,
   groupId: string,
 ): Promise<ActionResult> {
-  await requireSessionUser(["ADMIN", "MANAGER"]);
+  await requireRole(["ADMIN", "MANAGER"]);
 
   try {
     await db.groupStudent.upsert({
@@ -86,7 +86,7 @@ export async function removeStudentFromGroup(
   studentId: string,
   groupId: string,
 ): Promise<ActionResult> {
-  await requireSessionUser(["ADMIN", "MANAGER"]);
+  await requireRole(["ADMIN", "MANAGER"]);
 
   try {
     await db.groupStudent.delete({
@@ -108,7 +108,7 @@ export async function updateStudentBalance(
   amount: number,
   description: string,
 ): Promise<ActionResult> {
-  await requireSessionUser(["ADMIN"]);
+  await requireRole(["ADMIN"]);
 
   const parsed = balanceAdjustmentSchema.safeParse({ amount, description });
   if (!parsed.success) {

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { AttendanceStatus } from "@prisma/client";
 import { lessonSchema, makeupSchema, type LessonValues } from "@/crm/lib/schemas";
 import { db } from "@/shared/lib/db";
-import { requireSessionUser } from "@/shared/lib/auth";
+import { requireRole } from "@/shared/lib/rbac";
 import { BillingService } from "@/crm/lib/services/billing.service";
 import type { ActionResult } from "@/crm/lib/types";
 
@@ -50,7 +50,7 @@ function expandOccurrences(values: LessonValues): Date[] {
 export async function createLesson(
   values: LessonValues,
 ): Promise<ActionResult> {
-  await requireSessionUser(["ADMIN", "MANAGER"]);
+  await requireRole(["ADMIN", "MANAGER"]);
 
   const parsed = lessonSchema.safeParse(values);
   if (!parsed.success) {
@@ -95,7 +95,7 @@ export async function createLesson(
 }
 
 export async function deleteLesson(lessonId: string): Promise<ActionResult> {
-  await requireSessionUser(["ADMIN", "MANAGER"]);
+  await requireRole(["ADMIN", "MANAGER"]);
 
   const session = await db.classSession.findUnique({
     where: { id: lessonId },
@@ -143,7 +143,7 @@ export type BulkCancelResult =
 export async function bulkCancelSessions(
   selector: BulkCancelSelector,
 ): Promise<BulkCancelResult> {
-  await requireSessionUser(["ADMIN", "MANAGER"]);
+  await requireRole(["ADMIN", "MANAGER"]);
 
   const where =
     "sessionIds" in selector
@@ -197,7 +197,7 @@ export async function setAttendance(
     homeworkCompleted?: boolean;
   },
 ): Promise<ActionResult> {
-  const sessionUser = await requireSessionUser(["ADMIN", "MANAGER", "TEACHER"]);
+  const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
 
   if (sessionUser.role === "TEACHER") {
     const lesson = await db.classSession.findUnique({
@@ -253,7 +253,7 @@ export async function assignMakeupLesson(values: {
   attendanceId: string;
   targetLessonId: string;
 }): Promise<ActionResult> {
-  const sessionUser = await requireSessionUser(["ADMIN", "MANAGER", "TEACHER"]);
+  const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
 
   const parsed = makeupSchema.safeParse(values);
   if (!parsed.success) {

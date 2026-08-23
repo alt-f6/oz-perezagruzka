@@ -5,8 +5,11 @@ import { withApiErrors } from "@/lms/server/http/api-guard";
 import { deleteObject } from "@/lms/server/r2/signed";
 import { readLessonAssetScope } from "@/lms/lib/lesson-assets";
 import type { LessonAsset } from "@prisma/client";
+import { createLogger } from "@/shared/lib/logger";
 
 export const runtime = "nodejs";
+
+const logger = createLogger("lms.api.admin.assets");
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -90,7 +93,7 @@ export const PATCH = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
 
     return NextResponse.json({ ok: true, asset: toAssetJson(updated) });
   } catch (error) {
-    console.error("admin asset patch error", { assetId: id, lessonId, error });
+    logger.error("admin asset patch error", error, { assetId: id, lessonId });
     return NextResponse.json({ ok: false, error: "asset_update_failed" }, { status: 500 });
   }
 });
@@ -117,11 +120,10 @@ export const DELETE = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
     try {
       await deleteObject(storageKey);
     } catch (error) {
-      console.error("admin asset storage cleanup failed (db row already deleted)", {
+      logger.error("admin asset storage cleanup failed (db row already deleted)", error, {
         assetId: id,
         lessonId,
         storageKey,
-        error,
       });
     }
   }

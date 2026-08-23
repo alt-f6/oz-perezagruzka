@@ -6,6 +6,9 @@ import { z } from "zod";
 import { ALL_ROLES, getSessionUser } from "@/shared/lib/auth";
 import { db } from "@/shared/lib/db";
 import type { UserRole } from "@/crm/lib/types";
+import { createLogger } from "@/shared/lib/logger";
+
+const logger = createLogger("crm.staff.actions");
 
 const RoleSchema = z.enum(ALL_ROLES as [UserRole, ...UserRole[]]);
 
@@ -37,7 +40,7 @@ export async function updateUserRole(userId: string, newRole: UserRole) {
     ) {
       return { error: "Пользователь не найден" };
     }
-    console.error("Prisma Update Error:", error);
+    logger.error("Prisma Update Error", error);
     const message = error instanceof Error ? error.message : "Неизвестная ошибка";
     return { error: `Ошибка БД: ${message}` };
   }

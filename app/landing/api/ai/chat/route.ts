@@ -8,8 +8,11 @@ import {
   totalChatChars,
   MAX_TOTAL_CHAT_CHARS,
 } from "@/landing/lib/validations/chat";
+import { createLogger } from "@/shared/lib/logger";
 
 export const runtime = "nodejs";
+
+const logger = createLogger("landing.api.ai.chat");
 
 // Falls back to GEMINI_API_KEY if DEEPSEEK_API_KEY is unset, to ease
 // migration — mirrors the same fallback in readiness-service.ts.
@@ -86,7 +89,7 @@ export async function POST(req: Request) {
           },
         });
       } catch (error) {
-        console.error("Failed to log AI tutor interaction", error);
+        logger.error("Failed to log AI tutor interaction", error);
       }
     },
     onError: async ({ error }) => {
@@ -102,7 +105,7 @@ export async function POST(req: Request) {
           },
         });
       } catch (dbError) {
-        console.error("Failed to log AI tutor failure", dbError);
+        logger.error("Failed to log AI tutor failure", dbError);
       }
     },
   });

@@ -5,6 +5,9 @@ import { useState } from "react";
 import { LogOut } from "lucide-react";
 
 import { Button } from "@/shared/components/ui/button";
+import { createLogger } from "@/shared/lib/logger";
+
+const logger = createLogger("lms.logout-button");
 
 type Props = {
   className?: string;
@@ -27,7 +30,7 @@ export function LogoutButton({ className, redirectTo = "/login" }: Props) {
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        console.error("Logout failed", data);
+        logger.error("Logout failed", undefined, { data });
       }
 
       router.replace(redirectTo);

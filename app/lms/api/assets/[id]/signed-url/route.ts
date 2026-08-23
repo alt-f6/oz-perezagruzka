@@ -6,8 +6,11 @@ import { buildInlineContentDisposition } from "@/lms/lib/lesson-assets";
 import { canViewLesson } from "@/lms/server/access/can-view-lesson";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { enforceRateLimit } from "@/lms/server/http/rate-limit";
+import { createLogger } from "@/shared/lib/logger";
 
 export const runtime = "nodejs";
+
+const logger = createLogger("lms.api.assets.signed-url");
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -66,7 +69,7 @@ export const GET = withApiErrors(async (_req: NextRequest, ctx: Ctx) => {
     });
     return NextResponse.json({ ok: true, url });
   } catch (error) {
-    console.error("asset signed url error", { assetId, storageKey: row.storageKey, error });
+    logger.error("asset signed url error", error, { assetId, storageKey: row.storageKey });
     return NextResponse.json({ ok: false, error: "signed_url_generation_failed" }, { status: 502 });
   }
 });

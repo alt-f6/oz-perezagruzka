@@ -12,6 +12,9 @@ import {
   type ReadinessOutput,
 } from "@/landing/lib/validations/readiness";
 import { LEGAL_DOCUMENT_VERSION } from "@/landing/lib/legal";
+import { createLogger } from "@/shared/lib/logger";
+
+const logger = createLogger("landing.readiness");
 
 const MAX_SUBMISSIONS_PER_WINDOW = 3;
 const WINDOW_MS = 60 * 60 * 1000;
@@ -95,7 +98,7 @@ export async function submitReadinessMap(
       latencyMs: 0,
       failed: false,
     },
-  }).catch((err) => console.error("⚠️ Не удалось сохранить USER log:", err));
+  }).catch((err) => logger.error("Не удалось сохранить USER log", err));
 
   try {
     const { output, model, latencyMs } = await generateReadinessMap(input);
@@ -121,7 +124,7 @@ export async function submitReadinessMap(
 
     return { status: "success", leadId: lead.id, map: output };
   } catch (error) {
-    console.error("🔴 [READINESS ACTION ERROR]:", error);
+    logger.error("READINESS ACTION ERROR", error);
 
     await prisma.aiChatLog.create({
       data: {

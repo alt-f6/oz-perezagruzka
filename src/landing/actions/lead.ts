@@ -10,6 +10,9 @@ import { recordConsent } from "@/landing/lib/consent-log";
 import { isLikelyBot } from "@/landing/lib/bot-defense";
 import { russianPhoneSchema } from "@/shared/validation/phone";
 import { LEGAL_DOCUMENT_VERSION } from "@/landing/lib/legal";
+import { createLogger } from "@/shared/lib/logger";
+
+const logger = createLogger("landing.lead");
 
 const MAX_CONTACT_ATTEMPTS_PER_WINDOW = 5;
 const CONTACT_WINDOW_MS = 60 * 60 * 1000;
@@ -106,13 +109,13 @@ export async function attachLeadContact(raw: unknown): Promise<AttachLeadContact
         userAgent: hdrs.get("user-agent") ?? "unknown",
       });
     } catch (err) {
-      console.error("consent_log_write_failed", err);
+      logger.error("consent_log_write_failed", err);
       return { status: "error", message: "Не удалось сохранить согласие, попробуйте ещё раз." };
     }
 
     return { status: "ok" };
   } catch (error) {
-    console.error("Ошибка в attachLeadContact:", error);
+    logger.error("Ошибка в attachLeadContact", error);
     return { status: "error", message: "Не удалось сохранить номер." };
   }
 }

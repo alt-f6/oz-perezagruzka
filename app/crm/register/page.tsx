@@ -2,6 +2,9 @@
 
 import { use, useState, useEffect, type SyntheticEvent } from "react";
 import { useRouter } from "next/navigation";
+import { createLogger } from "@/shared/lib/logger";
+
+const logger = createLogger("crm.register");
 
 interface InviteData {
   id: string;
@@ -78,7 +81,7 @@ export default function RegisterPage({
         router.push("/dashboard");
       }
     } catch (err) {
-      console.error("Ошибка при регистрации:", err);
+      logger.error("Ошибка при регистрации", err);
       setErrorMessage("Произошла ошибка при отправке формы. Проверьте соединение и попробуйте снова.");
     } finally {
       setSubmitting(false);

@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import { createLogger } from "@/shared/lib/logger";
+
+const logger = createLogger("landing.error");
 
 export default function LandingError({
   error,
@@ -10,7 +13,7 @@ export default function LandingError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("Landing route error boundary caught:", error);
+    logger.error("Landing route error boundary caught", error);
   }, [error]);
 
   return (

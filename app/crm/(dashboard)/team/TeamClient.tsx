@@ -7,6 +7,9 @@ import { useToast } from "@/crm/components/ToastProvider";
 import type { Role } from "@/crm/lib/types";
 import { createInvite, setTeamMemberArchived } from "./actions";
 import { EditTeamMemberModal } from "./EditTeamMemberModal";
+import { createLogger } from "@/shared/lib/logger";
+
+const logger = createLogger("crm.team");
 
 interface Member {
   id: string;
@@ -114,7 +117,7 @@ export function TeamClient({
           setEmail("");
         }
       } catch (err) {
-        console.error("Ошибка при создании приглашения:", err);
+        logger.error("Ошибка при создании приглашения", err);
         showToast("Не удалось создать приглашение. Попробуйте снова.", "error");
       }
     });

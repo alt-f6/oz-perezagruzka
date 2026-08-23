@@ -4,8 +4,11 @@ import { requireRole } from "@/shared/lib/rbac";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { headObject } from "@/lms/server/r2/signed";
 import { LESSON_ASSET_MAX_SIZE_BYTES, LESSON_ASSET_PDF_MIME, readLessonAssetScope } from "@/lms/lib/lesson-assets";
+import { createLogger } from "@/shared/lib/logger";
 
 export const runtime = "nodejs";
+
+const logger = createLogger("lms.api.admin.assets.complete");
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -77,7 +80,7 @@ export const POST = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
       return NextResponse.json({ ok: false, error: "unexpected_content_type" }, { status: 400 });
     }
   } catch (error) {
-    console.error("admin asset complete head error", { assetId, lessonId, key, error });
+    logger.error("admin asset complete head error", error, { assetId, lessonId, key });
     return NextResponse.json({ ok: false, error: "file not found in r2" }, { status: 400 });
   }
 

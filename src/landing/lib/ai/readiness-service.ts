@@ -4,6 +4,9 @@ import {
   type ReadinessInput,
   type ReadinessOutput,
 } from "@/landing/lib/validations/readiness";
+import { createLogger } from "@/shared/lib/logger";
+
+const logger = createLogger("landing.readiness-service");
 
 const DEEPSEEK_MODEL = "deepseek-chat";
 const AI_TIMEOUT_MS = 30_000;
@@ -156,10 +159,12 @@ export async function generateReadinessMap(
       candidate = JSON.parse(cleanedRaw);
     } catch {
       if (process.env.NODE_ENV !== "production") {
-        console.error("❌ [DeepSeek JSON Parse Error] Failed to parse cleaned raw text:", cleanedRaw);
-        console.error("Original raw response was:", raw);
+        logger.error("DeepSeek JSON Parse Error: Failed to parse cleaned raw text", undefined, { cleanedRaw });
+        logger.error("DeepSeek JSON Parse Error: original raw response", undefined, { raw });
       } else {
-        console.error("❌ [DeepSeek JSON Parse Error] Failed to parse model output (length:", cleanedRaw.length, "chars)");
+        logger.error("DeepSeek JSON Parse Error: Failed to parse model output", undefined, {
+          cleanedRawLength: cleanedRaw.length,
+        });
       }
       throw new Error("DeepSeek returned non-JSON output or invalid format");
     }
@@ -167,11 +172,12 @@ export async function generateReadinessMap(
     const parsed = readinessOutputSchema.safeParse(candidate);
     if (!parsed.success) {
       if (process.env.NODE_ENV !== "production") {
-        console.error("❌ [Zod Schema Mismatch] Validating DeepSeek output failed!");
-        console.error("Candidate JSON received:", JSON.stringify(candidate, null, 2));
-        console.error("Validation Errors:", parsed.error.format());
+        logger.error("Zod Schema Mismatch: Validating DeepSeek output failed", undefined, {
+          candidateJson: JSON.stringify(candidate, null, 2),
+          validationErrors: parsed.error.format(),
+        });
       } else {
-        console.error("❌ [Zod Schema Mismatch] DeepSeek output failed schema validation");
+        logger.error("Zod Schema Mismatch: DeepSeek output failed schema validation");
       }
       throw new Error(`DeepSeek response failed schema validation: ${parsed.error.message}`);
     }

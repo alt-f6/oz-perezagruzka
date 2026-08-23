@@ -1,4 +1,7 @@
 import { z } from "zod";
+import { createLogger } from "@/shared/lib/logger";
+
+const logger = createLogger("shared.env");
 
 // Fail-fast startup validation for env vars with no safe runtime fallback.
 // Everything else in the app (YooKassa, Telegram, R2, ...) degrades to a
@@ -64,7 +67,7 @@ export function validateEnv(): void {
   }
 
   for (const warning of collectWarnings()) {
-    console.warn(`[env] ${warning}`);
+    logger.warn(warning);
   }
 
   validated = true;

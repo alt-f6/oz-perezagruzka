@@ -1,6 +1,9 @@
 "use client";
 
 import { Component, type ReactNode } from "react";
+import { createLogger } from "@/shared/lib/logger";
+
+const logger = createLogger("lms.media-error-boundary");
 
 type Props = { children: ReactNode; fallback?: ReactNode };
 type State = { hasError: boolean };
@@ -13,7 +16,7 @@ export class MediaErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: unknown) {
-    console.error("lesson media render error", error);
+    logger.error("lesson media render error", error);
   }
 
   render() {

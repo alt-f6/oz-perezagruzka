@@ -5,8 +5,11 @@ import { withApiErrors } from "@/lms/server/http/api-guard";
 import { signPutObject } from "@/lms/server/r2/signed";
 import { enforceRateLimit } from "@/lms/server/http/rate-limit";
 import { LESSON_ASSET_MAX_SIZE_BYTES, LESSON_ASSET_PDF_MIME } from "@/lms/lib/lesson-assets";
+import { createLogger } from "@/shared/lib/logger";
 
 export const runtime = "nodejs";
+
+const logger = createLogger("lms.api.admin.lessons.assets.presign");
 
 function safeName(name: string) {
   return name.replace(/[^\w.\-]+/g, "_").slice(0, 120);
@@ -103,7 +106,7 @@ export const POST = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
     assetId = asset.id;
     storageKey = asset.storageKey;
   } catch (error) {
-    console.error("admin asset presign db error", { lessonId, originalName, error });
+    logger.error("admin asset presign db error", error, { lessonId, originalName });
     throw error;
   }
 
@@ -111,7 +114,7 @@ export const POST = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
     const uploadUrl = await signPutObject(storageKey, mimeType);
     return NextResponse.json({ ok: true, assetId, storageKey, uploadUrl, maxSizeBytes: LESSON_ASSET_MAX_SIZE_BYTES });
   } catch (error) {
-    console.error("admin asset presign signing error", { lessonId, assetId, storageKey, error });
+    logger.error("admin asset presign signing error", error, { lessonId, assetId, storageKey });
     if (assetId !== null) {
       await db.lessonAsset.delete({ where: { id: assetId } });
     }

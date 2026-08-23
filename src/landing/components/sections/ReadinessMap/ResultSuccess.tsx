@@ -7,6 +7,9 @@ import Atmosphere from "@/landing/components/ui/Atmosphere";
 import { ContactForm } from "./ContactForm";
 import { useExam } from "@/landing/lib/exam-context";
 import { RESULT_ATTENTION_ZONES_TITLE, RESULT_COPY_HEADER } from "@/landing/lib/exam-content";
+import { createLogger } from "@/shared/lib/logger";
+
+const logger = createLogger("landing.readiness-map.result-success");
 
 interface ResultSuccessProps {
   leadId: string;
@@ -75,7 +78,7 @@ export function ResultSuccess({ leadId, map }: ResultSuccessProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch (err) {
-      console.error("Не удалось скопировать текст:", err);
+      logger.error("Не удалось скопировать текст", err);
     }
   };
 

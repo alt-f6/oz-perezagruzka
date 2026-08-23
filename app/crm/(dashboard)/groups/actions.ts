@@ -6,6 +6,9 @@ import { requireRole } from "@/shared/lib/rbac";
 import { db } from "@/shared/lib/db";
 import type { ActionResult } from "@/crm/lib/types";
 import { bulkCancelSessions, type BulkCancelResult } from "../lessons/actions";
+import { createLogger } from "@/shared/lib/logger";
+
+const logger = createLogger("crm.groups.actions");
 
 export async function getTeachers() {
   await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
@@ -17,7 +20,7 @@ export async function getTeachers() {
     });
     return data;
   } catch (error) {
-    console.error("❌ Ошибка при получении учителей:", error);
+    logger.error("Ошибка при получении учителей", error);
     return [];
   }
 }

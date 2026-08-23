@@ -53,7 +53,7 @@ function resolveOrigin(app: AppTarget): string {
   return `https://${targetHostname}`;
 }
 
-function buildAppLinks(role: Role): AppLink[] {
+export function buildAppLinks(role: Role): AppLink[] {
   const landing = resolveOrigin("landing") || DEFAULT_ORIGINS.landing;
   const crm = resolveOrigin("crm") || DEFAULT_ORIGINS.crm;
   const lms = resolveOrigin("lms") || DEFAULT_ORIGINS.lms;

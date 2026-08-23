@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { requireRoleApi } from "@/lms/server/auth/require-role-api";
+import { requireRole } from "@/shared/lib/rbac";
 import {
   listStudents,
   listLessons,
@@ -29,7 +29,7 @@ async function requireSameOrigin() {
 }
 
 export const GET = withApiErrors(async (req: NextRequest) => {
-  await requireRoleApi("ADMIN");
+  await requireRole(["ADMIN"], { adminBypass: true });
 
   const url = new URL(req.url);
   const studentId = url.searchParams.get("studentId");
@@ -47,7 +47,7 @@ export const GET = withApiErrors(async (req: NextRequest) => {
 });
 
 export const POST = withApiErrors(async (req: NextRequest) => {
-  await requireRoleApi("ADMIN");
+  await requireRole(["ADMIN"], { adminBypass: true });
 
   if (!(await requireSameOrigin())) {
     return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });

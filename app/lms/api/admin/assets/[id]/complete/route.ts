@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
-import { requireRoleApi } from "@/lms/server/auth/require-role-api";
+import { requireRole } from "@/shared/lib/rbac";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { headObject } from "@/lms/server/r2/signed";
 import { LESSON_ASSET_MAX_SIZE_BYTES, LESSON_ASSET_PDF_MIME, readLessonAssetScope } from "@/lms/lib/lesson-assets";
@@ -19,7 +19,7 @@ async function readAssetId({ params }: Ctx) {
 }
 
 export const POST = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
-  await requireRoleApi(["ADMIN", "MANAGER"]);
+  await requireRole(["ADMIN", "MANAGER"], { adminBypass: true });
 
   const assetId = await readAssetId(ctx);
   if (!assetId) {

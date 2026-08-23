@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-const requireRoleApiMock = vi.fn();
+const requireRoleMock = vi.fn();
 const findUniqueMock = vi.fn();
 const createMock = vi.fn();
 const enforceRateLimitMock = vi.fn();
 
-vi.mock("@/lms/server/auth/require-role-api", () => ({
-  requireRoleApi: (...args: unknown[]) => requireRoleApiMock(...args),
+vi.mock("@/shared/lib/rbac", () => ({
+  requireRole: (...args: unknown[]) => requireRoleMock(...args),
 }));
 vi.mock("@/shared/lib/db", () => ({
   db: {
@@ -33,7 +33,7 @@ function ctxFor(id: string) {
 
 describe("POST /api/admin/messages/[id]/reply", () => {
   beforeEach(() => {
-    requireRoleApiMock.mockReset();
+    requireRoleMock.mockReset();
     findUniqueMock.mockReset();
     createMock.mockReset();
     enforceRateLimitMock.mockReset();
@@ -41,7 +41,7 @@ describe("POST /api/admin/messages/[id]/reply", () => {
   });
 
   it("returns 401 when unauthenticated", async () => {
-    requireRoleApiMock.mockRejectedValue(Object.assign(new Error("unauthorized"), { status: 401 }));
+    requireRoleMock.mockRejectedValue(Object.assign(new Error("unauthorized"), { status: 401 }));
     const { POST } = await import("./route");
 
     const res = await POST(makeReq({ text: "hi" }), ctxFor("msg-1"));
@@ -50,7 +50,7 @@ describe("POST /api/admin/messages/[id]/reply", () => {
   });
 
   it("returns 403 for a STUDENT", async () => {
-    requireRoleApiMock.mockRejectedValue(Object.assign(new Error("forbidden"), { status: 403 }));
+    requireRoleMock.mockRejectedValue(Object.assign(new Error("forbidden"), { status: 403 }));
     const { POST } = await import("./route");
 
     const res = await POST(makeReq({ text: "hi" }), ctxFor("msg-1"));
@@ -59,7 +59,7 @@ describe("POST /api/admin/messages/[id]/reply", () => {
   });
 
   it("returns 429 when the caller is rate-limited", async () => {
-    requireRoleApiMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
+    requireRoleMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
     enforceRateLimitMock.mockRejectedValue(Object.assign(new Error("rate_limited"), { status: 429 }));
     const { POST } = await import("./route");
 
@@ -70,7 +70,7 @@ describe("POST /api/admin/messages/[id]/reply", () => {
   });
 
   it("returns 400 for blank text", async () => {
-    requireRoleApiMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
+    requireRoleMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
     const { POST } = await import("./route");
 
     const res = await POST(makeReq({ text: "   " }), ctxFor("msg-1"));
@@ -80,7 +80,7 @@ describe("POST /api/admin/messages/[id]/reply", () => {
   });
 
   it("returns 404 when the parent message doesn't exist", async () => {
-    requireRoleApiMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
+    requireRoleMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
     findUniqueMock.mockResolvedValue(null);
     const { POST } = await import("./route");
 
@@ -90,7 +90,7 @@ describe("POST /api/admin/messages/[id]/reply", () => {
   });
 
   it("creates a reply message on success", async () => {
-    requireRoleApiMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
+    requireRoleMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
     findUniqueMock.mockResolvedValue({ id: "msg-1", lessonId: "lesson-1", studentId: "stu-1" });
     createMock.mockResolvedValue({});
     const { POST } = await import("./route");

@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-const requireRoleApiMock = vi.fn();
+const requireRoleMock = vi.fn();
 const findUniqueMock = vi.fn();
 const updateMock = vi.fn();
 const headObjectMock = vi.fn();
 
-vi.mock("@/lms/server/auth/require-role-api", () => ({
-  requireRoleApi: (...args: unknown[]) => requireRoleApiMock(...args),
+vi.mock("@/shared/lib/rbac", () => ({
+  requireRole: (...args: unknown[]) => requireRoleMock(...args),
 }));
 vi.mock("@/shared/lib/db", () => ({
   db: {
@@ -41,15 +41,15 @@ const BASE_ROW = {
 
 describe("POST /api/admin/assets/[id]/complete", () => {
   beforeEach(() => {
-    requireRoleApiMock.mockReset();
+    requireRoleMock.mockReset();
     findUniqueMock.mockReset();
     updateMock.mockReset();
     headObjectMock.mockReset();
-    requireRoleApiMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    requireRoleMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
   });
 
-  it("returns 401/403 as thrown by requireRoleApi without touching the database", async () => {
-    requireRoleApiMock.mockRejectedValue(Object.assign(new Error("forbidden"), { status: 403 }));
+  it("returns 401/403 as thrown by requireRole without touching the database", async () => {
+    requireRoleMock.mockRejectedValue(Object.assign(new Error("forbidden"), { status: 403 }));
     const { POST } = await import("./route");
 
     const res = await POST(makeReq({ lessonId: "lesson-1", sizeBytes: 1000 }), ctxFor("asset-1"));

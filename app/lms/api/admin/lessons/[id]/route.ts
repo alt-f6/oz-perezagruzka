@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
-import { requireRoleApi } from "@/lms/server/auth/require-role-api";
+import { requireRole } from "@/shared/lib/rbac";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import type { Lesson } from "@prisma/client";
 
@@ -26,7 +26,7 @@ function toLessonJson(lesson: Lesson) {
 }
 
 export const GET = withApiErrors(async (_: NextRequest, ctx: Ctx) => {
-  const user = await requireRoleApi(["ADMIN", "MANAGER"]);
+  const user = await requireRole(["ADMIN", "MANAGER"], { adminBypass: true });
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
   const lessonId = await readLessonId(ctx);
@@ -42,7 +42,7 @@ export const GET = withApiErrors(async (_: NextRequest, ctx: Ctx) => {
 });
 
 export const PATCH = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
-  const user = await requireRoleApi(["ADMIN", "MANAGER"]);
+  const user = await requireRole(["ADMIN", "MANAGER"], { adminBypass: true });
   if (!user) return NextResponse.json({ ok: false }, { status: 401 });
 
   const lessonId = await readLessonId(ctx);

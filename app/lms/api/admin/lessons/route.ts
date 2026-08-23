@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
-import { requireRoleApi } from "@/lms/server/auth/require-role-api";
+import { requireRole } from "@/shared/lib/rbac";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { getDefaultModuleId } from "@/lms/server/repos/default-module";
 import type { Lesson } from "@prisma/client";
@@ -19,10 +19,7 @@ function toLessonJson(lesson: Lesson) {
 }
 
 export const GET = withApiErrors(async () => {
-  const user = await requireRoleApi(["ADMIN", "MANAGER"]);
-  if (!user) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
+  await requireRole(["ADMIN", "MANAGER"], { adminBypass: true });
 
   const lessons = await db.lesson.findMany({
     orderBy: [{ order: "asc" }, { id: "asc" }],
@@ -33,10 +30,7 @@ export const GET = withApiErrors(async () => {
 });
 
 export const POST = withApiErrors(async () => {
-  const user = await requireRoleApi(["ADMIN", "MANAGER"]);
-  if (!user) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
+  const user = await requireRole(["ADMIN", "MANAGER"], { adminBypass: true });
 
   const lesson = await db.$transaction(async (tx) => {
     const moduleId = await getDefaultModuleId(user.id);

@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-const requireRoleApiMock = vi.fn();
+const requireRoleMock = vi.fn();
 const lessonFindUniqueMock = vi.fn();
 const transactionMock = vi.fn();
 const lessonAssetDeleteMock = vi.fn();
 const signPutObjectMock = vi.fn();
 const enforceRateLimitMock = vi.fn();
 
-vi.mock("@/lms/server/auth/require-role-api", () => ({
-  requireRoleApi: (...args: unknown[]) => requireRoleApiMock(...args),
+vi.mock("@/shared/lib/rbac", () => ({
+  requireRole: (...args: unknown[]) => requireRoleMock(...args),
 }));
 vi.mock("@/shared/lib/db", () => ({
   db: {
@@ -38,7 +38,7 @@ function ctxFor(id: string) {
 
 describe("POST /api/admin/lessons/[id]/assets/presign", () => {
   beforeEach(() => {
-    requireRoleApiMock.mockReset();
+    requireRoleMock.mockReset();
     lessonFindUniqueMock.mockReset();
     transactionMock.mockReset();
     lessonAssetDeleteMock.mockReset();
@@ -47,18 +47,18 @@ describe("POST /api/admin/lessons/[id]/assets/presign", () => {
     enforceRateLimitMock.mockResolvedValue(undefined);
   });
 
-  it("returns 401 when requireRoleApi rejects an unauthenticated caller", async () => {
-    requireRoleApiMock.mockRejectedValue(Object.assign(new Error("unauthorized"), { status: 401 }));
+  it("returns 401 when requireRole rejects an unauthenticated caller", async () => {
+    requireRoleMock.mockRejectedValue(Object.assign(new Error("unauthorized"), { status: 401 }));
     const { POST } = await import("./route");
 
     const res = await POST(makeReq({}), ctxFor("lesson-1"));
 
     expect(res.status).toBe(401);
-    expect(requireRoleApiMock).toHaveBeenCalledWith(["ADMIN", "MANAGER"]);
+    expect(requireRoleMock).toHaveBeenCalledWith(["ADMIN", "MANAGER"], { adminBypass: true });
   });
 
-  it("returns 403 when requireRoleApi rejects a STUDENT caller", async () => {
-    requireRoleApiMock.mockRejectedValue(Object.assign(new Error("forbidden"), { status: 403 }));
+  it("returns 403 when requireRole rejects a STUDENT caller", async () => {
+    requireRoleMock.mockRejectedValue(Object.assign(new Error("forbidden"), { status: 403 }));
     const { POST } = await import("./route");
 
     const res = await POST(makeReq({}), ctxFor("lesson-1"));
@@ -67,7 +67,7 @@ describe("POST /api/admin/lessons/[id]/assets/presign", () => {
   });
 
   it("returns 429 when the caller is rate-limited", async () => {
-    requireRoleApiMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    requireRoleMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
     enforceRateLimitMock.mockRejectedValue(Object.assign(new Error("rate_limited"), { status: 429 }));
     const { POST } = await import("./route");
 
@@ -78,7 +78,7 @@ describe("POST /api/admin/lessons/[id]/assets/presign", () => {
   });
 
   it("rejects a non-PDF mimeType with 400", async () => {
-    requireRoleApiMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    requireRoleMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
     const { POST } = await import("./route");
 
     const res = await POST(
@@ -93,7 +93,7 @@ describe("POST /api/admin/lessons/[id]/assets/presign", () => {
   });
 
   it("rejects sizeBytes <= 0 with 400", async () => {
-    requireRoleApiMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    requireRoleMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
     const { POST } = await import("./route");
 
     const res = await POST(
@@ -107,7 +107,7 @@ describe("POST /api/admin/lessons/[id]/assets/presign", () => {
   });
 
   it("rejects sizeBytes over the max limit with 400", async () => {
-    requireRoleApiMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    requireRoleMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
     const { POST } = await import("./route");
     const { LESSON_ASSET_MAX_SIZE_BYTES } = await import("@/lms/lib/lesson-assets");
 
@@ -122,7 +122,7 @@ describe("POST /api/admin/lessons/[id]/assets/presign", () => {
   });
 
   it("returns 404 when the lesson does not exist", async () => {
-    requireRoleApiMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    requireRoleMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
     lessonFindUniqueMock.mockResolvedValue(null);
     const { POST } = await import("./route");
 
@@ -137,7 +137,7 @@ describe("POST /api/admin/lessons/[id]/assets/presign", () => {
   });
 
   it("creates the asset row and returns a signed PUT url on success", async () => {
-    requireRoleApiMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    requireRoleMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
     lessonFindUniqueMock.mockResolvedValue({ id: "lesson-1" });
     transactionMock.mockResolvedValue({ id: "asset-1", storageKey: "lessons/lesson-1/assets/asset-1-a.pdf" });
     signPutObjectMock.mockResolvedValue("https://r2.example.com/signed-put");
@@ -156,7 +156,7 @@ describe("POST /api/admin/lessons/[id]/assets/presign", () => {
   });
 
   it("deletes the just-created asset row and returns 502 if signing fails", async () => {
-    requireRoleApiMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    requireRoleMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
     lessonFindUniqueMock.mockResolvedValue({ id: "lesson-1" });
     transactionMock.mockResolvedValue({ id: "asset-1", storageKey: "lessons/lesson-1/assets/asset-1-a.pdf" });
     signPutObjectMock.mockRejectedValue(new Error("r2 down"));

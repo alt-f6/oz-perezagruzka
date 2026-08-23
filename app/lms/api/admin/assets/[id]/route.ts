@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
-import { requireRoleApi } from "@/lms/server/auth/require-role-api";
+import { requireRole } from "@/shared/lib/rbac";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { deleteObject } from "@/lms/server/r2/signed";
 import { readLessonAssetScope } from "@/lms/lib/lesson-assets";
@@ -37,7 +37,7 @@ function toAssetJson(asset: LessonAsset) {
 }
 
 export const PATCH = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
-  await requireRoleApi(["ADMIN", "MANAGER"]);
+  await requireRole(["ADMIN", "MANAGER"], { adminBypass: true });
 
   const id = await readAssetId(ctx);
   if (!id) return NextResponse.json({ ok: false, error: "bad id" }, { status: 400 });
@@ -96,7 +96,7 @@ export const PATCH = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
 });
 
 export const DELETE = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
-  await requireRoleApi(["ADMIN", "MANAGER"]);
+  await requireRole(["ADMIN", "MANAGER"], { adminBypass: true });
 
   const id = await readAssetId(ctx);
   if (!id) return NextResponse.json({ ok: false, error: "bad id" }, { status: 400 });

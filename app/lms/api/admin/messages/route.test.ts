@@ -3,12 +3,12 @@ import { NextRequest } from "next/server";
 
 const dummyRequest = () => new NextRequest("http://localhost/api/admin/messages");
 
-const requireRoleApiMock = vi.fn();
+const requireRoleMock = vi.fn();
 const findManyMock = vi.fn();
 const enforceRateLimitMock = vi.fn();
 
-vi.mock("@/lms/server/auth/require-role-api", () => ({
-  requireRoleApi: (...args: unknown[]) => requireRoleApiMock(...args),
+vi.mock("@/shared/lib/rbac", () => ({
+  requireRole: (...args: unknown[]) => requireRoleMock(...args),
 }));
 vi.mock("@/shared/lib/db", () => ({
   db: {
@@ -21,14 +21,14 @@ vi.mock("@/lms/server/http/rate-limit", () => ({
 
 describe("GET /api/admin/messages", () => {
   beforeEach(() => {
-    requireRoleApiMock.mockReset();
+    requireRoleMock.mockReset();
     findManyMock.mockReset();
     enforceRateLimitMock.mockReset();
     enforceRateLimitMock.mockResolvedValue(undefined);
   });
 
   it("returns 401 when unauthenticated", async () => {
-    requireRoleApiMock.mockRejectedValue(Object.assign(new Error("unauthorized"), { status: 401 }));
+    requireRoleMock.mockRejectedValue(Object.assign(new Error("unauthorized"), { status: 401 }));
     const { GET } = await import("./route");
 
     const res = await GET(dummyRequest());
@@ -38,7 +38,7 @@ describe("GET /api/admin/messages", () => {
   });
 
   it("returns 403 for a STUDENT", async () => {
-    requireRoleApiMock.mockRejectedValue(Object.assign(new Error("forbidden"), { status: 403 }));
+    requireRoleMock.mockRejectedValue(Object.assign(new Error("forbidden"), { status: 403 }));
     const { GET } = await import("./route");
 
     const res = await GET(dummyRequest());
@@ -47,7 +47,7 @@ describe("GET /api/admin/messages", () => {
   });
 
   it("returns 429 when the caller is rate-limited", async () => {
-    requireRoleApiMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
+    requireRoleMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
     enforceRateLimitMock.mockRejectedValue(Object.assign(new Error("rate_limited"), { status: 429 }));
     const { GET } = await import("./route");
 
@@ -58,7 +58,7 @@ describe("GET /api/admin/messages", () => {
   });
 
   it("returns 200 with mapped messages for MANAGER", async () => {
-    requireRoleApiMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
+    requireRoleMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
     findManyMock.mockResolvedValue([
       {
         id: "msg-1",

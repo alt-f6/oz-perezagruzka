@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
-import { requireRoleApi } from "@/lms/server/auth/require-role-api";
+import { requireRole } from "@/shared/lib/rbac";
 import { hashPassword } from "@/shared/lib/auth";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 
@@ -21,7 +21,7 @@ function validatePassword(pw: string) {
 }
 
 export const POST = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
-  const user = await requireRoleApi("ADMIN");
+  const user = await requireRole(["ADMIN"], { adminBypass: true });
   if (!user) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
   const id = await readId(ctx);

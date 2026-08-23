@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
-import { requireRoleApi } from "@/lms/server/auth/require-role-api";
+import { requireRole } from "@/shared/lib/rbac";
 import { hashPassword } from "@/shared/lib/auth";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 
@@ -12,7 +12,7 @@ function isValidEmail(email: string) {
 }
 
 export const GET = withApiErrors(async () => {
-  await requireRoleApi("ADMIN");
+  await requireRole(["ADMIN"], { adminBypass: true });
 
   const students = await db.user.findMany({
     where: { role: "STUDENT" },
@@ -25,7 +25,7 @@ export const GET = withApiErrors(async () => {
 });
 
 export const POST = withApiErrors(async (req: NextRequest) => {
-  await requireRoleApi("ADMIN");
+  await requireRole(["ADMIN"], { adminBypass: true });
 
   const body = await req.json().catch(() => ({} as any));
   const email = String(body.email ?? "").trim().toLowerCase();

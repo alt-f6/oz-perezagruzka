@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { db } from "@/shared/lib/db";
-import { requireRoleApi } from "@/lms/server/auth/require-role-api";
+import { requireRole } from "@/shared/lib/rbac";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { createLogger } from "@/shared/lib/logger";
 import type { LessonMedia } from "@prisma/client";
@@ -65,7 +65,7 @@ function toMediaJson(media: LessonMedia) {
 }
 
 export const PATCH = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
-  await requireRoleApi(["ADMIN", "MANAGER"]);
+  await requireRole(["ADMIN", "MANAGER"], { adminBypass: true });
 
   const id = await readMediaId(ctx);
   if (!id) return NextResponse.json({ ok: false, error: "bad id" }, { status: 400 });
@@ -138,7 +138,7 @@ export const PATCH = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
 });
 
 export const DELETE = withApiErrors(async (_: NextRequest, ctx: Ctx) => {
-  await requireRoleApi(["ADMIN", "MANAGER"]);
+  await requireRole(["ADMIN", "MANAGER"], { adminBypass: true });
 
   const id = await readMediaId(ctx);
   if (!id) return NextResponse.json({ ok: false, error: "bad id" }, { status: 400 });

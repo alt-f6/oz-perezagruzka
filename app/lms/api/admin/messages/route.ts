@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
-import { requireRoleApi } from "@/lms/server/auth/require-role-api";
+import { requireRole } from "@/shared/lib/rbac";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { enforceRateLimit } from "@/lms/server/http/rate-limit";
 
 export const GET = withApiErrors(async () => {
-  const admin = await requireRoleApi(["ADMIN", "MANAGER"]);
+  const admin = await requireRole(["ADMIN", "MANAGER"], { adminBypass: true });
 
   await enforceRateLimit(`lms:admin-messages-list:${admin.id}`, 60, 60_000);
 

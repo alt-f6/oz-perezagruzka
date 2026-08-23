@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
-import { requireRoleApi } from "@/lms/server/auth/require-role-api";
+import { requireRole } from "@/shared/lib/rbac";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { canViewLesson } from "@/lms/server/access/can-view-lesson";
 import type { Role } from "@/shared/lib/auth";
@@ -15,7 +15,7 @@ async function hasStudentAccess(studentId: string, role: Role, lessonId: string)
 }
 
 export const GET = withApiErrors(async (req: NextRequest) => {
-  const session = await requireRoleApi("STUDENT");
+  const session = await requireRole(["STUDENT"], { adminBypass: true });
 
   const { searchParams } = new URL(req.url);
   const lessonId = parseLessonId(searchParams.get("lessonId"));
@@ -50,7 +50,7 @@ export const GET = withApiErrors(async (req: NextRequest) => {
 });
 
 export const POST = withApiErrors(async (req: NextRequest) => {
-  const session = await requireRoleApi("STUDENT");
+  const session = await requireRole(["STUDENT"], { adminBypass: true });
 
   const body = await req.json().catch(() => null);
   const { lessonId, text } = body ?? {};

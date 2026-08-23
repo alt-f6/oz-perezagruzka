@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireRoleApi } from "@/lms/server/auth/require-role-api";
+import { requireRole } from "@/shared/lib/rbac";
 import { db } from "@/shared/lib/db";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 
 export const GET = withApiErrors(async () => {
-  const user = await requireRoleApi("STUDENT");
+  const user = await requireRole(["STUDENT"], { adminBypass: true });
 
   const assignments = await db.assignment.findMany({
     where: { studentId: user.id, lesson: { isPublished: true } },

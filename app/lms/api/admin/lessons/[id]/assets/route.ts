@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
-import { requireRoleApi } from "@/lms/server/auth/require-role-api";
+import { requireRole } from "@/shared/lib/rbac";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import type { LessonAsset } from "@prisma/client";
 
@@ -32,7 +32,7 @@ function toAssetJson(asset: LessonAsset) {
 }
 
 export const GET = withApiErrors(async (_req: NextRequest, ctx: Ctx) => {
-  await requireRoleApi(["ADMIN", "MANAGER"]);
+  await requireRole(["ADMIN", "MANAGER"], { adminBypass: true });
 
   const lessonId = await readLessonId(ctx);
   if (!lessonId) {

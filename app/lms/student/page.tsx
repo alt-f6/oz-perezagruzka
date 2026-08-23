@@ -3,12 +3,17 @@ import { PlayCircle } from "lucide-react";
 
 import { requireRoleForPage } from "@/shared/lib/rbac";
 import { requireAuth } from "@/lms/server/auth/require-auth";
+import { roleHome } from "@/lms/server/auth/types";
 import { db } from "@/shared/lib/db";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card";
 
 export default async function StudentDashboard() {
-  await requireRoleForPage(["STUDENT"], { adminBypass: true, loginPath: "/login" });
+  await requireRoleForPage(["STUDENT"], {
+    adminBypass: true,
+    loginPath: "/login",
+    forbiddenPath: (user) => roleHome(user.role),
+  });
   const user = await requireAuth();
 
   const assignments = await db.assignment.findMany({

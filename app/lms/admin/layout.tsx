@@ -1,12 +1,13 @@
 import React from "react";
 import { requireRoleForPage } from "@/shared/lib/rbac";
-import { ROLE_LABELS } from "@/lms/server/auth/types";
+import { ROLE_LABELS, roleHome } from "@/lms/server/auth/types";
 import { TopNav } from "@/lms/components/TopNav";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await requireRoleForPage(["ADMIN", "MANAGER", "TEACHER"], {
     adminBypass: true,
     loginPath: "/login",
+    forbiddenPath: (user) => roleHome(user.role),
   });
 
   // TEACHER gets no access to the global curriculum CMS (lessons/students/

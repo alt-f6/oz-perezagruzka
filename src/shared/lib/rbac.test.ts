@@ -92,6 +92,41 @@ describe("requireRoleForPage", () => {
     );
     expect(redirectMock).not.toHaveBeenCalled();
   });
+
+  it("redirects to forbiddenPath(user) when forbidden and forbiddenPath is supplied", async () => {
+    getSessionUserMock.mockResolvedValue(STUDENT_USER);
+    const { requireRoleForPage } = await import("./rbac");
+    const forbiddenPath = vi.fn((user: { role: string }) => `/own/${user.role}`);
+
+    await expect(
+      requireRoleForPage(["ADMIN"], { loginPath: "/lms/login", forbiddenPath }),
+    ).rejects.toThrow("NEXT_REDIRECT:/own/STUDENT");
+    expect(forbiddenPath).toHaveBeenCalledWith(STUDENT_USER);
+    expect(redirectMock).toHaveBeenCalledWith("/own/STUDENT");
+    expect(redirectMock).not.toHaveBeenCalledWith("/lms/login");
+  });
+
+  it("still redirects to loginPath when unauthenticated even if forbiddenPath is supplied", async () => {
+    getSessionUserMock.mockResolvedValue(null);
+    const { requireRoleForPage } = await import("./rbac");
+    const forbiddenPath = vi.fn((user: { role: string }) => `/own/${user.role}`);
+
+    await expect(
+      requireRoleForPage(["ADMIN"], { loginPath: "/lms/login", forbiddenPath }),
+    ).rejects.toThrow("NEXT_REDIRECT:/lms/login");
+    expect(forbiddenPath).not.toHaveBeenCalled();
+    expect(redirectMock).toHaveBeenCalledWith("/lms/login");
+  });
+
+  it("falls back to loginPath when forbidden and no forbiddenPath is supplied", async () => {
+    getSessionUserMock.mockResolvedValue(STUDENT_USER);
+    const { requireRoleForPage } = await import("./rbac");
+
+    await expect(requireRoleForPage(["ADMIN"], { loginPath: "/lms/login" })).rejects.toThrow(
+      "NEXT_REDIRECT:/lms/login",
+    );
+    expect(redirectMock).toHaveBeenCalledWith("/lms/login");
+  });
 });
 
 describe("rbacErrorResponse", () => {

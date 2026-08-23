@@ -1,10 +1,15 @@
 import { requireRoleForPage } from "@/shared/lib/rbac";
+import { roleHome } from "@/lms/server/auth/types";
 import AdminLessonEditClient from "./ui";
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function AdminLessonEditPage({ params }: Props) {
-  await requireRoleForPage(["ADMIN", "MANAGER"], { adminBypass: true, loginPath: "/login" });
+  await requireRoleForPage(["ADMIN", "MANAGER"], {
+    adminBypass: true,
+    loginPath: "/login",
+    forbiddenPath: (user) => roleHome(user.role),
+  });
 
   const { id } = await params;
   const lessonId = id;

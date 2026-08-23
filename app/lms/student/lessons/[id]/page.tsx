@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { requireRoleForPage } from "@/shared/lib/rbac";
 import { requireAuth } from "@/lms/server/auth/require-auth";
+import { roleHome } from "@/lms/server/auth/types";
 import { db } from "@/shared/lib/db";
 import { canViewLesson } from "@/lms/server/access/can-view-lesson";
 import { LessonTheaterViewer } from "@/lms/components/student/LessonTheaterViewer";
@@ -30,7 +31,11 @@ function NoticePage({ title, message }: { title: string; message: string }) {
 }
 
 export default async function StudentLessonPage({ params }: Props) {
-  await requireRoleForPage(["STUDENT"], { adminBypass: true, loginPath: "/login" });
+  await requireRoleForPage(["STUDENT"], {
+    adminBypass: true,
+    loginPath: "/login",
+    forbiddenPath: (user) => roleHome(user.role),
+  });
   const user = await requireAuth();
 
   const { id } = await params;

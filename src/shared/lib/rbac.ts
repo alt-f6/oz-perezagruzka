@@ -6,11 +6,19 @@ export type Role = "ADMIN" | "MANAGER" | "TEACHER" | "STUDENT" | "PARENT";
 
 export class RbacError extends Error {
   status: 401 | 403;
+  /**
+   * The authenticated-but-wrong-role user, populated only for 403 errors
+   * (never for 401, where there is no session). Lets requireRoleForPage's
+   * catch block redirect a forbidden user somewhere role-aware instead of
+   * to the login page.
+   */
+  user?: SessionUser;
 
-  constructor(status: 401 | 403, message: string) {
+  constructor(status: 401 | 403, message: string, user?: SessionUser) {
     super(message);
     this.name = "RbacError";
     this.status = status;
+    this.user = user;
   }
 }
 
@@ -35,7 +43,7 @@ export async function requireRole(
     throw new RbacError(401, "unauthorized");
   }
   if (!isAllowed(user.role as Role, allowed, opts?.adminBypass ?? false)) {
-    throw new RbacError(403, "forbidden");
+    throw new RbacError(403, "forbidden", user);
   }
   return user;
 }
@@ -44,15 +52,23 @@ export async function requireRole(
  * Redirect-based guard for Server Component pages/layouts. loginPath is
  * required (no shared default) because CRM and LMS have different login
  * routes; pass the app's own login path explicitly at each call site.
+ *
+ * forbiddenPath is optional and only applies to the 403 (authenticated but
+ * wrong role) case; it never applies to the 401 (no session) case, which
+ * always redirects to loginPath. When omitted, 403 also falls back to
+ * loginPath, preserving behavior for callers that don't pass it.
  */
 export async function requireRoleForPage(
   allowed: Role[],
-  opts: { adminBypass?: boolean; loginPath: string },
+  opts: { adminBypass?: boolean; loginPath: string; forbiddenPath?: (user: SessionUser) => string },
 ): Promise<SessionUser> {
   try {
     return await requireRole(allowed, { adminBypass: opts.adminBypass });
   } catch (err) {
     if (err instanceof RbacError) {
+      if (err.status === 403 && opts.forbiddenPath && err.user) {
+        redirect(opts.forbiddenPath(err.user));
+      }
       redirect(opts.loginPath);
     }
     throw err;

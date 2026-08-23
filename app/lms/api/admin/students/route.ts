@@ -3,6 +3,7 @@ import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import { hashPassword } from "@/shared/lib/auth";
 import { withApiErrors } from "@/lms/server/http/api-guard";
+import { buildCursorPage, parsePaginationParams } from "@/shared/lib/pagination";
 
 export const runtime = "nodejs";
 
@@ -11,17 +12,22 @@ function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 }
 
-export const GET = withApiErrors(async () => {
+export const GET = withApiErrors(async (req: NextRequest) => {
   await requireRole(["ADMIN"], { adminBypass: true });
 
-  const students = await db.user.findMany({
+  const { cursor, limit } = parsePaginationParams(new URL(req.url).searchParams);
+
+  const rows = await db.user.findMany({
     where: { role: "STUDENT" },
     select: { id: true, email: true, role: true, fullName: true },
     orderBy: { id: "desc" },
-    take: 1000,
+    take: limit + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
 
-  return NextResponse.json({ ok: true, students });
+  const { items: students, nextCursor } = buildCursorPage(rows, limit);
+
+  return NextResponse.json({ ok: true, students, nextCursor });
 });
 
 export const POST = withApiErrors(async (req: NextRequest) => {

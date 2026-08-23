@@ -93,6 +93,7 @@ describe("validateEnv", () => {
       process.env.CRM_RESEND_API_KEY = "test-resend-key";
       process.env.CRM_NOTIFICATION_FROM_EMAIL = "no-reply@example.com";
       process.env.NEXT_PUBLIC_SITE_URL = "https://example.com";
+      process.env.COOKIE_DOMAIN = ".example.com";
       const { validateEnv } = await import("@/shared/lib/env");
 
       expect(() => validateEnv()).toThrow(/CRM_TELEGRAM_BOT_TOKEN/);
@@ -105,6 +106,7 @@ describe("validateEnv", () => {
       process.env.CRM_RESEND_API_KEY = "test-resend-key";
       process.env.CRM_NOTIFICATION_FROM_EMAIL = "no-reply@example.com";
       process.env.NEXT_PUBLIC_SITE_URL = "https://example.com";
+      process.env.COOKIE_DOMAIN = ".example.com";
       const { validateEnv } = await import("@/shared/lib/env");
 
       expect(() => validateEnv()).toThrow(/CRON_SECRET/);
@@ -117,6 +119,7 @@ describe("validateEnv", () => {
       process.env.CRM_RESEND_API_KEY = "test-resend-key";
       delete process.env.CRM_NOTIFICATION_FROM_EMAIL;
       process.env.NEXT_PUBLIC_SITE_URL = "https://example.com";
+      process.env.COOKIE_DOMAIN = ".example.com";
       const { validateEnv } = await import("@/shared/lib/env");
 
       expect(() => validateEnv()).toThrow(/CRM_NOTIFICATION_FROM_EMAIL/);
@@ -129,9 +132,21 @@ describe("validateEnv", () => {
       process.env.CRM_RESEND_API_KEY = "test-resend-key";
       process.env.CRM_NOTIFICATION_FROM_EMAIL = "no-reply@example.com";
       process.env.NEXT_PUBLIC_SITE_URL = "https://example.com";
+      process.env.COOKIE_DOMAIN = ".example.com";
       const { validateEnv } = await import("@/shared/lib/env");
 
       expect(() => validateEnv()).not.toThrow();
+    });
+
+    it("throws when COOKIE_DOMAIN is missing in production", async () => {
+      vi.stubEnv("NODE_ENV", "production");
+      process.env.CRM_TELEGRAM_BOT_TOKEN = "test-token";
+      process.env.CRON_SECRET = "test-secret";
+      process.env.NEXT_PUBLIC_SITE_URL = "https://example.com";
+      delete process.env.COOKIE_DOMAIN;
+      const { validateEnv } = await import("@/shared/lib/env");
+
+      expect(() => validateEnv()).toThrow(/COOKIE_DOMAIN/);
     });
 
     it("does not require notification credentials outside production", async () => {

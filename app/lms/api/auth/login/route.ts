@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { db } from "@/shared/lib/db";
 import { authenticateWithPassword, createUserSession, signToken, SESSION_COOKIE_NAME } from "@/shared/lib/auth";
 import { withApiErrors } from "@/lms/server/http/api-guard";
+import { isLoginRateLimited, recordFailedLoginAttempt, clearLoginAttempts } from "@/shared/lib/login-rate-limit";
 
 export const runtime = "nodejs";
-
-const RATE_LIMIT_MAX_ATTEMPTS = 5;
-const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000;
 
 function extractIp(req: NextRequest): string {
   const forwarded = req.headers.get("x-forwarded-for");
@@ -20,30 +17,6 @@ function extractIp(req: NextRequest): string {
   if (legacyIp) return legacyIp;
 
   return "unknown";
-}
-
-async function isRateLimited(ip: string, email: string): Promise<boolean> {
-  const row = await db.loginAttempt.findUnique({ where: { ipAddress_email: { ipAddress: ip, email } } });
-  if (!row) return false;
-
-  const withinWindow = Date.now() - row.lastAttempt.getTime() < RATE_LIMIT_WINDOW_MS;
-  return withinWindow && row.attemptCount >= RATE_LIMIT_MAX_ATTEMPTS;
-}
-
-async function recordFailedAttempt(ip: string, email: string): Promise<void> {
-  const existing = await db.loginAttempt.findUnique({ where: { ipAddress_email: { ipAddress: ip, email } } });
-  const withinWindow =
-    existing && Date.now() - existing.lastAttempt.getTime() < RATE_LIMIT_WINDOW_MS;
-
-  await db.loginAttempt.upsert({
-    where: { ipAddress_email: { ipAddress: ip, email } },
-    create: { ipAddress: ip, email, attemptCount: 1 },
-    update: { attemptCount: withinWindow ? { increment: 1 } : 1, lastAttempt: new Date() },
-  });
-}
-
-async function clearFailedAttempts(ip: string, email: string): Promise<void> {
-  await db.loginAttempt.deleteMany({ where: { ipAddress: ip, email } });
 }
 
 export const POST = withApiErrors(async (req: NextRequest) => {
@@ -60,7 +33,7 @@ export const POST = withApiErrors(async (req: NextRequest) => {
 
   const ip = extractIp(req);
 
-  if (await isRateLimited(ip, email)) {
+  if (await isLoginRateLimited(ip, email)) {
     return NextResponse.json(
       { ok: false, error: "too_many_attempts" },
       { status: 429 }
@@ -70,7 +43,7 @@ export const POST = withApiErrors(async (req: NextRequest) => {
   const user = await authenticateWithPassword(email, password);
 
   if (!user) {
-    await recordFailedAttempt(ip, email);
+    await recordFailedLoginAttempt(ip, email);
 
     return NextResponse.json(
       { ok: false, error: "invalid credentials" },
@@ -78,7 +51,7 @@ export const POST = withApiErrors(async (req: NextRequest) => {
     );
   }
 
-  await clearFailedAttempts(ip, email);
+  await clearLoginAttempts(email);
 
   const { token, expiresAt } = await createUserSession(user.id);
 
@@ -90,6 +63,7 @@ export const POST = withApiErrors(async (req: NextRequest) => {
     sameSite: "lax",
     path: "/",
     expires: expiresAt,
+    ...(process.env.COOKIE_DOMAIN ? { domain: process.env.COOKIE_DOMAIN } : {}),
   });
 
   return NextResponse.json({ ok: true });

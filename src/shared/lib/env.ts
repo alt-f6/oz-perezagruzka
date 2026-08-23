@@ -25,6 +25,7 @@ const productionSchema = z
     NEXT_PUBLIC_SITE_URL: z
       .string({ message: "NEXT_PUBLIC_SITE_URL is required in production (used to build payment return URLs)" })
       .url("NEXT_PUBLIC_SITE_URL must be a valid absolute URL, e.g. https://example.com"),
+    COOKIE_DOMAIN: z.string({ message: "COOKIE_DOMAIN is required in production (enables cross-subdomain SSO)" }).min(1),
     CRM_RESEND_API_KEY: z.string().min(1).optional(),
     CRM_NOTIFICATION_FROM_EMAIL: z.string().min(1).optional(),
     YOOKASSA_SECRET_KEY: z.string().min(1).optional(),

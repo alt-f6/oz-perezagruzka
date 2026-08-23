@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { getDefaultModuleId } from "@/lms/server/repos/default-module";
+import { buildCursorPage, parsePaginationParams } from "@/shared/lib/pagination";
 import type { Lesson } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -18,15 +19,20 @@ function toLessonJson(lesson: Lesson) {
   };
 }
 
-export const GET = withApiErrors(async () => {
+export const GET = withApiErrors(async (req: NextRequest) => {
   await requireRole(["ADMIN", "MANAGER"], { adminBypass: true });
 
-  const lessons = await db.lesson.findMany({
+  const { cursor, limit } = parsePaginationParams(new URL(req.url).searchParams);
+
+  const rows = await db.lesson.findMany({
     orderBy: [{ order: "asc" }, { id: "asc" }],
-    take: 1000,
+    take: limit + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
 
-  return NextResponse.json({ ok: true, lessons: lessons.map(toLessonJson) });
+  const { items, nextCursor } = buildCursorPage(rows, limit);
+
+  return NextResponse.json({ ok: true, lessons: items.map(toLessonJson), nextCursor });
 });
 
 export const POST = withApiErrors(async () => {

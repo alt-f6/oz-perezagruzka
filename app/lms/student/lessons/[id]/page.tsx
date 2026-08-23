@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 
-import { requireRolePage } from "@/lms/server/auth/require-role-page";
+import { requireRoleForPage } from "@/shared/lib/rbac";
 import { requireAuth } from "@/lms/server/auth/require-auth";
 import { db } from "@/shared/lib/db";
 import { canViewLesson } from "@/lms/server/access/can-view-lesson";
@@ -30,7 +30,7 @@ function NoticePage({ title, message }: { title: string; message: string }) {
 }
 
 export default async function StudentLessonPage({ params }: Props) {
-  await requireRolePage("STUDENT");
+  await requireRoleForPage(["STUDENT"], { adminBypass: true, loginPath: "/login" });
   const user = await requireAuth();
 
   const { id } = await params;

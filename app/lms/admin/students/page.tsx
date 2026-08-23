@@ -1,7 +1,7 @@
-import { requireRolePage } from "@/lms/server/auth/require-role-page";
+import { requireRoleForPage } from "@/shared/lib/rbac";
 import AdminStudentsClient from "./AdminStudentsClient";
 
 export default async function AdminStudentsPage() {
-  await requireRolePage("ADMIN");
+  await requireRoleForPage(["ADMIN"], { adminBypass: true, loginPath: "/login" });
   return <AdminStudentsClient />;
 }

@@ -1,11 +1,14 @@
 import Link from "next/link";
 
-import { requireRolePage } from "@/lms/server/auth/require-role-page";
+import { requireRoleForPage } from "@/shared/lib/rbac";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card";
 
 export default async function AdminHomePage() {
-  const user = await requireRolePage(["ADMIN", "MANAGER", "TEACHER"]);
+  const user = await requireRoleForPage(["ADMIN", "MANAGER", "TEACHER"], {
+    adminBypass: true,
+    loginPath: "/login",
+  });
 
   if (user.role === "TEACHER") {
     return (

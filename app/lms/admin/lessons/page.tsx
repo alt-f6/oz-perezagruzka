@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { db } from "@/shared/lib/db";
-import { requireRolePage } from "@/lms/server/auth/require-role-page";
+import { requireRoleForPage } from "@/shared/lib/rbac";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent } from "@/shared/components/ui/card";
@@ -17,7 +17,7 @@ import {
 import CreateLessonButton from "./CreateLessonButton";
 
 export default async function AdminLessonsPage() {
-  await requireRolePage(["ADMIN", "MANAGER"]);
+  await requireRoleForPage(["ADMIN", "MANAGER"], { adminBypass: true, loginPath: "/login" });
 
   const lessons = await db.lesson.findMany({
     orderBy: [{ order: "asc" }, { id: "asc" }],

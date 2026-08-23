@@ -1,4 +1,4 @@
-import { requireRolePage } from "@/lms/server/auth/require-role-page";
+import { requireRoleForPage } from "@/shared/lib/rbac";
 import AdminAssignmentsClient from "./ui";
 
 export default async function AdminAssignmentsPage({
@@ -6,7 +6,7 @@ export default async function AdminAssignmentsPage({
 }: {
   searchParams: Promise<{ studentId?: string }>;
 }) {
-  await requireRolePage("ADMIN");
+  await requireRoleForPage(["ADMIN"], { adminBypass: true, loginPath: "/login" });
 
   const sp = await searchParams;
   const initialStudentId = sp?.studentId ? sp.studentId : null;

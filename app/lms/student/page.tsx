@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { PlayCircle } from "lucide-react";
 
-import { requireRolePage } from "@/lms/server/auth/require-role-page";
+import { requireRoleForPage } from "@/shared/lib/rbac";
 import { requireAuth } from "@/lms/server/auth/require-auth";
 import { db } from "@/shared/lib/db";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card";
 
 export default async function StudentDashboard() {
-  await requireRolePage("STUDENT");
+  await requireRoleForPage(["STUDENT"], { adminBypass: true, loginPath: "/login" });
   const user = await requireAuth();
 
   const assignments = await db.assignment.findMany({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Modal } from "@/crm/components/Modal";
 import { useToast } from "@/crm/components/ToastProvider";
 import { updateTeamMember } from "./actions";
@@ -28,15 +28,17 @@ export function EditTeamMemberModal({
   const [phone, setPhone] = useState("");
   const [subjects, setSubjects] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [prevMember, setPrevMember] = useState(member);
 
-  useEffect(() => {
+  if (member !== prevMember) {
+    setPrevMember(member);
     if (member) {
       setFullName(member.fullName ?? "");
       setEmail(member.email ?? "");
       setPhone(member.phone ?? "");
       setSubjects(member.subjects ?? "");
     }
-  }, [member]);
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

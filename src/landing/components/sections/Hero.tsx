@@ -47,13 +47,31 @@ export default function Hero() {
         <div className="relative z-10 mx-auto flex max-w-6xl flex-col items-center gap-16 lg:flex-row lg:items-center">
 
           <div className="flex-1 space-y-8 text-center md:text-left">
-            <h1 className="font-bold text-white text-balance">
-              {title}
-            </h1>
+            <AnimatePresence mode="wait">
+              <motion.h1
+                key={`title-${exam}`}
+                initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={prefersReducedMotion ? undefined : { opacity: 0, y: -6 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="font-bold text-white text-balance"
+              >
+                {title}
+              </motion.h1>
+            </AnimatePresence>
 
-            <p className="max-w-lg text-lg leading-relaxed text-white/70 font-normal">
-              {subtitle}
-            </p>
+            <AnimatePresence mode="wait">
+              <motion.p
+                key={`subtitle-${exam}`}
+                initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={prefersReducedMotion ? undefined : { opacity: 0, y: -6 }}
+                transition={{ duration: 0.25, ease: "easeOut", delay: 0.04 }}
+                className="max-w-lg text-lg leading-relaxed text-white/70 font-normal"
+              >
+                {subtitle}
+              </motion.p>
+            </AnimatePresence>
 
             <ul className="mx-auto max-w-lg space-y-2.5 text-left md:mx-0">
               {HERO_BENEFITS.map((benefit) => (

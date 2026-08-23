@@ -2,6 +2,7 @@
   "name": "oz-perezagruzka",
   "version": "0.1.0",
   "private": false,
+  "type": "module",
   "description": "Multi-tenant Next.js platform for a Russian online tutoring school: landing, CRM, and LMS in one app.",
   "license": "MIT",
   "scripts": {

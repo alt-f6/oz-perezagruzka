@@ -28,7 +28,7 @@ export async function submitReadinessMap(
   if (!parsed.success) {
     return { status: "error", message: "Проверьте заполненные поля и попробуйте снова." };
   }
-  const { input, sessionId, utm } = parsed.data;
+  const { input, sessionId, utm, examType } = parsed.data;
 
   const hdrs = await headers();
   const ipHash = hashRequestHeaders(hdrs);
@@ -59,6 +59,9 @@ export async function submitReadinessMap(
       name: input.name?.trim() || "Без имени",
       source: "READINESS_MAP",
       status: "NEW",
+      // No dedicated exam-type column on Lead - recorded as a notes prefix
+      // so CRM managers see it at a glance without a schema migration.
+      notes: `Экзамен: ${examType === "ege" ? "ЕГЭ" : "ОГЭ"}`,
       sessionId,
       ipHash,
       utmSource: utm?.utmSource,

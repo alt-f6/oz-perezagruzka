@@ -1,4 +1,5 @@
 import dynamic from "next/dynamic";
+import type { Metadata } from "next";
 import Header from "@/landing/components/sections/Header";
 import ExamToggle from "@/landing/components/ui/ExamToggle";
 import Hero from "@/landing/components/sections/Hero";
@@ -18,6 +19,52 @@ import FAQ from "@/landing/components/sections/FAQ";
 import { FAQ_ITEMS } from "@/landing/data/faq";
 import FinalCTA from "@/landing/components/sections/FinalCTA";
 import Footer from "@/landing/components/sections/Footer";
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://perezagruzka-edu.ru";
+
+const EXAM_METADATA = {
+  oge: {
+    title: "Перезагрузка — Подготовка к ОГЭ с живым учителем и ИИ-репетитором",
+    description:
+      "Онлайн-школа для подростков 7–9 класса: мини-группы до 8 человек, живой учитель и ИИ-репетитор на связи 24/7. Бесплатная диагностика перед стартом.",
+  },
+  ege: {
+    title: "Перезагрузка — Подготовка к ЕГЭ с живым учителем и ИИ-репетитором",
+    description:
+      "Онлайн-школа для старшеклассников 10–11 класса: мини-группы до 8 человек, живой учитель и ИИ-репетитор на связи 24/7. Бесплатная диагностика перед стартом.",
+  },
+} as const;
+
+type LandingSearchParams = Promise<{ exam?: string | string[] }>;
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: LandingSearchParams;
+}): Promise<Metadata> {
+  const params = await searchParams;
+  const examParam = Array.isArray(params.exam) ? params.exam[0] : params.exam;
+  const exam = examParam === "ege" ? "ege" : "oge";
+  const { title, description } = EXAM_METADATA[exam];
+  const canonicalUrl = exam === "ege" ? `${siteUrl}/?exam=ege` : siteUrl;
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      title,
+      description,
+      url: canonicalUrl,
+    },
+    twitter: {
+      title,
+      description,
+    },
+  };
+}
 
 // Built from the same FAQ_ITEMS the FAQ section renders, so the schema can
 // never drift out of sync with what's actually on the page.

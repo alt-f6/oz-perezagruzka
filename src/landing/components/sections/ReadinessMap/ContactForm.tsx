@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -32,7 +32,11 @@ export function ContactForm({ leadId, ctaLabel }: ContactFormProps) {
   const [serverError, setServerError] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
   const [consentError, setConsentError] = useState(false);
-  const formRenderedAtRef = useRef(Date.now());
+  const [formRenderedAt, setFormRenderedAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    setFormRenderedAt(Date.now());
+  }, []);
 
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
@@ -51,7 +55,7 @@ export function ContactForm({ leadId, ctaLabel }: ContactFormProps) {
       phone: values.phone,
       consent,
       honeypot: values.honeypot,
-      formRenderedAt: formRenderedAtRef.current,
+      formRenderedAt: formRenderedAt ?? undefined,
     });
     if (result.status === "ok") {
       setState("done");

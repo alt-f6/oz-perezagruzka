@@ -5,24 +5,27 @@ import { motion, useReducedMotion } from "framer-motion";
 import type { ReadinessOutput } from "@/landing/lib/validations/readiness";
 import Atmosphere from "@/landing/components/ui/Atmosphere";
 import { ContactForm } from "./ContactForm";
+import { useExam } from "@/landing/lib/exam-context";
+import { RESULT_ATTENTION_ZONES_TITLE, RESULT_COPY_HEADER } from "@/landing/lib/exam-content";
 
 interface ResultSuccessProps {
   leadId: string;
   map: ReadinessOutput;
 }
 
-const BLOCKS: { key: keyof ReadinessOutput; title: string }[] = [
-  { key: "whatISee", title: "Что мы видим" },
-  { key: "attentionZones", title: "Зоны внимания к ОГЭ" },
-  { key: "strengths", title: "Сильные стороны" },
-  { key: "futurePaths", title: "Куда это может привести" },
-  { key: "firstStep", title: "Первый шаг" },
-];
-
 export function ResultSuccess({ leadId, map }: ResultSuccessProps) {
   const prefersReducedMotion = useReducedMotion();
-  const sectionRef = useRef<HTMLElement>(null); 
+  const sectionRef = useRef<HTMLElement>(null);
   const [copied, setCopied] = useState(false);
+  const { exam } = useExam();
+
+  const BLOCKS: { key: keyof ReadinessOutput; title: string }[] = [
+    { key: "whatISee", title: "Что мы видим" },
+    { key: "attentionZones", title: RESULT_ATTENTION_ZONES_TITLE[exam] },
+    { key: "strengths", title: "Сильные стороны" },
+    { key: "futurePaths", title: "Куда это может привести" },
+    { key: "firstStep", title: "Первый шаг" },
+  ];
 
   useEffect(() => {
     // Scroll the freshly-mounted result into view exactly once. Deferring to
@@ -54,10 +57,10 @@ export function ResultSuccess({ leadId, map }: ResultSuccessProps) {
     };
 
     const formattedText = [
-      `📋 КАРТА ГОТОВНОСТИ К ОГЭ`,
+      RESULT_COPY_HEADER[exam],
       `\n🔍 Что мы видим:`,
       `${formatBlock(map.whatISee)}`,
-      `\n⚠️ Зоны внимания к ОГЭ:`,
+      `\n⚠️ ${RESULT_ATTENTION_ZONES_TITLE[exam]}:`,
       `${formatBlock(map.attentionZones)}`,
       `\n💪 Сильные стороны:`,
       `${formatBlock(map.strengths)}`,

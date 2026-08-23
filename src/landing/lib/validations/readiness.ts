@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ExamType } from "@/landing/lib/exam-context";
 
 // Single source of truth for the wizard's selectable option *values*. The UI
 // (`ReadinessMapWizard`) imports these instead of redeclaring its own string
@@ -38,7 +39,10 @@ const hobbyEnum = z.enum(HOBBY_VALUES);
 
 export const readinessInputSchema = z.object({
   name: z.string().trim().max(80).optional().or(z.literal("")),
-  grade: z.enum(["7", "8", "9"]),
+  // Union of OGE (7-9) and EGE (10-11) grades - which subset is offered to
+  // the user is enforced client-side by ReadinessMapWizard via the active
+  // ExamType, not here, so this schema stays valid for both exam contexts.
+  grade: z.enum(["7", "8", "9", "10", "11"]),
   // Serialized by the wizard as a `", "`-joined list of up to 2
   // SUBJECT_VALUES; keep the split delimiter in sync with
   // `ReadinessMapWizard`'s `next.join(", ")`. Subject values never contain
@@ -102,6 +106,7 @@ export const readinessActionInputSchema = z.object({
   input: readinessInputSchema,
   sessionId: z.string(),
   utm: utmSchema,
+  examType: z.enum(["oge", "ege"] satisfies [ExamType, ExamType]).default("oge"),
   consent: z.literal(true, "Необходимо согласие на обработку персональных данных"),
   honeypot: z.string().max(200).optional(),
   formRenderedAt: z.number().optional(),

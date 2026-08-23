@@ -1,7 +1,8 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ReadinessMapWizard from "./ReadinessMapWizard";
+import { ExamProvider } from "@/landing/lib/exam-context";
 
 const submitReadinessMapMock = vi.fn();
 vi.mock("@/landing/actions/readiness", () => ({
@@ -22,11 +23,14 @@ vi.mock("@/landing/lib/analytics", () => ({
 // after a click, the DOM can still reflect the previous step. Waiting for the
 // next step's heading via `findByText` lets the real transition run to
 // completion before continuing, matching actual rendered behavior.
-async function completeAllStepsExceptConsent(user: ReturnType<typeof userEvent.setup>) {
+async function completeAllStepsExceptConsent(
+  user: ReturnType<typeof userEvent.setup>,
+  deadlineStepTitle = "Сколько времени осталось до ОГЭ?",
+) {
   // Step 1: name (optional, leave blank)
   await user.click(screen.getByRole("button", { name: "Далее" }));
   await screen.findByText("В каком он классе?");
-  // Step 2: grade (defaults to "8", already valid)
+  // Step 2: grade (defaults to a valid option for the active exam)
   await user.click(screen.getByRole("button", { name: "Далее" }));
   await screen.findByText("К каким предметам нужно подготовиться?");
   // Step 3: subjects
@@ -40,13 +44,21 @@ async function completeAllStepsExceptConsent(user: ReturnType<typeof userEvent.s
   // Step 5: hobbies
   await user.click(screen.getByRole("button", { name: /Игры \/ IT/ }));
   await user.click(screen.getByRole("button", { name: "Далее" }));
-  await screen.findByText("Сколько времени осталось до ОГЭ?");
+  await screen.findByText(deadlineStepTitle);
   // Step 6: deadline
   await user.click(screen.getByRole("button", { name: "3–6 месяцев" }));
 }
 
 function setHash(hash: string) {
   window.history.replaceState(null, "", hash ? `#${hash}` : window.location.pathname);
+}
+
+function renderWizard() {
+  return render(
+    <ExamProvider>
+      <ReadinessMapWizard />
+    </ExamProvider>,
+  );
 }
 
 describe("ReadinessMapWizard", () => {
@@ -57,7 +69,7 @@ describe("ReadinessMapWizard", () => {
 
   it("disables hobby options once 4 are selected and keeps them clickable to deselect", async () => {
     const user = userEvent.setup();
-    render(<ReadinessMapWizard />);
+    renderWizard();
 
     await user.click(screen.getByRole("button", { name: "Далее" }));
     await screen.findByText("В каком он классе?");
@@ -102,7 +114,7 @@ describe("ReadinessMapWizard", () => {
       return el;
     });
 
-    render(<ReadinessMapWizard />);
+    renderWizard();
 
     expect(scrollIntoViewMock).toHaveBeenCalled();
 
@@ -111,7 +123,7 @@ describe("ReadinessMapWizard", () => {
   });
 
   it("renders the first step with the step counter", () => {
-    render(<ReadinessMapWizard />);
+    renderWizard();
 
     expect(screen.getByText("Шаг 1 из 6: Имя ученика")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Например, Аня")).toBeInTheDocument();
@@ -119,7 +131,7 @@ describe("ReadinessMapWizard", () => {
 
   it("fires a quiz_step_N_completed goal when advancing a step", async () => {
     const user = userEvent.setup();
-    render(<ReadinessMapWizard />);
+    renderWizard();
 
     await user.click(screen.getByRole("button", { name: "Далее" }));
     await screen.findByText("В каком он классе?");
@@ -129,7 +141,7 @@ describe("ReadinessMapWizard", () => {
 
   it("advances through steps on valid input and reaches the consent checkbox on the last step", async () => {
     const user = userEvent.setup();
-    render(<ReadinessMapWizard />);
+    renderWizard();
 
     await completeAllStepsExceptConsent(user);
 
@@ -140,7 +152,7 @@ describe("ReadinessMapWizard", () => {
 
   it("blocks final submission and does not call the server action when consent is unchecked", async () => {
     const user = userEvent.setup();
-    render(<ReadinessMapWizard />);
+    renderWizard();
 
     await completeAllStepsExceptConsent(user);
     await user.click(screen.getByRole("button", { name: "Получить карту" }));
@@ -162,7 +174,7 @@ describe("ReadinessMapWizard", () => {
       },
     });
     const user = userEvent.setup();
-    render(<ReadinessMapWizard />);
+    renderWizard();
 
     await completeAllStepsExceptConsent(user);
     const consentCheckbox = document.getElementById("readiness-consent") as HTMLInputElement;
@@ -175,6 +187,7 @@ describe("ReadinessMapWizard", () => {
     expect(callArg.consent).toBe(true);
     expect(callArg.input.subjects).toBe("Математика");
     expect(callArg.input.deadline).toBe("3-6m");
+    expect(callArg.examType).toBe("oge");
 
     // ResultSuccess does not render the numeric readinessScore anywhere in
     // the DOM (verified by reading ResultSuccess.tsx) - it renders the text
@@ -191,7 +204,7 @@ describe("ReadinessMapWizard", () => {
       message: "Наш ИИ сейчас перегружен. Мы сохранили вашу заявку.",
     });
     const user = userEvent.setup();
-    render(<ReadinessMapWizard />);
+    renderWizard();
 
     await completeAllStepsExceptConsent(user);
     const consentCheckbox = document.getElementById("readiness-consent") as HTMLInputElement;
@@ -207,7 +220,7 @@ describe("ReadinessMapWizard", () => {
   it("shows a submit error and returns to the form when the action call rejects", async () => {
     submitReadinessMapMock.mockRejectedValue(new Error("network down"));
     const user = userEvent.setup();
-    render(<ReadinessMapWizard />);
+    renderWizard();
 
     await completeAllStepsExceptConsent(user);
     const consentCheckbox = document.getElementById("readiness-consent") as HTMLInputElement;
@@ -218,5 +231,57 @@ describe("ReadinessMapWizard", () => {
       await screen.findByText("Не получилось отправить форму. Проверьте соединение и попробуйте снова."),
     ).toBeInTheDocument();
     expect(screen.getByText("Шаг 6 из 6: Срок до экзамена")).toBeInTheDocument();
+  });
+});
+
+describe("ReadinessMapWizard — EGE exam context", () => {
+  beforeEach(() => {
+    submitReadinessMapMock.mockReset();
+    reachGoalMock.mockReset();
+    window.history.replaceState(null, "", "?exam=ege");
+  });
+
+  afterEach(() => {
+    window.history.replaceState(null, "", window.location.pathname);
+  });
+
+  it("offers grades 10-11 instead of 7-9 once the URL activates the EGE context", async () => {
+    const user = userEvent.setup();
+    renderWizard();
+
+    await user.click(screen.getByRole("button", { name: "Далее" }));
+    await screen.findByText("В каком он классе?");
+
+    expect(await screen.findByRole("button", { name: "10 класс" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "11 класс" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "8 класс" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "9 класс" })).not.toBeInTheDocument();
+  });
+
+  it("shows the ЕГЭ deadline question copy and submits with examType ege", async () => {
+    submitReadinessMapMock.mockResolvedValue({
+      status: "success",
+      leadId: "lead-1",
+      map: {
+        readinessScore: 80,
+        whatISee: "...",
+        attentionZones: ["..."],
+        strengths: ["..."],
+        futurePaths: ["..."],
+        firstStep: "...",
+      },
+    });
+    const user = userEvent.setup();
+    renderWizard();
+
+    await completeAllStepsExceptConsent(user, "Сколько времени осталось до ЕГЭ?");
+    const consentCheckbox = document.getElementById("readiness-consent") as HTMLInputElement;
+    await user.click(consentCheckbox);
+    await user.click(screen.getByRole("button", { name: "Получить карту" }));
+
+    await waitFor(() => expect(submitReadinessMapMock).toHaveBeenCalledTimes(1));
+    const callArg = submitReadinessMapMock.mock.calls[0][0];
+    expect(callArg.examType).toBe("ege");
+    expect(["10", "11"]).toContain(callArg.input.grade);
   });
 });

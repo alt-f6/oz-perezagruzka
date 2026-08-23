@@ -17,6 +17,14 @@ import { submitReadinessMap, type ReadinessActionResult } from "@/landing/action
 import { reachGoal } from "@/landing/lib/analytics";
 import { LegalCheckbox } from "@/landing/components/ui/LegalCheckbox";
 import Atmosphere from "@/landing/components/ui/Atmosphere";
+import { useExam } from "@/landing/lib/exam-context";
+import {
+  QUIZ_GRADE_OPTIONS,
+  QUIZ_DEFAULT_GRADE,
+  QUIZ_GRADE_STEP_HELPER,
+  QUIZ_DEADLINE_STEP_TITLE,
+  QUIZ_STUDY_STYLE_PANIC_DESC,
+} from "@/landing/lib/exam-content";
 
 import { useAttribution } from "./attribution";
 import { ProgressDots } from "./ProgressDots";
@@ -46,7 +54,8 @@ const STEPS: StepConfig[] = [
     key: "grade",
     stepLabel: "Класс обучения",
     title: "В каком он классе?",
-    helper: "Это определяет структуру ОГЭ",
+    // Overridden per exam type in the component via QUIZ_GRADE_STEP_HELPER.
+    helper: "",
   },
   {
     key: "subjects",
@@ -69,15 +78,10 @@ const STEPS: StepConfig[] = [
   {
     key: "deadline",
     stepLabel: "Срок до экзамена",
-    title: "Сколько времени осталось до ОГЭ?",
+    // Overridden per exam type in the component via QUIZ_DEADLINE_STEP_TITLE.
+    title: "",
     helper: "Это поможет расставить приоритеты в карте готовности",
   },
-];
-
-const GRADE_OPTIONS: { value: ReadinessInput["grade"]; label: string }[] = [
-  { value: "7", label: "7 класс" },
-  { value: "8", label: "8 класс" },
-  { value: "9", label: "9 класс" },
 ];
 
 const SUBJECT_LABELS: Record<(typeof SUBJECT_VALUES)[number], string> = {
@@ -110,10 +114,10 @@ const STUDY_STYLE_META: Record<(typeof STUDY_STYLE_VALUES)[number], { title: str
   },
   "Учеба запущена, боимся не сдать экзамены": {
     title: "🆘 Всё запущено",
-    desc: "Тяжело дается программа, боимся завалить ОГЭ",
+    // Overridden per exam type in the component via QUIZ_STUDY_STYLE_PANIC_DESC.
+    desc: "",
   },
 };
-const STUDY_STYLE_OPTIONS = STUDY_STYLE_VALUES.map((value) => ({ value, ...STUDY_STYLE_META[value] }));
 
 const HOBBY_LABELS: Record<(typeof HOBBY_VALUES)[number], string> = {
   "Компьютерные игры и IT": "🎮 Игры / IT",
@@ -143,6 +147,7 @@ const TRUST_BADGES = [
 export default function ReadinessMapWizard() {
   const { sessionId, utm } = useAttribution();
   const prefersReducedMotion = useReducedMotion();
+  const { exam } = useExam();
 
   const [stepIndex, setStepIndex] = useState(0);
   const [direction, setDirection] = useState(1);
@@ -152,7 +157,7 @@ export default function ReadinessMapWizard() {
   const [consent, setConsent] = useState(false);
   const [consentError, setConsentError] = useState(false);
 
-  const [selectedGrade, setSelectedGrade] = useState<"7" | "8" | "9">("8");
+  const [selectedGrade, setSelectedGrade] = useState<ReadinessInput["grade"]>(QUIZ_DEFAULT_GRADE[exam]);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [selectedStudyStyle, setSelectedStudyStyle] = useState<ReadinessInput["studyStyle"] | "">("");
   const [selectedHobbies, setSelectedHobbies] = useState<string[]>([]);
@@ -181,7 +186,7 @@ export default function ReadinessMapWizard() {
     mode: "onTouched",
     defaultValues: {
       name: "",
-      grade: "8",
+      grade: QUIZ_DEFAULT_GRADE.oge,
       subjects: "",
       studyStyle: undefined,
       hobbies: "",
@@ -189,10 +194,35 @@ export default function ReadinessMapWizard() {
     },
   });
 
-  const currentStep = STEPS[stepIndex];
+  const gradeOptions = QUIZ_GRADE_OPTIONS[exam];
+
+  // ExamProvider can flip `exam` shortly after mount (reading ?exam=ege on
+  // its own effect), so the grade picked before that point may no longer be
+  // one of this exam's options - snap back to the exam's default whenever
+  // the exam context changes and the current selection isn't valid for it.
+  useEffect(() => {
+    if (gradeOptions.some((option) => option.value === selectedGrade)) return;
+    const nextGrade = QUIZ_DEFAULT_GRADE[exam] as ReadinessInput["grade"];
+    setSelectedGrade(nextGrade);
+    form.setValue("grade", nextGrade, { shouldValidate: true, shouldDirty: true });
+  }, [exam, gradeOptions, selectedGrade, form]);
+
+  const currentStep = {
+    ...STEPS[stepIndex],
+    ...(STEPS[stepIndex].key === "grade" && { helper: QUIZ_GRADE_STEP_HELPER[exam] }),
+    ...(STEPS[stepIndex].key === "deadline" && { title: QUIZ_DEADLINE_STEP_TITLE[exam] }),
+  };
   const isLastStep = stepIndex === STEPS.length - 1;
 
-  const handleGradeSelect = (value: "7" | "8" | "9") => {
+  const studyStyleOptions = STUDY_STYLE_VALUES.map((value) => ({
+    value,
+    ...STUDY_STYLE_META[value],
+    ...(value === "Учеба запущена, боимся не сдать экзамены" && {
+      desc: QUIZ_STUDY_STYLE_PANIC_DESC[exam],
+    }),
+  }));
+
+  const handleGradeSelect = (value: ReadinessInput["grade"]) => {
     setSelectedGrade(value);
     form.setValue("grade", value, { shouldValidate: true, shouldDirty: true });
   };
@@ -264,6 +294,7 @@ export default function ReadinessMapWizard() {
         input: form.getValues(),
         sessionId,
         utm,
+        examType: exam,
         consent,
         honeypot: honeypotRef.current?.value,
         formRenderedAt: formRenderedAt ?? undefined,
@@ -280,7 +311,7 @@ export default function ReadinessMapWizard() {
       setSubmitError("Не получилось отправить форму. Проверьте соединение и попробуйте снова.");
       setPhase("form");
     }
-  }, [consent, currentStep.key, form, formRenderedAt, isLastStep, sessionId, stepIndex, utm]);
+  }, [consent, currentStep.key, exam, form, formRenderedAt, isLastStep, sessionId, stepIndex, utm]);
 
   const goBack = useCallback(() => {
     setDirection(-1);
@@ -389,8 +420,8 @@ export default function ReadinessMapWizard() {
 
                 <div className="mt-8">
                   {currentStep.key === "grade" && (
-                    <div className="grid grid-cols-3 gap-4">
-                      {GRADE_OPTIONS.map((option) => {
+                    <div className={`grid gap-4 ${gradeOptions.length === 2 ? "grid-cols-2" : "grid-cols-3"}`}>
+                      {gradeOptions.map((option) => {
                         const selected = selectedGrade === option.value;
                         return (
                           <motion.button
@@ -453,7 +484,7 @@ export default function ReadinessMapWizard() {
 
                   {currentStep.key === "studyStyle" && (
                     <div className="flex flex-col gap-3">
-                      {STUDY_STYLE_OPTIONS.map((option) => {
+                      {studyStyleOptions.map((option) => {
                         const isSelected = selectedStudyStyle === option.value;
                         return (
                           <button

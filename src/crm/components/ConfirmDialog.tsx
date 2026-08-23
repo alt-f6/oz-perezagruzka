@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Modal } from "./Modal";
 
 interface ConfirmDialogProps {
@@ -33,10 +33,12 @@ export function ConfirmDialog({
     onClose,
 }: ConfirmDialogProps) {
     const [reason, setReason] = useState("");
+    const [prevOpen, setPrevOpen] = useState(open);
 
-    useEffect(() => {
+    if (open !== prevOpen) {
+        setPrevOpen(open);
         if (open) setReason("");
-    }, [open]);
+    }
 
     const needsReason = Boolean(reasonLabel);
     const confirmDisabled = busy || (needsReason && !reason.trim());

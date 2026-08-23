@@ -157,4 +157,73 @@ describe("submitReadinessMap", () => {
     );
     expect(generateReadinessMapMock).toHaveBeenCalledTimes(1);
   });
+
+  it("defaults to ОГЭ in the lead notes when examType is omitted", async () => {
+    checkRateLimitMock.mockResolvedValue({ success: true, remaining: 2, resetAt: Date.now() });
+    const { prisma } = await import("@/landing/lib/db");
+    const { submitReadinessMap } = await import("./readiness");
+
+    vi.mocked(prisma.lead.create).mockReset();
+    vi.mocked(prisma.lead.create).mockResolvedValue({ id: "lead-1" } as never);
+    vi.mocked(prisma.aiChatLog.create).mockReset();
+    vi.mocked(prisma.aiChatLog.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.$transaction).mockReset();
+    vi.mocked(prisma.$transaction).mockResolvedValue([] as never);
+    recordConsentMock.mockResolvedValue(undefined);
+    generateReadinessMapMock.mockResolvedValue({
+      output: {
+        readinessScore: 72,
+        whatISee: "...",
+        attentionZones: "...",
+        strengths: "...",
+        futurePaths: "...",
+        firstStep: "...",
+      },
+      model: "gemini-2.5-flash",
+      latencyMs: 100,
+    });
+
+    await submitReadinessMap({ ...VALID_INPUT, formRenderedAt: Date.now() - 10_000 });
+
+    expect(prisma.lead.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ notes: "Экзамен: ОГЭ" }) }),
+    );
+  });
+
+  it("records ЕГЭ in the lead notes when examType is ege", async () => {
+    checkRateLimitMock.mockResolvedValue({ success: true, remaining: 2, resetAt: Date.now() });
+    const { prisma } = await import("@/landing/lib/db");
+    const { submitReadinessMap } = await import("./readiness");
+
+    vi.mocked(prisma.lead.create).mockReset();
+    vi.mocked(prisma.lead.create).mockResolvedValue({ id: "lead-1" } as never);
+    vi.mocked(prisma.aiChatLog.create).mockReset();
+    vi.mocked(prisma.aiChatLog.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.$transaction).mockReset();
+    vi.mocked(prisma.$transaction).mockResolvedValue([] as never);
+    recordConsentMock.mockResolvedValue(undefined);
+    generateReadinessMapMock.mockResolvedValue({
+      output: {
+        readinessScore: 72,
+        whatISee: "...",
+        attentionZones: "...",
+        strengths: "...",
+        futurePaths: "...",
+        firstStep: "...",
+      },
+      model: "gemini-2.5-flash",
+      latencyMs: 100,
+    });
+
+    await submitReadinessMap({
+      ...VALID_INPUT,
+      input: { ...VALID_INPUT.input, grade: "10" as const },
+      examType: "ege" as const,
+      formRenderedAt: Date.now() - 10_000,
+    });
+
+    expect(prisma.lead.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ notes: "Экзамен: ЕГЭ" }) }),
+    );
+  });
 });

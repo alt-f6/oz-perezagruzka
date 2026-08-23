@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Atmosphere from "@/landing/components/ui/Atmosphere";
 import Section from "@/landing/components/ui/Section";
 import { fadeInUp, staggerContainer } from "@/landing/components/ui/motion";
@@ -46,16 +46,21 @@ export default function Pricing() {
           viewport={{ once: true, margin: "-80px" }}
           className="grid gap-8 md:grid-cols-3 max-w-5xl mx-auto"
         >
-          {plans.map((plan) => (
-            <motion.div
-              key={plan.id}
-              variants={cardVariants}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-              className="h-full"
-            >
-              <PricingCard plan={plan} />
-            </motion.div>
-          ))}
+          <AnimatePresence mode="wait">
+            {plans.map((plan) => (
+              <motion.div
+                key={`${exam}-${plan.id}`}
+                variants={cardVariants}
+                initial={prefersReducedMotion ? undefined : { opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="h-full"
+              >
+                <PricingCard plan={plan} />
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </motion.div>
       </div>
     </Section>

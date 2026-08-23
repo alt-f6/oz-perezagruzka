@@ -87,4 +87,66 @@ describe("GET /api/admin/messages", () => {
       student_email: "stu1@example.com",
     });
   });
+
+  it("requests limit+1 rows ordered by createdAt,id desc and returns nextCursor: null with no extra row", async () => {
+    requireRoleMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
+    findManyMock.mockResolvedValue([
+      {
+        id: "msg-1",
+        lessonId: "lesson-1",
+        studentId: "stu-1",
+        text: "hi",
+        senderRole: "STUDENT",
+        createdAt: new Date("2026-01-01T00:00:00Z"),
+        lesson: { title: "Lesson 1" },
+        student: { email: "stu1@example.com" },
+      },
+    ]);
+    const { GET } = await import("./route");
+
+    const res = await GET(new NextRequest("http://localhost/api/admin/messages?limit=5"));
+    const json = await res.json();
+
+    expect(findManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: 6,
+      }),
+    );
+    expect(json.nextCursor).toBeNull();
+  });
+
+  it("trims the extra row and returns the last item's id as nextCursor", async () => {
+    requireRoleMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
+    const row = (id: string) => ({
+      id,
+      lessonId: "lesson-1",
+      studentId: "stu-1",
+      text: "hi",
+      senderRole: "STUDENT",
+      createdAt: new Date("2026-01-01T00:00:00Z"),
+      lesson: { title: "Lesson 1" },
+      student: { email: "stu1@example.com" },
+    });
+    findManyMock.mockResolvedValue([row("msg-1"), row("msg-2")]);
+    const { GET } = await import("./route");
+
+    const res = await GET(new NextRequest("http://localhost/api/admin/messages?limit=1"));
+    const json = await res.json();
+
+    expect(json.messages).toHaveLength(1);
+    expect(json.nextCursor).toBe("msg-1");
+  });
+
+  it("passes the cursor query param through to Prisma's cursor/skip", async () => {
+    requireRoleMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
+    findManyMock.mockResolvedValue([]);
+    const { GET } = await import("./route");
+
+    await GET(new NextRequest("http://localhost/api/admin/messages?cursor=msg-9"));
+
+    expect(findManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ cursor: { id: "msg-9" }, skip: 1 }),
+    );
+  });
 });

@@ -11,6 +11,7 @@ export const runtime = "nodejs";
 const log = createLogger("lesson-reminders");
 
 const REMINDER_WINDOW_MS = 24 * 60 * 60 * 1000;
+const BATCH_SIZE = 200;
 
 function secretsMatch(provided: string, expected: string): boolean {
   const a = Buffer.from(provided);
@@ -18,28 +19,8 @@ function secretsMatch(provided: string, expected: string): boolean {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-// External trigger (Vercel Cron / systemd timer): sends Telegram reminders to
-// the parents of every student whose group has a class in the next 24 hours.
-// `ClassSession.reminderSentAt` guards against duplicate sends across runs.
-export const GET = withApiErrors(async (req: NextRequest) => {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    return NextResponse.json({ ok: false, error: "CRON_SECRET is not configured" }, { status: 500 });
-  }
-
-  const authHeader = req.headers.get("authorization") ?? "";
-  const provided = authHeader.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length)
-    : req.nextUrl.searchParams.get("secret") ?? "";
-
-  if (!provided || !secretsMatch(provided, secret)) {
-    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
-
-  const now = new Date();
-  const windowEnd = new Date(now.getTime() + REMINDER_WINDOW_MS);
-
-  const sessions = await db.classSession.findMany({
+function fetchReminderBatch(now: Date, windowEnd: Date, cursor?: string) {
+  return db.classSession.findMany({
     where: {
       scheduledAt: { gte: now, lte: windowEnd },
       reminderSentAt: null,
@@ -69,8 +50,50 @@ export const GET = withApiErrors(async (req: NextRequest) => {
         },
       },
     },
-    take: 200,
+    orderBy: { id: "asc" },
+    take: BATCH_SIZE,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
+}
+
+async function findAllReminderSessions(now: Date, windowEnd: Date) {
+  const sessions: Awaited<ReturnType<typeof fetchReminderBatch>> = [];
+  let cursor: string | undefined;
+
+  for (;;) {
+    const batch = await fetchReminderBatch(now, windowEnd, cursor);
+    sessions.push(...batch);
+    if (batch.length < BATCH_SIZE) break;
+    cursor = batch[batch.length - 1]!.id;
+  }
+
+  return sessions;
+}
+
+// External trigger (Vercel Cron / systemd timer): sends Telegram reminders to
+// the parents of every student whose group has a class in the next 24 hours.
+// `ClassSession.reminderSentAt` guards against duplicate sends across runs.
+// Sessions are fetched in cursor-paginated batches so the window is never
+// silently truncated once it exceeds a single batch.
+export const GET = withApiErrors(async (req: NextRequest) => {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) {
+    return NextResponse.json({ ok: false, error: "CRON_SECRET is not configured" }, { status: 500 });
+  }
+
+  const authHeader = req.headers.get("authorization") ?? "";
+  const provided = authHeader.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length)
+    : req.nextUrl.searchParams.get("secret") ?? "";
+
+  if (!provided || !secretsMatch(provided, secret)) {
+    return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+  }
+
+  const now = new Date();
+  const windowEnd = new Date(now.getTime() + REMINDER_WINDOW_MS);
+
+  const sessions = await findAllReminderSessions(now, windowEnd);
 
   const provider = getNotificationProvider();
   let notifications = 0;

@@ -142,4 +142,25 @@ describe("GET /crm/api/cron/lesson-reminders", () => {
       }),
     );
   });
+
+  it("pages past a 200-row batch instead of stopping at the hard-coded cap", async () => {
+    const firstBatch = Array.from({ length: 200 }, (_, i) => makeSession({ id: `session_${i}` }));
+    const secondBatch = [makeSession({ id: "session_200" })];
+    dbMock.classSession.findMany
+      .mockResolvedValueOnce(firstBatch)
+      .mockResolvedValueOnce(secondBatch);
+    providerMock.sendLessonReminder.mockResolvedValue(undefined);
+
+    const res = await GET(makeRequest());
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(json.sessions).toBe(201);
+    expect(dbMock.classSession.findMany).toHaveBeenCalledTimes(2);
+    expect(dbMock.classSession.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ cursor: { id: "session_199" }, skip: 1 }),
+    );
+    expect(dbMock.classSession.update).toHaveBeenCalledTimes(201);
+  });
 });

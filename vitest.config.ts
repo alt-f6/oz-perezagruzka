@@ -8,6 +8,8 @@ export default defineConfig({
       // Deterministic wall-clock formatting (e.g. formatTimeRange) across
       // local/CI machines regardless of their configured timezone.
       TZ: "UTC",
+      // Test HMAC secret for auth tests
+      COOKIE_SECRET: "test-secret-must-be-at-least-32-chars-long-for-tests",
     },
     include: [
       "*.test.ts",

@@ -68,11 +68,18 @@ export async function syncPlaybackPosition(
     return { ok: false, error: "forbidden" };
   }
 
-  await db.lessonProgress.upsert({
-    where: { studentId_lessonId: { studentId: user.id, lessonId } },
-    create: { studentId: user.id, lessonId, lastPositionSeconds: position },
-    update: { lastPositionSeconds: position },
+  const advanced = await db.lessonProgress.updateMany({
+    where: { studentId: user.id, lessonId, lastPositionSeconds: { lt: position } },
+    data: { lastPositionSeconds: position },
   });
+
+  if (advanced.count === 0) {
+    await db.lessonProgress.upsert({
+      where: { studentId_lessonId: { studentId: user.id, lessonId } },
+      create: { studentId: user.id, lessonId, lastPositionSeconds: position },
+      update: {},
+    });
+  }
 
   return { ok: true };
 }

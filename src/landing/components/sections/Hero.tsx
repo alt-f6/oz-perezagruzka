@@ -175,6 +175,7 @@ export default function Hero() {
                   src={`/photos/${HERO_STUDENT_PHOTO}`}
                   alt="Ученики образовательного центра «Перезагрузка» у доски"
                   fill
+                  priority
                   sizes="176px"
                   className="object-cover object-top"
                 />

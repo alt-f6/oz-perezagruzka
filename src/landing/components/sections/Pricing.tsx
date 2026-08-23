@@ -46,7 +46,7 @@ export default function Pricing() {
           viewport={{ once: true, margin: "-80px" }}
           className="grid gap-8 md:grid-cols-3 max-w-5xl mx-auto"
         >
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="popLayout">
             {plans.map((plan) => (
               <motion.div
                 key={`${exam}-${plan.id}`}

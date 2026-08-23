@@ -3,6 +3,7 @@ import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { canViewLesson } from "@/lms/server/access/can-view-lesson";
+import { buildCursorPage, parsePaginationParams } from "@/shared/lib/pagination";
 import type { Role } from "@/shared/lib/auth";
 
 function parseLessonId(raw: string | null) {
@@ -28,14 +29,19 @@ export const GET = withApiErrors(async (req: NextRequest) => {
     return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   }
 
+  const { cursor, limit } = parsePaginationParams(searchParams);
+
   const rows = await db.lessonMessage.findMany({
     where: { lessonId, studentId: session.id },
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     include: { lesson: { select: { title: true } } },
-    take: 500,
+    take: limit + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });
 
-  const messages = rows.map((m) => ({
+  const { items, nextCursor } = buildCursorPage(rows, limit);
+
+  const messages = items.map((m) => ({
     id: m.id,
     text: m.text,
     sender_role: m.senderRole,
@@ -46,6 +52,7 @@ export const GET = withApiErrors(async (req: NextRequest) => {
   return NextResponse.json({
     ok: true,
     messages,
+    nextCursor,
   });
 });
 

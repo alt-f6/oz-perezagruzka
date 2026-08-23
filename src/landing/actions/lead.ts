@@ -96,14 +96,19 @@ export async function attachLeadContact(raw: unknown): Promise<AttachLeadContact
     // Record consent against whichever lead row actually survives (the
     // direct update, or the merged existingLead if a phone-dedup merge
     // happened above) so the audit trail always attaches to a live lead.
-    await recordConsent({
-      leadId: updatedLead.id,
-      consentType: "PEP_ACCEPTANCE",
-      documentSlug: "pep",
-      documentVersion: LEGAL_DOCUMENT_VERSION,
-      ipHash,
-      userAgent: hdrs.get("user-agent") ?? "unknown",
-    });
+    try {
+      await recordConsent({
+        leadId: updatedLead.id,
+        consentType: "PEP_ACCEPTANCE",
+        documentSlug: "pep",
+        documentVersion: LEGAL_DOCUMENT_VERSION,
+        ipHash,
+        userAgent: hdrs.get("user-agent") ?? "unknown",
+      });
+    } catch (err) {
+      console.error("consent_log_write_failed", err);
+      return { status: "error", message: "Не удалось сохранить согласие, попробуйте ещё раз." };
+    }
 
     return { status: "ok" };
   } catch (error) {

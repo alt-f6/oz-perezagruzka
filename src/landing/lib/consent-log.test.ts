@@ -35,7 +35,7 @@ describe("recordConsent", () => {
     });
   });
 
-  it("swallows DB errors instead of throwing", async () => {
+  it("propagates the error when the write fails", async () => {
     createMock.mockRejectedValue(new Error("db down"));
     const { recordConsent } = await import("./consent-log");
 
@@ -46,6 +46,6 @@ describe("recordConsent", () => {
         ipHash: "abc123",
         userAgent: "test-agent",
       }),
-    ).resolves.toBeUndefined();
+    ).rejects.toThrow("db down");
   });
 });

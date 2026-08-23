@@ -106,4 +106,27 @@ describe("attachLeadContact bot defense", () => {
     expect(recordConsentMock).toHaveBeenCalledTimes(1);
     expect(prisma.lead.update).toHaveBeenCalledTimes(1);
   });
+
+  it("returns a status:error when recordConsent fails, even though the lead update succeeded", async () => {
+    const { prisma } = await import("@/landing/lib/db");
+    const { attachLeadContact } = await import("./lead");
+
+    vi.mocked(prisma.lead.update).mockReset();
+    vi.mocked(prisma.lead.update).mockResolvedValue({ id: "lead-1" } as never);
+    recordConsentMock.mockReset();
+    recordConsentMock.mockRejectedValue(new Error("db down"));
+
+    const result = await attachLeadContact({
+      leadId: "lead-1",
+      phone: "+7 (999) 123-45-67",
+      consent: true,
+      honeypot: "",
+      formRenderedAt: Date.now() - 5000,
+    });
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Не удалось сохранить согласие, попробуйте ещё раз.",
+    });
+  });
 });

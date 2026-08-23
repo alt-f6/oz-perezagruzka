@@ -164,13 +164,13 @@ export default function Hero() {
             >
               <div
                 aria-hidden
-                className="pointer-events-none absolute -bottom-8 -left-8 -z-10 h-28 w-28 rounded-full bg-[#FF6EB4] opacity-70 blur-2xl"
+                className="pointer-events-none absolute -bottom-8 -left-8 -z-10 h-28 w-28 rounded-full bg-[var(--color-hero-glow-pink)] opacity-70 blur-2xl"
               />
               <div
                 aria-hidden
-                className="pointer-events-none absolute -top-8 -right-8 -z-10 h-28 w-28 rounded-full bg-[#AAEE00] opacity-70 blur-2xl"
+                className="pointer-events-none absolute -top-8 -right-8 -z-10 h-28 w-28 rounded-full bg-[var(--color-hero-glow-lime)] opacity-70 blur-2xl"
               />
-              <div className="relative aspect-[3/4] overflow-hidden rounded-[22px] border-[4px] border-[#0055FF]">
+              <div className="relative aspect-[3/4] overflow-hidden rounded-[22px] border-[4px] border-[var(--color-hero-frame-blue)]">
                 <Image
                   src={`/photos/${HERO_STUDENT_PHOTO}`}
                   alt="Ученики образовательного центра «Перезагрузка» у доски"

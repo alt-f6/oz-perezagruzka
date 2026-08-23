@@ -12,7 +12,7 @@ export default function FloatingTelegram() {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Написать в Telegram"
-      className="fixed bottom-[18.5rem] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#26A5E4] text-white shadow-xl shadow-ink-900/20 transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#26A5E4] sm:bottom-24"
+      className="fixed bottom-[18.5rem] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-telegram)] text-white shadow-xl shadow-ink-900/20 transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-telegram)] sm:bottom-24"
     >
       <TelegramIcon className="h-7 w-7" />
     </a>

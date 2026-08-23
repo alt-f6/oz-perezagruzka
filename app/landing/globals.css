@@ -43,6 +43,18 @@
   --color-yandex-yellow: #ffcc00;
   --color-yandex-red: #ff3333;
 
+  /* Decorative hero/carousel accent colors — intentional exceptions,
+     used for blob glows and photo/slide frame borders only. */
+  --color-hero-glow-pink: #ff6eb4;
+  --color-hero-glow-lime: #aaee00;
+  --color-hero-frame-blue: #0055ff;
+
+  /* Social brand colors — intentional exceptions to the brand/accent/ink
+     palette, used only for the floating contact buttons and share icons. */
+  --color-telegram: #26a5e4;
+  --color-telegram-share: #229ed9;
+  --color-whatsapp: #25d366;
+
   --shadow-card: 0 20px 40px -15px rgba(0, 0, 0, 0.05);
   --shadow-card-hover: 0 25px 50px -12px rgba(109, 66, 189, 0.15);
 
@@ -108,6 +120,14 @@
 
   --color-yandex-yellow: var(--color-yandex-yellow);
   --color-yandex-red: var(--color-yandex-red);
+
+  --color-hero-glow-pink: var(--color-hero-glow-pink);
+  --color-hero-glow-lime: var(--color-hero-glow-lime);
+  --color-hero-frame-blue: var(--color-hero-frame-blue);
+
+  --color-telegram: var(--color-telegram);
+  --color-telegram-share: var(--color-telegram-share);
+  --color-whatsapp: var(--color-whatsapp);
 
   --shadow-card: var(--shadow-card);
   --shadow-card-hover: var(--shadow-card-hover);

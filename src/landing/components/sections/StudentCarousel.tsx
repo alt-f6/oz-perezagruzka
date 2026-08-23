@@ -193,7 +193,7 @@ export default function StudentCarousel() {
                 whileHover={prefersReducedMotion ? undefined : { scale: 1.03, y: -4 }}
                 className={
                   isFeatured
-                    ? "group relative aspect-[4/3] w-[75%] shrink-0 snap-center overflow-hidden rounded-2xl border-[3px] border-[#AAEE00] shadow-lg sm:w-[45%] md:w-[30%] lg:w-[23%]"
+                    ? "group relative aspect-[4/3] w-[75%] shrink-0 snap-center overflow-hidden rounded-2xl border-[3px] border-[var(--color-hero-glow-lime)] shadow-lg sm:w-[45%] md:w-[30%] lg:w-[23%]"
                     : "group relative aspect-[4/5] w-[75%] shrink-0 snap-center overflow-hidden rounded-3xl border border-white/40 shadow-[var(--shadow-brand-photo)] sm:w-[45%] md:w-[30%] lg:w-[23%]"
                 }
               >

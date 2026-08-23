@@ -180,20 +180,6 @@ export async function getSessionUserFromRequest(
   return getUserBySessionToken(token);
 }
 
-/**
- * Pure HMAC-signature check, no DB round trip — safe to call from
- * middleware (including Edge runtime). Confirms the cookie is a
- * well-formed, unexpired-signature session token; it does NOT confirm
- * the underlying session row still exists or hasn't been revoked. Route
- * handlers and Server Actions must still call getSessionUser()/
- * requireRole() for the authoritative, DB-backed check.
- */
-export function hasSignedSessionCookie(req: NextRequest): boolean {
-  const raw = req.cookies.get(SESSION_COOKIE_NAME)?.value;
-  if (!raw) return false;
-  return verifyToken(raw) !== null;
-}
-
 export function isRoleAllowed(role: Role, allowed: Role[]): boolean {
   return allowed.includes(role);
 }

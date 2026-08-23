@@ -7,7 +7,8 @@ function readPositiveInt(raw: string | undefined, fallback: number) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-const TTL = readPositiveInt(process.env.R2_SIGNED_URL_TTL_SECONDS, 900);
+const R2_UPLOAD_TTL_SECONDS = readPositiveInt(process.env.R2_UPLOAD_TTL_SECONDS, 120);
+const R2_VIEW_TTL_SECONDS = readPositiveInt(process.env.R2_VIEW_TTL_SECONDS, 7200);
 
 export async function signPutObject(key: string, contentType: string) {
   const cmd = new PutObjectCommand({
@@ -15,7 +16,7 @@ export async function signPutObject(key: string, contentType: string) {
     Key: key,
     ContentType: contentType,
   });
-  return getSignedUrl(r2, cmd, { expiresIn: TTL });
+  return getSignedUrl(r2, cmd, { expiresIn: R2_UPLOAD_TTL_SECONDS });
 }
 
 export async function signGetObject(
@@ -31,7 +32,7 @@ export async function signGetObject(
     ResponseContentType: options?.responseContentType,
     ResponseContentDisposition: options?.responseContentDisposition,
   });
-  return getSignedUrl(r2, cmd, { expiresIn: TTL });
+  return getSignedUrl(r2, cmd, { expiresIn: R2_VIEW_TTL_SECONDS });
 }
 
 export async function headObject(key: string) {

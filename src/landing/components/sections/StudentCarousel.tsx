@@ -16,7 +16,13 @@ const BADGES = [
 // Files live in public/landing/photos/, but proxy.ts rewrites every request
 // on the root host to /landing/<path>, so the src here must NOT repeat the
 // "landing" segment. `/photos/x.jpg` is what actually resolves.
+// The two newest photos get a distinct "featured" treatment (4:3 crop, neon
+// border, no drop shadow glow) per the atmosphere-section spec, so they're
+// tracked separately from the rest of the rotating gallery below.
+const FEATURED_PHOTO_FILES = ["photo_2026-08-23_11-24-55.jpg", "photo_2026-08-23_11-25-16.jpg"];
+
 const PHOTO_FILES = [
+  ...FEATURED_PHOTO_FILES,
   "photo_2023-06-19_11-11-03.jpg",
   "photo_2023-06-19_11-11-04.jpg",
   "photo_2023-06-19_11-11-07.jpg",
@@ -177,28 +183,39 @@ export default function StudentCarousel() {
           viewport={{ once: true, margin: "-80px" }}
           className="flex gap-5 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-none"
         >
-          {SLIDES.map((slide, i) => (
-            <motion.div
-              key={slide.file + i}
-              variants={itemVariants}
-              transition={{ duration: 0.4, ease: "easeOut" }}
-              whileHover={prefersReducedMotion ? undefined : { scale: 1.03, y: -4 }}
-              className="group relative aspect-[4/5] w-[75%] shrink-0 snap-center overflow-hidden rounded-3xl border border-white/40 shadow-[var(--shadow-brand-photo)] sm:w-[45%] md:w-[30%] lg:w-[23%]"
-            >
-              <Image
-                src={`/photos/${slide.file}`}
-                alt="Ученики образовательного центра «Перезагрузка» на занятиях"
-                fill
-                sizes="(min-width: 1024px) 23vw, (min-width: 768px) 30vw, (min-width: 640px) 45vw, 75vw"
-                className="object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-              <div className="absolute inset-x-3 bottom-3">
-                <span className="inline-block rounded-full border border-white/40 bg-white/70 px-3 py-1.5 text-xs font-semibold text-ink-900 shadow-sm backdrop-blur-xl">
-                  {slide.badge}
-                </span>
-              </div>
-            </motion.div>
-          ))}
+          {SLIDES.map((slide, i) => {
+            const isFeatured = FEATURED_PHOTO_FILES.includes(slide.file);
+            return (
+              <motion.div
+                key={slide.file + i}
+                variants={itemVariants}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                whileHover={prefersReducedMotion ? undefined : { scale: 1.03, y: -4 }}
+                className={
+                  isFeatured
+                    ? "group relative aspect-[4/3] w-[75%] shrink-0 snap-center overflow-hidden rounded-2xl border-[3px] border-[#AAEE00] shadow-lg sm:w-[45%] md:w-[30%] lg:w-[23%]"
+                    : "group relative aspect-[4/5] w-[75%] shrink-0 snap-center overflow-hidden rounded-3xl border border-white/40 shadow-[var(--shadow-brand-photo)] sm:w-[45%] md:w-[30%] lg:w-[23%]"
+                }
+              >
+                <Image
+                  src={`/photos/${slide.file}`}
+                  alt="Ученики образовательного центра «Перезагрузка» на занятиях"
+                  fill
+                  sizes="(min-width: 1024px) 23vw, (min-width: 768px) 30vw, (min-width: 640px) 45vw, 75vw"
+                  className={
+                    isFeatured
+                      ? "object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                      : "object-cover transition-transform duration-500 group-hover:scale-105"
+                  }
+                />
+                <div className="absolute inset-x-3 bottom-3">
+                  <span className="inline-block rounded-full border border-white/40 bg-white/70 px-3 py-1.5 text-xs font-semibold text-ink-900 shadow-sm backdrop-blur-xl">
+                    {slide.badge}
+                  </span>
+                </div>
+              </motion.div>
+            );
+          })}
         </motion.div>
 
         <div className="mt-2 flex justify-center gap-1.5">

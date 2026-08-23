@@ -15,12 +15,12 @@ const HERO_FACES = [
   "photo_2023-06-19_11-19-56.jpg",
 ];
 
-const HERO_STUDENT_PHOTO = "photo_2023-06-19_11-20-25.jpg";
+const HERO_STUDENT_PHOTO = "photo_2026-08-23_11-25-16.jpg";
 
 const HERO_BENEFITS = [
   "Живой учитель видит именно вашего ребёнка, а не поток на сотни — до 10 человек в группе",
   "ИИ-репетитор на связи 24/7",
-  "Берём только после бесплатной диагностики — если не доведём до результата, честно скажем и не возьмём денег",
+  "Берём только после бесплатного разбора — если не доведём до результата, честно скажем и не возьмём денег",
 ];
 
 export default function Hero() {
@@ -160,15 +160,25 @@ export default function Hero() {
 
             <motion.div
               {...floatY(prefersReducedMotion, 5, 6)}
-              className="absolute -top-6 -left-6 z-10 hidden h-24 w-24 overflow-hidden rounded-2xl border-2 border-white shadow-[var(--shadow-brand-soft)] sm:block"
+              className="absolute -top-10 -left-10 z-10 hidden w-36 sm:block sm:w-44"
             >
-              <Image
-                src={`/photos/${HERO_STUDENT_PHOTO}`}
-                alt="Ученик образовательного центра «Перезагрузка»"
-                fill
-                sizes="96px"
-                className="object-cover"
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -bottom-8 -left-8 -z-10 h-28 w-28 rounded-full bg-[#FF6EB4] opacity-70 blur-2xl"
               />
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -top-8 -right-8 -z-10 h-28 w-28 rounded-full bg-[#AAEE00] opacity-70 blur-2xl"
+              />
+              <div className="relative aspect-[3/4] overflow-hidden rounded-[22px] border-[4px] border-[#0055FF]">
+                <Image
+                  src={`/photos/${HERO_STUDENT_PHOTO}`}
+                  alt="Ученики образовательного центра «Перезагрузка» у доски"
+                  fill
+                  sizes="176px"
+                  className="object-cover object-top"
+                />
+              </div>
             </motion.div>
             <div className="relative overflow-hidden rounded-3xl border border-purple-100/80 bg-white/90 p-6 shadow-2xl shadow-brand-900/15 shadow-[var(--shadow-brand-elevated)] ring-1 ring-white/10 backdrop-blur-md">
               <div className="mb-6 flex items-center justify-between border-b border-ink-100 pb-4">

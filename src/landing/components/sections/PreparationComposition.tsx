@@ -7,10 +7,10 @@ import { useExam } from "@/landing/lib/exam-context";
 import { PREPARATION_AI_SKILL } from "@/landing/lib/exam-content";
 
 const STATIC_POINTS = [
-  "Живые занятия в мини-группах",
-  "Доступ к ИИ-репетитору 24/7",
-  "Отчёты о прогрессе каждые 2 недели",
-  "Практика на реальных пробниках экзамена",
+  "Мини-группа до 8 человек",
+  "ИИ-репетитор на связи 24/7",
+  "Короткие видео вместо часовых лекций",
+  "Отчёт родителям каждые 2 недели",
 ];
 
 export default function PreparationComposition() {

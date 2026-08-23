@@ -18,7 +18,18 @@ export async function createStudent(
   }
 
   try {
-    await db.$transaction(async (tx) => {
+    const duplicatePhoneError = await db.$transaction(async (tx) => {
+      if (parsed.data.phone) {
+        const existingStudent = await tx.student.findUnique({
+          where: { phone: parsed.data.phone },
+          select: { id: true },
+        });
+
+        if (existingStudent) {
+          return "Студент с таким номером телефона уже существует.";
+        }
+      }
+
       const student = await tx.student.create({
         data: { fullName: parsed.data.name, phone: parsed.data.phone || null },
         select: { id: true },
@@ -29,7 +40,13 @@ export async function createStudent(
           data: { groupId: parsed.data.groupId, studentId: student.id },
         });
       }
+
+      return null;
     });
+
+    if (duplicatePhoneError) {
+      return { error: duplicatePhoneError };
+    }
   } catch (err) {
     return {
       error: err instanceof Error ? err.message : "Ошибка создания студента",

@@ -2,6 +2,7 @@
 
 import { prisma } from "@/crm/lib/prisma";
 import { finalizeSuccessfulPayment, getPaymentMode } from "@/crm/lib/services/yookassa.service";
+import { rublesToKopecks } from "@/crm/lib/money";
 import { requireRole } from "@/shared/lib/rbac";
 import type { ActionResult } from "@/crm/lib/types";
 
@@ -41,7 +42,7 @@ export async function simulateMockPaymentSucceeded(intentId: string): Promise<Ac
   await finalizeSuccessfulPayment({
     paymentId: intent.yookassaId,
     studentId: intent.studentId,
-    amount: Number(intent.amount),
+    amount: rublesToKopecks(Number(intent.amount)),
     description: "Тестовая оплата (mock YooKassa)",
   });
 

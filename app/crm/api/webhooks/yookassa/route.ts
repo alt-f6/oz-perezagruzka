@@ -5,6 +5,7 @@ import {
   finalizeSuccessfulPayment,
   YookassaService,
 } from "@/crm/lib/services/yookassa.service";
+import { rublesToKopecks } from "@/crm/lib/money";
 import { checkRateLimit } from "@/landing/lib/rate-limit";
 import { extractClientIp, hashIp } from "@/landing/lib/request-ip";
 import { createLogger } from "@/shared/lib/logger";
@@ -207,7 +208,7 @@ export const POST = withApiErrors(async (request) => {
   const credited = await finalizeSuccessfulPayment({
     paymentId,
     studentId,
-    amount: Number(payment.amount.value),
+    amount: rublesToKopecks(Number(payment.amount.value)),
   });
 
   logWebhook({

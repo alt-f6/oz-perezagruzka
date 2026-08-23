@@ -5,6 +5,7 @@ import { prisma } from "@/crm/lib/prisma";
 import { getNotificationProvider } from "@/crm/lib/services/notification.service";
 import { createLogger } from "@/shared/lib/logger";
 import { requireSiteUrl } from "@/shared/lib/env";
+import { kopecksToRubles, type Kopecks } from "@/crm/lib/money";
 
 const log = createLogger("yookassa");
 
@@ -63,11 +64,11 @@ function authHeader(): string {
   return `Basic ${Buffer.from(`${shopId}:${secretKey}`).toString("base64")}`;
 }
 
-function buildReceiptItem(amount: number, description: string): YookassaReceiptItem {
+function buildReceiptItem(amount: Kopecks, description: string): YookassaReceiptItem {
   return {
     description,
     quantity: "1.00",
-    amount: { value: amount.toFixed(2), currency: "RUB" },
+    amount: { value: kopecksToRubles(amount), currency: "RUB" },
     vat_code: 1,
     payment_subject: "service",
     payment_mode: "full_payment",
@@ -77,7 +78,7 @@ function buildReceiptItem(amount: number, description: string): YookassaReceiptI
 export interface CreatePaymentSessionParams {
   studentId: string;
   studentFullName: string;
-  amount: number;
+  amount: Kopecks;
   returnUrl: string;
   customerEmail?: string;
   customerPhone?: string;
@@ -105,7 +106,7 @@ export const YookassaService = {
         data: {
           studentId,
           yookassaId: `mock_${randomUUID()}`,
-          amount,
+          amount: Number(kopecksToRubles(amount)),
           status: "PENDING",
         },
       });
@@ -137,7 +138,7 @@ export const YookassaService = {
         "Idempotence-Key": randomUUID(),
       },
       body: JSON.stringify({
-        amount: { value: amount.toFixed(2), currency: "RUB" },
+        amount: { value: kopecksToRubles(amount), currency: "RUB" },
         capture: true,
         confirmation: { type: "redirect", return_url: returnUrl },
         description,
@@ -161,7 +162,7 @@ export const YookassaService = {
       data: {
         studentId,
         yookassaId: payment.id,
-        amount,
+        amount: Number(kopecksToRubles(amount)),
         status: "PENDING",
         confirmationUrl,
       },
@@ -185,7 +186,7 @@ export const YookassaService = {
 export interface FinalizeSuccessfulPaymentParams {
   paymentId: string;
   studentId: string;
-  amount: number;
+  amount: Kopecks;
   description?: string;
 }
 
@@ -205,7 +206,7 @@ export async function finalizeSuccessfulPayment({
       return await tx.transaction.create({
         data: {
           studentId,
-          amount,
+          amount: Number(kopecksToRubles(amount)),
           type: "PAYMENT",
           description,
           idempotencyKey: paymentId,
@@ -242,7 +243,7 @@ export async function finalizeSuccessfulPayment({
         student.parents.map(({ parent }) =>
           provider.sendPaymentReceipt(
             { telegramChatId: parent.telegramChatId, email: parent.user?.email, fullName: student.fullName },
-            amount,
+            Number(kopecksToRubles(amount)),
           ),
         ),
       );

@@ -4,6 +4,7 @@ import { db } from "@/shared/lib/db";
 import { getSessionUser } from "@/shared/lib/auth";
 import { paymentAmountSchema } from "@/crm/lib/schemas";
 import { YookassaService } from "@/crm/lib/services/yookassa.service";
+import { rublesToKopecks } from "@/crm/lib/money";
 import { requireSiteUrl } from "@/shared/lib/env";
 import type { ActionResult } from "@/crm/lib/types";
 
@@ -48,7 +49,7 @@ export async function createStudentPaymentSession(
     const { confirmationUrl } = await YookassaService.createPaymentSession({
       studentId: student.id,
       studentFullName: student.fullName,
-      amount: parsed.data.amount,
+      amount: rublesToKopecks(parsed.data.amount),
       returnUrl: buildReturnUrl(student.id),
       customerPhone: student.phone ?? undefined,
     });

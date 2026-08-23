@@ -15,6 +15,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/shared/lib/db";
 import { BillingService } from "@/crm/lib/services/billing.service";
 import { finalizeSuccessfulPayment } from "@/crm/lib/services/yookassa.service";
+import { rublesToKopecks } from "@/crm/lib/money";
 import { computeTeacherSalary } from "@/crm/lib/services/salary.service";
 import { performLeadConversion } from "@/crm/lib/services/lead-conversion.service";
 
@@ -218,19 +219,19 @@ async function main() {
     const first = await finalizeSuccessfulPayment({
       paymentId: yookassaId,
       studentId: student.id,
-      amount: 5000,
+      amount: rublesToKopecks(5000),
     });
     const second = await finalizeSuccessfulPayment({
       paymentId: yookassaId,
       studentId: student.id,
-      amount: 5000,
+      amount: rublesToKopecks(5000),
     });
     const duplicateParallel = await Promise.allSettled(
       Array.from({ length: 3 }, () =>
         finalizeSuccessfulPayment({
           paymentId: yookassaId,
           studentId: student.id,
-          amount: 5000,
+          amount: rublesToKopecks(5000),
         }),
       ),
     );

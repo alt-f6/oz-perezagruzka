@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Prisma } from "@prisma/client";
+import { rublesToKopecks } from "@/crm/lib/money";
 
 const dbMock = vi.hoisted(() => ({
   $transaction: vi.fn(),
@@ -52,7 +53,7 @@ describe("finalizeSuccessfulPayment", () => {
     const result = await finalizeSuccessfulPayment({
       paymentId: "pay_1",
       studentId: "student_1",
-      amount: 5000,
+      amount: rublesToKopecks(5000),
     });
 
     expect(result).toBe(true);
@@ -78,7 +79,7 @@ describe("finalizeSuccessfulPayment", () => {
     const result = await finalizeSuccessfulPayment({
       paymentId: "pay_1",
       studentId: "student_1",
-      amount: 5000,
+      amount: rublesToKopecks(5000),
     });
 
     expect(result).toBe(false);
@@ -93,7 +94,11 @@ describe("finalizeSuccessfulPayment", () => {
     );
 
     await expect(
-      finalizeSuccessfulPayment({ paymentId: "pay_1", studentId: "student_1", amount: 5000 }),
+      finalizeSuccessfulPayment({
+        paymentId: "pay_1",
+        studentId: "student_1",
+        amount: rublesToKopecks(5000),
+      }),
     ).rejects.toThrow("connection lost");
   });
 });

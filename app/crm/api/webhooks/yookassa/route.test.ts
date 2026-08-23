@@ -76,7 +76,7 @@ describe("POST /crm/api/webhooks/yookassa", () => {
     expect(yookassaMocks.finalizeSuccessfulPayment).toHaveBeenCalledWith({
       paymentId: "pay_1",
       studentId: "student_1",
-      amount: 5000,
+      amount: 500000,
     });
   });
 

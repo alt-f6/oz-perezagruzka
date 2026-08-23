@@ -10,7 +10,7 @@ export const GET = withApiErrors(async (req: NextRequest) => {
 
   await enforceRateLimit(`lms:admin-messages-list:${admin.id}`, 60, 60_000);
 
-  const { cursor, limit } = parsePaginationParams(new URL(req.url).searchParams);
+  const { cursor, limit } = parsePaginationParams(new URL(req.url).searchParams, 200);
 
   const rows = await db.lessonMessage.findMany({
     take: limit + 1,

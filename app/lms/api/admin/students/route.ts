@@ -15,7 +15,7 @@ function isValidEmail(email: string) {
 export const GET = withApiErrors(async (req: NextRequest) => {
   await requireRole(["ADMIN"], { adminBypass: true });
 
-  const { cursor, limit } = parsePaginationParams(new URL(req.url).searchParams);
+  const { cursor, limit } = parsePaginationParams(new URL(req.url).searchParams, 1000);
 
   const rows = await db.user.findMany({
     where: { role: "STUDENT" },

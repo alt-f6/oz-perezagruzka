@@ -76,4 +76,15 @@ describe("GET /api/admin/students", () => {
     expect(call.cursor).toBeUndefined();
     expect(call.skip).toBeUndefined();
   });
+
+  it("defaults to the prior 1000-row cap when no limit query param is supplied", async () => {
+    findManyMock.mockResolvedValue([]);
+    const { GET } = await import("./route");
+
+    await GET(makeRequest());
+
+    expect(findManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 1001 }),
+    );
+  });
 });

@@ -29,7 +29,7 @@ export const GET = withApiErrors(async (req: NextRequest) => {
     return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   }
 
-  const { cursor, limit } = parsePaginationParams(searchParams);
+  const { cursor, limit } = parsePaginationParams(searchParams, 500);
 
   const rows = await db.lessonMessage.findMany({
     where: { lessonId, studentId: session.id },

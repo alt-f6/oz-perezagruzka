@@ -76,4 +76,15 @@ describe("GET /api/student/messages", () => {
       expect.objectContaining({ cursor: { id: "m9" }, skip: 1 }),
     );
   });
+
+  it("defaults to the prior 500-row cap when no limit query param is supplied", async () => {
+    findManyMock.mockResolvedValue([]);
+    const { GET } = await import("./route");
+
+    await GET(makeRequest("?lessonId=lesson-1"));
+
+    expect(findManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 501 }),
+    );
+  });
 });

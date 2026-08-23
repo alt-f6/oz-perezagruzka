@@ -149,4 +149,16 @@ describe("GET /api/admin/messages", () => {
       expect.objectContaining({ cursor: { id: "msg-9" }, skip: 1 }),
     );
   });
+
+  it("defaults to the prior 200-row cap when no limit query param is supplied", async () => {
+    requireRoleMock.mockResolvedValue({ id: "mgr-1", role: "MANAGER" });
+    findManyMock.mockResolvedValue([]);
+    const { GET } = await import("./route");
+
+    await GET(dummyRequest());
+
+    expect(findManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 201 }),
+    );
+  });
 });

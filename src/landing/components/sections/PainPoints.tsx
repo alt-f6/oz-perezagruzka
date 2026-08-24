@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import Section from "@/landing/components/ui/Section";
@@ -8,10 +9,12 @@ import { fadeInUp, staggerContainer } from "@/landing/components/ui/motion";
 import { useExam } from "@/landing/lib/exam-context";
 import { PAIN_POINTS_TITLE } from "@/landing/lib/exam-content";
 
+const PAIN_POINTS_PHOTO = "photo_2026-08-23_11-25-16.jpg";
+
 const PAIRS = [
   { before: "Репетитора не контролирует никто.", after: "Педагогов контролируем мы сами." },
   { before: "О проблеме узнаёте через месяцы.", after: "Отчёт каждые 2 недели." },
-  { before: "Ребёнок — один из сотни в потоке.", after: "Мини-группа до 8 человек." },
+  { before: "Ребёнок — один из сотни в потоке.", after: "Мини-группа, а не поток." },
 ];
 
 export default function PainPoints() {
@@ -26,9 +29,19 @@ export default function PainPoints() {
         <span className="mb-4 block text-center text-sm font-bold uppercase tracking-wider text-brand-600">
           Знакомо?
         </span>
-        <h2 className="mb-14 text-center font-bold tracking-tight text-ink-900 text-balance">
+        <h2 className="mb-10 text-center font-bold tracking-tight text-ink-900 text-balance">
           {PAIN_POINTS_TITLE[exam]}
         </h2>
+
+        <div className="relative mx-auto mb-14 aspect-[16/9] max-w-4xl overflow-hidden rounded-3xl border-[3px] border-accent-500 shadow-xl shadow-ink-900/10">
+          <Image
+            src={`/photos/${PAIN_POINTS_PHOTO}`}
+            alt="Ученики в панике перед экзаменом у доски"
+            fill
+            sizes="(min-width: 1024px) 896px, 90vw"
+            className="object-cover"
+          />
+        </div>
 
         <motion.div
           variants={staggerContainer(0.12)}

@@ -8,7 +8,7 @@ import Section from "@/landing/components/ui/Section";
 import { fadeInUp, staggerContainer } from "@/landing/components/ui/motion";
 
 const BADGES = [
-  "До 10 человек в группе",
+  "Мини-группа",
   "Атмосфера уроков",
   "Результаты ОГЭ/ЕГЭ",
 ];
@@ -29,7 +29,6 @@ const PHOTO_FILES = [
   "photo_2023-06-19_11-11-11.jpg",
   "photo_2023-06-19_11-11-16.jpg",
   "photo_2023-06-19_11-18-54.jpg",
-  "photo_2023-06-19_11-18-57.jpg",
   "photo_2023-06-19_11-19-47.jpg",
   "photo_2023-06-19_11-19-50.jpg",
   "photo_2023-06-19_11-19-56.jpg",
@@ -193,7 +192,7 @@ export default function StudentCarousel() {
                 whileHover={prefersReducedMotion ? undefined : { scale: 1.03, y: -4 }}
                 className={
                   isFeatured
-                    ? "group relative aspect-[4/3] w-[75%] shrink-0 snap-center overflow-hidden rounded-2xl border-[3px] border-[var(--color-hero-glow-lime)] shadow-lg sm:w-[45%] md:w-[30%] lg:w-[23%]"
+                    ? "group relative aspect-[4/3] w-[75%] shrink-0 snap-center overflow-hidden rounded-2xl border-[3px] border-accent-500 shadow-lg sm:w-[45%] md:w-[30%] lg:w-[23%]"
                     : "group relative aspect-[4/5] w-[75%] shrink-0 snap-center overflow-hidden rounded-3xl border border-white/40 shadow-[var(--shadow-brand-photo)] sm:w-[45%] md:w-[30%] lg:w-[23%]"
                 }
               >

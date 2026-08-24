@@ -42,7 +42,7 @@ export default function HowItWorks() {
                 tint="glass"
                 className="flex h-full flex-col transition-shadow duration-300 hover:shadow-card-hover"
               >
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 font-black text-brand-700 border border-brand-200">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-100 font-mono font-black text-brand-700 border border-brand-200">
                   {i + 1}
                 </span>
                 <h3 className="mt-4 font-bold text-ink-900">{step.title}</h3>

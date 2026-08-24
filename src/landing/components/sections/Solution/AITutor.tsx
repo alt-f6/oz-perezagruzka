@@ -19,10 +19,41 @@ const STATUS_BADGES = [
   { icon: "🎯", label: "База задач ОГЭ и ЕГЭ 2026" },
 ];
 
+// Auto-playing demo loop shown until the visitor interacts with the input —
+// then it hands off to the live chat below.
+const DEMO_PAIRS = [
+  {
+    question: "Почему в квадратном уравнении, если дискриминант меньше нуля, то нет корней? 🧐",
+    answer:
+      "Смотри, всё очень просто! График квадратного уравнения — это парабола. Когда дискриминант меньше нуля, эта парабола парит над осью X и вообще её не касается. Раз нет точек пересечения, значит и корней нет. Парабола просто улетела в космос! 🚀",
+  },
+  {
+    question: "Объясни теорему Пифагора простыми словами",
+    answer:
+      "Легко! Представь треугольник с прямым углом. Площадь квадратов на двух коротких сторонах, сложенная вместе, — это ровно площадь квадрата на длинной стороне. Вот и вся теорема: a² + b² = c² 📐",
+  },
+  {
+    question: "Как решать 22 задачу ОГЭ по математике?",
+    answer:
+      "Сначала выпиши отдельно, что дано и что нужно найти — на черновик, а не в уме. Дальше ищи формулу, которая связывает именно эти величины. Почти все ошибки в 22 задаче — от того, что решают в уме, не зафиксировав условие 📝",
+  },
+  {
+    question: "Разбери ошибки в сочинении 9.3",
+    answer:
+      "Скинь текст — покажу, где именно теряются баллы: в тезисе, в аргументах или в выводе. Чаще всего проблема в тезисе — он должен отвечать на вопрос из задания почти теми же словами ✍️",
+  },
+];
+
+const DEMO_ANSWER_DELAY_MS = 1400;
+const DEMO_PAIR_HOLD_MS = 4200;
+
 export default function AITutor() {
   const [input, setInput] = useState("");
   const [limitReached, setLimitReached] = useState(false);
   const [serverErrorMessage, setServerErrorMessage] = useState<string | null>(null);
+  const [autoplay, setAutoplay] = useState(true);
+  const [demoIndex, setDemoIndex] = useState(0);
+  const [demoShowAnswer, setDemoShowAnswer] = useState(false);
 
   const [sessionId, setSessionId] = useState("");
 
@@ -66,9 +97,26 @@ export default function AITutor() {
   const userMessageCount = messages.filter((m) => m.role === "user").length;
   const reachedLimit = limitReached || userMessageCount >= MAX_USER_MESSAGES;
   const isBusy = status === "submitted" || status === "streaming";
+  const showDemo = autoplay && messages.length === 0;
+
+  useEffect(() => {
+    if (!autoplay) return;
+    setDemoShowAnswer(false);
+    const answerTimer = setTimeout(() => setDemoShowAnswer(true), DEMO_ANSWER_DELAY_MS);
+    const nextTimer = setTimeout(() => {
+      setDemoIndex((i) => (i + 1) % DEMO_PAIRS.length);
+    }, DEMO_PAIR_HOLD_MS);
+    return () => {
+      clearTimeout(answerTimer);
+      clearTimeout(nextTimer);
+    };
+  }, [autoplay, demoIndex]);
+
+  const stopAutoplay = () => setAutoplay(false);
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
+    stopAutoplay();
     const trimmed = input.trim();
     if (!trimmed || reachedLimit || isBusy) return;
     setServerErrorMessage(null);
@@ -77,6 +125,7 @@ export default function AITutor() {
   };
 
   const handlePromptClick = (prompt: string) => {
+    stopAutoplay();
     if (reachedLimit || isBusy) return;
     setInput(prompt);
   };
@@ -92,7 +141,7 @@ export default function AITutor() {
           Интерактивный ИИ-Наставник
         </span>
         <h3 className="mt-4 font-bold leading-tight tracking-tight text-ink-900 text-balance">
-          Попробуйте ИИ-репетитора прямо сейчас
+          Смотрите, как работает ИИ-репетитор
         </h3>
         <p className="mt-4 text-base leading-relaxed text-ink-600 font-medium md:text-lg">
           Персональный виртуальный преподаватель, который моментально объясняет сложные задачи 24/7 и адаптируется под уровень ученика.
@@ -133,11 +182,47 @@ export default function AITutor() {
         </p>
 
         <div className="flex max-h-[min(20rem,40dvh)] min-h-[120px] flex-col gap-3 overflow-y-auto pr-1">
-          {messages.length === 0 && (
-            <div className="my-auto text-center py-6">
-              <span className="text-3xl">💬</span>
-              <p className="mt-2 text-sm text-ink-500 font-medium">Чат пуст. Напишите что-нибудь!</p>
-            </div>
+          {showDemo ? (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={demoIndex}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+                className="flex flex-col gap-3"
+              >
+                <div className="ml-auto max-w-[85%] rounded-2xl rounded-tr-none bg-brand-600 px-4 py-3 text-base leading-relaxed text-white shadow-md shadow-brand-600/20">
+                  {DEMO_PAIRS[demoIndex].question}
+                </div>
+                {demoShowAnswer ? (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    className="mr-auto max-w-[85%] rounded-2xl rounded-tl-none border border-brand-100 bg-brand-50 px-4 py-3 text-base leading-relaxed text-ink-800"
+                  >
+                    {DEMO_PAIRS[demoIndex].answer}
+                  </motion.div>
+                ) : (
+                  <div
+                    className="mr-auto flex items-center gap-1.5 rounded-2xl rounded-tl-none border border-brand-100 bg-brand-50 px-4 py-3"
+                    aria-label="ИИ-Репетитор печатает ответ"
+                  >
+                    <span className="h-2 w-2 rounded-full bg-brand-400 motion-safe:animate-bounce motion-safe:[animation-delay:-0.2s]" />
+                    <span className="h-2 w-2 rounded-full bg-brand-400 motion-safe:animate-bounce motion-safe:[animation-delay:-0.1s]" />
+                    <span className="h-2 w-2 rounded-full bg-brand-400 motion-safe:animate-bounce" />
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          ) : (
+            messages.length === 0 && (
+              <div className="my-auto text-center py-6">
+                <span className="text-3xl">💬</span>
+                <p className="mt-2 text-sm text-ink-500 font-medium">Чат пуст. Напишите что-нибудь!</p>
+              </div>
+            )
           )}
 
           {messages.map((message) => (
@@ -201,7 +286,7 @@ export default function AITutor() {
             </p>
             <a
               href="#readiness-map"
-              className="inline-block rounded-xl bg-accent-500 px-6 py-3 text-sm font-bold text-ink-900 shadow-md shadow-accent-500/25 transition-all hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 active:scale-95"
+              className="inline-flex min-h-[60px] items-center rounded-xl bg-brand-600 px-6 text-base font-bold text-white shadow-md shadow-brand-600/25 transition-all hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 active:scale-95"
             >
               Пройти разбор с живым педагогом
             </a>
@@ -211,6 +296,7 @@ export default function AITutor() {
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
+              onFocus={stopAutoplay}
               disabled={isBusy}
               placeholder="Например: как работают квадратные уравнения?"
               className="flex-1 rounded-xl border border-ink-200 bg-white px-4 py-3.5 text-ink-900 placeholder:text-ink-400 outline-none shadow-sm transition-all duration-200 focus:border-brand-400 focus:ring-4 focus:ring-brand-100 disabled:opacity-60"

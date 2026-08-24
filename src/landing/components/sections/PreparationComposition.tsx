@@ -7,7 +7,7 @@ import { useExam } from "@/landing/lib/exam-context";
 import { PREPARATION_AI_SKILL } from "@/landing/lib/exam-content";
 
 const STATIC_POINTS = [
-  "Мини-группа до 8 человек",
+  "Мини-группа",
   "ИИ-репетитор на связи 24/7",
   "Короткие видео вместо часовых лекций",
   "Отчёт родителям каждые 2 недели",

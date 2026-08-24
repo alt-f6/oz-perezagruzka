@@ -162,7 +162,7 @@ export function ContactForm({ leadId, ctaLabel }: ContactFormProps) {
         <button
           type="submit"
           disabled={state === "submitting"}
-          className="min-h-[44px] rounded-2xl bg-accent-500 px-8 py-4 font-extrabold text-ink-900 shadow-md shadow-accent-500/25 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-accent-500/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2 active:scale-95 disabled:opacity-50 disabled:hover:translate-y-0 disabled:active:scale-100"
+          className="min-h-[60px] rounded-2xl bg-brand-600 px-8 py-4 text-lg font-extrabold text-white shadow-md shadow-brand-600/25 transition-all duration-150 hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 active:scale-95 disabled:opacity-50 disabled:hover:translate-y-0 disabled:active:scale-100"
         >
         {state === "submitting" ? (
           <span className="flex items-center gap-2 justify-center">

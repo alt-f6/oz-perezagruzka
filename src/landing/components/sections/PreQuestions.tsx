@@ -39,7 +39,7 @@ export default function PreQuestions() {
               transition={{ duration: 0.4, ease: "easeOut" }}
             >
               <Card tint="glass" className="flex h-full items-start gap-3.5">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 font-mono text-sm font-bold text-brand-700">
                   {i + 1}
                 </span>
                 <span className="font-semibold leading-relaxed text-ink-900">{question}</span>

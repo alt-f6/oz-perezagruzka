@@ -2,13 +2,15 @@
 // as Footer.tsx's SOCIAL_LINKS. z-40 keeps it below the cookie banner's
 // z-50 so the banner always wins visually when both are shown.
 //
-// bottom-56 (224px) on mobile clears ConsentBanner.tsx's real worst-case
-// footprint: 24px outer p-3 wrapper + 32px inner p-4 card padding + up to
-// ~58-78px for the cookie-notice paragraph wrapping to 3-4 lines at
-// text-xs leading-relaxed on narrow viewports + 16px flex-col gap-4 +
-// ~44px button row ≈ 174-194px worst case, so 224px leaves comfortable
-// margin. sm:bottom-6 is unchanged because the banner switches to a much
-// shorter flex-row layout at sm: and above.
+// bottom-64 (256px) on mobile clears ConsentBanner.tsx's real worst-case
+// footprint: 12px outer pt-3 + up to ~34px safe-area-inset-bottom (notched
+// phones) + 32px inner p-4 card padding + up to ~58-78px for the
+// cookie-notice paragraph wrapping to 3-4 lines at text-xs leading-relaxed
+// on narrow viewports + 16px flex-col gap-4 + ~44px button row ≈ 196-216px
+// worst case, so 256px leaves comfortable margin. sm:bottom-6 is unchanged
+// because the banner switches to a much shorter flex-row layout at sm: and
+// above. ReadinessMapWizard.tsx's own bottom-nav clearance (pb-64) is kept
+// in lockstep with this same 256px budget.
 export default function FloatingWhatsApp() {
   const href = process.env.NEXT_PUBLIC_WHATSAPP_URL;
   if (!href) return null;
@@ -19,7 +21,7 @@ export default function FloatingWhatsApp() {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Написать в WhatsApp"
-      className="fixed bottom-56 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-whatsapp)] text-white shadow-xl shadow-ink-900/20 transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-whatsapp)] sm:bottom-6"
+      className="fixed bottom-64 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-whatsapp)] text-white shadow-xl shadow-ink-900/20 transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[var(--color-whatsapp)] sm:bottom-6"
     >
       <WhatsAppIcon className="h-7 w-7" />
     </a>

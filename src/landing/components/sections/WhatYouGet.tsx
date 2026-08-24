@@ -37,7 +37,7 @@ export default function WhatYouGet() {
               transition={{ duration: 0.4, ease: "easeOut" }}
               className="flex items-start gap-3.5 rounded-2xl border border-ink-100 bg-white/80 p-4 shadow-sm shadow-ink-900/5"
             >
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 font-mono text-sm font-bold text-brand-700">
                 {i + 1}
               </span>
               <span className="text-sm font-medium leading-relaxed text-ink-700">{item}</span>

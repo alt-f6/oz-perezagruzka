@@ -30,9 +30,9 @@ export default function Header() {
 
         <a
           href="#readiness-map"
-          className="hidden rounded-xl bg-accent-500 px-5 py-2.5 text-sm font-bold text-ink-900 shadow-md shadow-accent-500/25 transition-shadow hover:shadow-lg hover:shadow-accent-500/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 md:inline-block"
+          className="hidden min-h-[60px] items-center rounded-xl bg-brand-600 px-6 text-base font-bold text-white shadow-md shadow-brand-600/25 transition-shadow hover:bg-brand-700 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 md:inline-flex"
         >
-          Собрать Карту готовности
+          Записаться на бесплатный разбор
         </a>
 
         <button
@@ -79,9 +79,9 @@ export default function Header() {
             <a
               href="#readiness-map"
               onClick={() => setOpen(false)}
-              className="mt-2 min-h-[44px] rounded-xl bg-accent-500 px-4 py-3 text-center text-sm font-bold text-ink-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300"
+              className="mt-2 flex min-h-[60px] items-center justify-center rounded-xl bg-brand-600 px-4 text-center text-base font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
             >
-              Собрать Карту готовности
+              Записаться на бесплатный разбор
             </a>
           </div>
         </nav>

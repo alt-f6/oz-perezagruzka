@@ -5,38 +5,49 @@
   --background: #ffffff;
   --foreground: #221b3a;
 
-  --color-brand-50: #f4f1fb;
-  --color-brand-100: #e6ddf6;
-  --color-brand-200: #cdbaee;
-  --color-brand-300: #ab8fe1;
-  --color-brand-400: #8862d1;
-  --color-brand-500: #6d42bd;
-  --color-brand-600: #57339c;
-  --color-brand-700: #45297c;
-  --color-brand-800: #362163;
-  --color-brand-900: #241645;
+  /* Brand scale — "Electric" blue, anchored at 600 = #0055FF (spec value). */
+  --color-brand-50: #eef4ff;
+  --color-brand-100: #dce8ff;
+  --color-brand-200: #b3cdff;
+  --color-brand-300: #85adff;
+  --color-brand-400: #4d82ff;
+  --color-brand-500: #1a5cff;
+  --color-brand-600: #0055ff;
+  --color-brand-700: #0044cc;
+  --color-brand-800: #00339a;
+  --color-brand-900: #002266;
 
-  --color-accent-50: #fffbeb;
-  --color-accent-100: #fff3c4;
-  --color-accent-200: #ffe58a;
-  --color-accent-300: #ffd451;
-  --color-accent-400: #ffc229;
-  --color-accent-500: #f7a80c;
-  --color-accent-600: #d68606;
-  --color-accent-700: #a8630a;
-  --color-accent-800: #874e10;
-  --color-accent-900: #703f12;
+  /* Accent scale — "Neon" lime, anchored at 500 = #AAEE00 (spec value).
+     Used for highlights, keywords, and badges only — never for CTA buttons. */
+  --color-accent-50: #f7ffe0;
+  --color-accent-100: #edffb8;
+  --color-accent-200: #dcff80;
+  --color-accent-300: #c8f542;
+  --color-accent-400: #b8ea1a;
+  --color-accent-500: #aaee00;
+  --color-accent-600: #8fcc00;
+  --color-accent-700: #6b9900;
+  --color-accent-800: #4d6e00;
+  --color-accent-900: #364d00;
 
-  --color-ink-900: #1a1523;
-  --color-ink-800: #2f293e;
-  --color-ink-700: #453d59;
-  --color-ink-600: #5a526e;
-  --color-ink-500: #6f6683;
-  --color-ink-400: #9189a4;
-  --color-ink-300: #b3abc4;
-  --color-ink-200: #cec8da;
-  --color-ink-100: #e9e5f1;
-  --color-ink-50: #f7f6fb;
+  /* Ink scale — neutral grays anchored at 900 = #111111 (spec value). */
+  --color-ink-900: #111111;
+  --color-ink-800: #1f1f1f;
+  --color-ink-700: #333333;
+  --color-ink-600: #4d4d4d;
+  --color-ink-500: #666666;
+  --color-ink-400: #8a8a8a;
+  --color-ink-300: #b0b0b0;
+  --color-ink-200: #d4d4d4;
+  --color-ink-100: #ececec;
+  --color-ink-50: #f7f7f7;
+
+  /* Sky scale — light background base for Hero/page background, anchored
+     at 200 = #BEE0F5 (spec value). */
+  --color-sky-50: #f2f9fd;
+  --color-sky-100: #dcf0fa;
+  --color-sky-200: #bee0f5;
+  --color-sky-300: #99cceb;
 
   /* Yandex.Maps brand colors — intentional exception to the brand/accent/ink
      palette, used only for the Yandex reviews attribution badge/stars. */
@@ -82,8 +93,9 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
-  --font-sans: var(--font-manrope, ui-sans-serif, system-ui, sans-serif);
-  --font-mono: var(--font-geist-mono, ui-monospace, monospace);
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
+  --font-serif-quote: "Playfair Display", serif;
 
   --color-brand-50: var(--color-brand-50);
   --color-brand-100: var(--color-brand-100);
@@ -118,6 +130,11 @@
   --color-ink-100: var(--color-ink-100);
   --color-ink-50: var(--color-ink-50);
 
+  --color-sky-50: var(--color-sky-50);
+  --color-sky-100: var(--color-sky-100);
+  --color-sky-200: var(--color-sky-200);
+  --color-sky-300: var(--color-sky-300);
+
   --color-yandex-yellow: var(--color-yandex-yellow);
   --color-yandex-red: var(--color-yandex-red);
 
@@ -132,7 +149,7 @@
   --shadow-card: var(--shadow-card);
   --shadow-card-hover: var(--shadow-card-hover);
 
-  --font-display: var(--font-manrope, var(--font-sans));
+  --font-display: "Manrope", var(--font-sans);
 
   --text-2-5xl: 1.75rem;
   --text-2-5xl--line-height: 2.25rem;
@@ -210,6 +227,12 @@ p {
 .va-photo {
   filter: contrast(1.05) saturate(0.95);
   transition: filter 0.3s ease;
+}
+
+/* Parent quotes ("Знакомо?", testimonials) use Playfair Display italic. */
+.font-quote {
+  font-family: var(--font-serif-quote), serif;
+  font-style: italic;
 }
 
 @utility scrollbar-none {

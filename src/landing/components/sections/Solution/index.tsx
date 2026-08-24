@@ -58,7 +58,7 @@ export default function Solution() {
                   <h4 className="font-bold text-brand-700 text-lg">Обучение в «Перезагрузке»</h4>
                 </div>
                 <p className="text-sm leading-relaxed text-ink-800 font-medium">
-                  У нас строго <span className="bg-brand-100 text-brand-800 px-1.5 py-0.5 rounded font-bold">до 10 человек в группе</span>, поэтому учитель правда контролирует прогресс каждого. А персональный <span className="font-bold text-brand-700">ИИ-репетитор дополняет это 24/7</span> — он мгновенно объяснит тему, когда ребёнок сам готов задать вопрос.
+                  У нас строго <span className="bg-brand-100 text-brand-800 px-1.5 py-0.5 rounded font-bold">мини-группа</span>, поэтому учитель правда контролирует прогресс каждого. А персональный <span className="font-bold text-brand-700">ИИ-репетитор дополняет это 24/7</span> — он мгновенно объяснит тему, когда ребёнок сам готов задать вопрос.
                 </p>
               </div>
             </div>

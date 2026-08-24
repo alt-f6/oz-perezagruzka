@@ -6,7 +6,6 @@ import Hero from "@/landing/components/sections/Hero";
 import PainPoints from "@/landing/components/sections/PainPoints";
 import WhatYouGet from "@/landing/components/sections/WhatYouGet";
 import AttestatPredictable from "@/landing/components/sections/AttestatPredictable";
-import StudyingAlone from "@/landing/components/sections/StudyingAlone";
 import Solution from "@/landing/components/sections/Solution";
 import PreparationComposition from "@/landing/components/sections/PreparationComposition";
 import HowItWorks from "@/landing/components/sections/HowItWorks";
@@ -26,12 +25,12 @@ const EXAM_METADATA = {
   oge: {
     title: "Перезагрузка — Подготовка к ОГЭ с живым учителем и ИИ-репетитором",
     description:
-      "Онлайн-школа для подростков 7–9 класса: мини-группы до 8 человек, живой учитель и ИИ-репетитор на связи 24/7. Бесплатный разбор перед стартом.",
+      "Онлайн-школа для подростков 7–9 класса: мини-группы, живой учитель и ИИ-репетитор на связи 24/7. Бесплатный разбор перед стартом.",
   },
   ege: {
     title: "Перезагрузка — Подготовка к ЕГЭ с живым учителем и ИИ-репетитором",
     description:
-      "Онлайн-школа для старшеклассников 10–11 класса: мини-группы до 8 человек, живой учитель и ИИ-репетитор на связи 24/7. Бесплатный разбор перед стартом.",
+      "Онлайн-школа для старшеклассников 10–11 класса: мини-группы, живой учитель и ИИ-репетитор на связи 24/7. Бесплатный разбор перед стартом.",
   },
 } as const;
 
@@ -110,7 +109,7 @@ export default function Home() {
       <ExamToggle />
       <main
         id="top"
-        className="relative min-h-screen overflow-hidden bg-[#F8F9FB] text-foreground selection:bg-brand-200"
+        className="relative min-h-screen overflow-hidden bg-sky-50 text-foreground selection:bg-brand-200"
       >
         <div className="pointer-events-none absolute inset-0 overflow-hidden">
           <div className="absolute inset-0 bg-[linear-gradient(to_right,#0000000d_1px,transparent_1px),linear-gradient(to_bottom,#0000000d_1px,transparent_1px)] bg-[size:32px_32px]" />
@@ -120,7 +119,6 @@ export default function Home() {
         <PainPoints />
         <WhatYouGet />
         <AttestatPredictable />
-        <StudyingAlone />
         <Solution />
         <PreparationComposition />
         <HowItWorks />

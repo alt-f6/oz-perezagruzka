@@ -31,7 +31,7 @@ export function ConsentBanner() {
           transition={{ duration: prefersReducedMotion ? 0.15 : 0.35, ease: [0.16, 1, 0.3, 1] }}
           role="region"
           aria-label="Уведомление об использовании cookie"
-          className="fixed inset-x-0 bottom-0 z-50 p-3 sm:p-6"
+          className="fixed inset-x-0 bottom-0 z-50 px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-6"
         >
           <div className="mx-auto flex max-w-3xl flex-col items-start gap-4 rounded-2xl border border-ink-100 bg-white/95 p-4 shadow-2xl shadow-ink-900/10 backdrop-blur-xl sm:flex-row sm:items-center sm:p-6">
             <p className="text-xs leading-relaxed text-ink-600 sm:text-sm">

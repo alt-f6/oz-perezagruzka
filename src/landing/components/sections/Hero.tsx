@@ -15,10 +15,8 @@ const HERO_FACES = [
   "photo_2023-06-19_11-19-56.jpg",
 ];
 
-const HERO_STUDENT_PHOTO = "photo_2026-08-23_11-25-16.jpg";
-
 const HERO_BENEFITS = [
-  "Живой учитель видит именно вашего ребёнка, а не поток на сотни — до 10 человек в группе",
+  "Живой учитель видит именно вашего ребёнка, а не поток на сотни — мини-группа, а не поток",
   "ИИ-репетитор на связи 24/7",
   "Берём только после бесплатного разбора — если не доведём до результата, честно скажем и не возьмём денег",
 ];
@@ -37,7 +35,21 @@ export default function Hero() {
   }, [prefersReducedMotion]);
 
   return (
-      <section className="relative overflow-hidden border-b border-ink-100 bg-gradient-to-br from-brand-900 via-brand-800 to-ink-900 px-6 py-28 md:py-40 text-ink-900">
+      <section className="relative overflow-hidden border-b border-ink-100 bg-ink-900 px-6 py-28 md:py-40 text-ink-900">
+        <video
+          className="absolute inset-0 -z-20 h-full w-full object-cover"
+          src="/landing/video/hero-background.mp4"
+          poster="/photos/photo_2023-06-19_11-11-04.jpg"
+          autoPlay
+          muted
+          loop
+          playsInline
+          aria-hidden="true"
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 -z-10 bg-gradient-to-br from-sky-200/30 via-ink-900/80 to-ink-900/95"
+        />
         <Atmosphere variant="mixed" intensity="premium" />
         <div
           aria-hidden
@@ -89,27 +101,17 @@ export default function Hero() {
                   whileHover={{ y: -2 }}
                   whileTap={{ scale: 0.98 }}
                   transition={{ type: "spring", stiffness: 90, damping: 18 }}
-                  className="group relative overflow-hidden rounded-xl bg-accent-500 px-8 py-4 text-center leading-snug text-balance font-bold text-ink-900 shadow-lg shadow-accent-500/25 shadow-[var(--shadow-accent-glow)] transition-shadow duration-300 hover:shadow-xl hover:shadow-accent-500/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300"
+                  className="group relative flex min-h-[70px] items-center justify-center overflow-hidden rounded-xl bg-brand-600 px-8 py-4 text-center text-xl leading-snug text-balance font-bold text-white shadow-lg shadow-brand-600/25 transition-shadow duration-300 hover:shadow-xl hover:shadow-brand-600/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 sm:min-h-[80px] sm:text-2xl"
               >
                 {!prefersReducedMotion && (
                   <motion.span
                     aria-hidden
-                    className="pointer-events-none absolute inset-0 -z-10 rounded-xl bg-accent-400"
+                    className="pointer-events-none absolute inset-0 -z-10 rounded-xl bg-brand-500"
                     animate={{ opacity: [0.5, 0, 0.5], scale: [1, 1.15, 1] }}
                     transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                   />
                 )}
                 Записаться на бесплатный разбор с экспертом
-              </motion.a>
-
-              <motion.a
-                  href="#readiness-map"
-                  whileHover={{ y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: "spring", stiffness: 90, damping: 18 }}
-                  className="rounded-xl border border-ink-200 bg-white px-8 py-4 text-center font-semibold text-ink-700 transition-colors duration-300 hover:bg-ink-50 hover:text-ink-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
-              >
-                Собрать Карту готовности за 2 минуты
               </motion.a>
             </div>
 
@@ -143,14 +145,14 @@ export default function Hero() {
                 className="flex items-center gap-1.5 rounded-full border border-white/40 bg-white/70 px-3.5 py-1.5 shadow-card backdrop-blur-xl"
               >
                 <dt className="sr-only">Опыт практики</dt>
-                <dd>9 лет практики</dd>
+                <dd className="font-mono">9 лет практики</dd>
               </motion.div>
               <motion.div
                 {...floatY(prefersReducedMotion, 5)}
                 className="flex items-center gap-1.5 rounded-full border border-white/40 bg-white/70 px-3.5 py-1.5 shadow-card backdrop-blur-xl"
               >
                 <dt className="sr-only">Родители по рекомендации</dt>
-                <dd>80% родителей — по рекомендации</dd>
+                <dd className="font-mono">80% родителей — по рекомендации</dd>
               </motion.div>
             </dl>
           </div>
@@ -158,30 +160,7 @@ export default function Hero() {
           <div className="relative w-full flex-1 max-w-[520px] lg:max-w-none group">
             <div className="absolute -inset-6 bg-gradient-to-tr from-brand-400 to-accent-300 rounded-[48px] opacity-25 blur-3xl group-hover:opacity-30 transition duration-500" />
 
-            <motion.div
-              {...floatY(prefersReducedMotion, 5, 6)}
-              className="absolute -top-10 -left-10 z-10 hidden w-36 sm:block sm:w-44"
-            >
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -bottom-8 -left-8 -z-10 h-28 w-28 rounded-full bg-[var(--color-hero-glow-pink)] opacity-70 blur-2xl"
-              />
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -top-8 -right-8 -z-10 h-28 w-28 rounded-full bg-[var(--color-hero-glow-lime)] opacity-70 blur-2xl"
-              />
-              <div className="relative aspect-[3/4] overflow-hidden rounded-[22px] border-[4px] border-[var(--color-hero-frame-blue)]">
-                <Image
-                  src={`/photos/${HERO_STUDENT_PHOTO}`}
-                  alt="Ученики образовательного центра «Перезагрузка» у доски"
-                  fill
-                  priority
-                  sizes="176px"
-                  className="object-cover object-top"
-                />
-              </div>
-            </motion.div>
-            <div className="relative overflow-hidden rounded-3xl border border-purple-100/80 bg-white/90 p-6 shadow-2xl shadow-brand-900/15 shadow-[var(--shadow-brand-elevated)] ring-1 ring-white/10 backdrop-blur-md">
+            <div className="relative overflow-hidden rounded-3xl border border-brand-100/80 bg-white/90 p-6 shadow-2xl shadow-brand-900/15 shadow-[var(--shadow-brand-elevated)] ring-1 ring-white/10 backdrop-blur-md">
               <div className="mb-6 flex items-center justify-between border-b border-ink-100 pb-4">
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1.5">

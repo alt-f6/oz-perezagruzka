@@ -16,7 +16,8 @@ describe("ConsentBanner", () => {
     render(<ConsentBanner />);
 
     const region = screen.getByRole("region", { name: "Уведомление об использовании cookie" });
-    expect(region.className).toContain("p-3");
+    expect(region.className).toContain("px-3");
+    expect(region.className).toContain("safe-area-inset-bottom");
     expect(region.className).not.toContain("p-4 ");
 
     const acceptButton = screen.getByRole("button", { name: "Согласен" });

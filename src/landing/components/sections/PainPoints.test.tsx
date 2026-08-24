@@ -16,7 +16,7 @@ describe("PainPoints", () => {
     expect(screen.getByText("О проблеме узнаёте через месяцы.")).toBeInTheDocument();
     expect(screen.getByText("Отчёт каждые 2 недели.")).toBeInTheDocument();
     expect(screen.getByText("Ребёнок — один из сотни в потоке.")).toBeInTheDocument();
-    expect(screen.getByText("Мини-группа до 8 человек.")).toBeInTheDocument();
+    expect(screen.getByText("Мини-группа, а не поток.")).toBeInTheDocument();
   });
 
   it("shows the OGE title by default", () => {

@@ -13,7 +13,6 @@ const YANDEX_REVIEWS_URL =
 interface YandexReview {
   name: string;
   badge: string;
-  date: string;
   rating: number;
   text: string;
   // Only set on reviews whose grades/badge explicitly name one exam track —
@@ -24,59 +23,26 @@ interface YandexReview {
 
 const REVIEWS: YandexReview[] = [
   {
-    name: "Плесовских Никита",
-    badge: "ЕГЭ по русскому языку",
-    date: "9 июня 2023",
-    rating: 5,
-    text: "Педагог по русскому языку — мастер своего дела! Заниматься начал с марта (когда до ЕГЭ оставалось 3 месяца), в итоге с 40 баллов вытянул на 75+. На каждом уроке комфортная и позитивная атмосфера.",
-    examTag: "ege",
-  },
-  {
-    name: "Ксения 🌸",
+    name: "Ксения",
     badge: "Школьная успеваемость (5/5)",
-    date: "28 мая 2023",
     rating: 5,
     text: "Хотим выразить огромную благодарность за занятия! Не давался русский язык дочери, но благодаря занятиям с прекрасным педагогом дочь четвертую четверть закончила на 5 👍 Большое спасибо!",
   },
   {
     name: "Ирина П.",
     badge: "Родитель (3 года с нами)",
-    date: "27 января 2023",
     rating: 5,
     text: "Мои дети занимаются уже более 3х лет, мы, как родители, очень довольны. Дети получают реальные знания. Хочется пожелать центру дальнейшего развития!",
   },
   {
-    name: "Илья",
-    badge: "Алгебра и Геометрия",
-    date: "21 марта 2024",
-    rating: 5,
-    text: "Занимался подготовкой к алгебре и геометрии. Очень понравилось! Индивидуальный подход, прекрасная подача материала. Очень рад, что занимался именно здесь.",
-  },
-  {
-    name: "Анна Яворук",
-    badge: "Курс химии",
-    date: "12 марта 2024",
-    rating: 5,
-    text: "Учусь здесь уже около полугода на курсе химии. Хожу со своей подругой, нам очень нравится, есть отличный прогресс. Помещение симпатичное, преподаватель милая и дружелюбная!",
-  },
-  {
-    name: "татьяна Корлякова",
-    badge: "Химия, Биология, Математика",
-    date: "20 сентября 2022",
-    rating: 5,
-    text: "В центре моя дочь занимается второй год, внимательный персонал, классные преподаватели химии, биологии и математики. Мы не пожалели, что занимаемся в этом центре!",
-  },
-  {
     name: "Тимур Синицын",
     badge: "Платформа и трекинг ДЗ",
-    date: "21 марта 2024",
     rating: 5,
     text: "В электронном формате предоставлена возможность отслеживать финансы, ДЗ и прогресс ученика. Прекрасный коллектив, цель которого каждого ребенка довести до результата.",
   },
   {
     name: "Арина Демчук",
     badge: "Родительский отзыв",
-    date: "11 марта 2024",
     rating: 5,
     text: "Отличный центр образования! Обращалась много раз и всегда очень довольна, профессиональный преподавательский состав 👍 Рекомендую всем мамочкам и папочкам, Центр №1 в Ханты-Мансийске!",
   },
@@ -223,20 +189,21 @@ export default function YandexReviews() {
         >
           {visibleReviews.map((review) => (
             <motion.article
-              key={review.name + review.date}
+              key={review.name}
               variants={cardVariants}
               transition={{ duration: 0.4, ease: "easeOut" }}
               className="flex h-full w-[85%] shrink-0 snap-center flex-col rounded-2xl border border-white/40 bg-white/70 p-5 shadow-card backdrop-blur-xl transition-shadow duration-300 hover:border-brand-300 hover:shadow-card-hover sm:w-[45%] md:w-auto md:shrink"
             >
               <div className="mb-2 flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-ink-900">{review.name}</p>
-                <span className="whitespace-nowrap text-xs text-ink-500">{review.date}</span>
               </div>
               <Stars rating={review.rating} />
               <span className="mt-2 inline-block w-fit rounded-full bg-brand-50 px-2.5 py-1 text-xs font-semibold text-brand-700">
                 {review.badge}
               </span>
-              <p className="mt-3 flex-1 text-sm leading-relaxed text-ink-600">{review.text}</p>
+              <p className="font-quote mt-3 flex-1 text-sm leading-relaxed text-ink-600">
+                {review.text}
+              </p>
             </motion.article>
           ))}
         </motion.div>

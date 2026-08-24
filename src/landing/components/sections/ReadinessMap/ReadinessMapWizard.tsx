@@ -393,7 +393,7 @@ export default function ReadinessMapWizard() {
             className="absolute left-[-9999px] h-px w-px overflow-hidden opacity-0"
           />
 
-          <p className="text-center text-xs font-bold uppercase tracking-wider text-brand-500">
+          <p className="text-center text-xs font-mono font-bold uppercase tracking-wider text-brand-500">
             Шаг {stepIndex + 1} из {STEPS.length}: {currentStep.stepLabel}
           </p>
           <div className="mt-3">
@@ -655,11 +655,12 @@ export default function ReadinessMapWizard() {
             </div>
           )}
 
-          {/* pb-24 clears the fixed, z-50 ConsentBanner on mobile: it doesn't
-              add compensating body padding (same reasoning documented in
-              FloatingWhatsApp.tsx), so on short viewports it can render
-              directly over this row without the extra clearance. */}
-          <div className="mt-8 flex items-center justify-between border-t border-ink-100 pt-6 pb-24 sm:pb-0">
+          {/* pb-64 clears the fixed, z-50 ConsentBanner on mobile: it doesn't
+              add compensating body padding, so on short viewports it can
+              render directly over this row without the extra clearance.
+              256px matches the worst-case banner footprint documented in
+              FloatingWhatsApp.tsx's bottom-64 comment. */}
+          <div className="mt-8 flex items-center justify-between border-t border-ink-100 pt-6 pb-64 sm:pb-0">
             <button
               type="button"
               onClick={goBack}
@@ -675,7 +676,7 @@ export default function ReadinessMapWizard() {
               whileTap={{ scale: 0.95 }}
               className={`group relative flex min-h-[44px] items-center gap-2 overflow-hidden rounded-2xl px-8 py-4 font-black text-sm transition-colors duration-300 focus-visible:outline-none focus-visible:ring-offset-2 ${
                 isLastStep
-                  ? "bg-accent-500 text-ink-900 shadow-md shadow-accent-500/25 hover:shadow-lg hover:shadow-accent-500/35 focus-visible:ring-2 focus-visible:ring-accent-300"
+                  ? "bg-brand-600 text-white shadow-md shadow-brand-600/25 hover:bg-brand-700 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-brand-300"
                   : "bg-brand-600 text-white shadow-md shadow-brand-900/20 hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-400"
               }`}
             >

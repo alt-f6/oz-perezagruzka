@@ -12,7 +12,7 @@ const ymCounterId = process.env.NEXT_PUBLIC_YM_COUNTER_ID;
 
 const title = "Перезагрузка — Подготовка к ОГЭ с живым учителем и ИИ-репетитором";
 const description =
-  "Онлайн-школа для подростков 7–9 класса: мини-группы до 8 человек, живой учитель и ИИ-репетитор на связи 24/7. Бесплатный разбор перед стартом.";
+  "Онлайн-школа для подростков 7–9 класса: мини-группы, живой учитель и ИИ-репетитор на связи 24/7. Бесплатный разбор перед стартом.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -60,6 +60,12 @@ export const metadata: Metadata = {
 export default function LandingLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="font-sans bg-gradient-to-b from-white to-brand-50/40 text-foreground min-h-screen">
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=Playfair+Display:ital@1&family=Space+Mono:wght@400;700&display=swap"
+      />
       {ymCounterId && (
         <Script id="yandex-metrika" strategy="afterInteractive">
           {`

@@ -51,8 +51,5 @@ describe("Hero", () => {
     expect(
       screen.getByRole("link", { name: "Записаться на бесплатный разбор с экспертом" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Собрать Карту готовности за 2 минуты" }),
-    ).toBeInTheDocument();
   });
 });

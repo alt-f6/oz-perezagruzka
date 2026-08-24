@@ -8,7 +8,7 @@ import { useExam } from "@/landing/lib/exam-context";
 import { PRICING_PLANS, type PricingPlanContent } from "@/landing/lib/exam-content";
 
 const FEATURES = [
-  "Живые занятия до 10 человек в группе",
+  "Живые занятия в мини-группах",
   "Доступ к ИИ-репетитору 24/7",
   "Отчёты о прогрессе каждые 2 недели",
   "Практика на реальных пробниках",
@@ -82,7 +82,7 @@ function PricingCard({ plan }: { plan: PricingPlanContent }) {
       </div>
 
       <div className="my-6 flex items-baseline gap-1.5 border-b border-ink-100 pb-6">
-        <span className="text-4xl font-extrabold tracking-tight text-ink-900">{plan.price}</span>
+        <span className="font-mono text-4xl font-extrabold tracking-tight text-ink-900">{plan.price}</span>
         <span className="text-sm font-semibold text-ink-600">/ мес</span>
       </div>
 
@@ -103,11 +103,7 @@ function PricingCard({ plan }: { plan: PricingPlanContent }) {
 
       <a
         href="#readiness-map"
-        className={`mt-10 block rounded-2xl py-4.5 text-center font-bold shadow-md transition-all duration-300 hover:-translate-y-1 active:scale-98 ${
-          plan.isBestValue
-            ? "bg-gradient-to-r from-accent-400 to-accent-500 text-ink-900 font-extrabold shadow-accent-500/20 hover:shadow-lg hover:shadow-accent-500/35"
-            : "bg-brand-600 text-white shadow-brand-900/20 hover:bg-brand-700 hover:shadow-lg"
-        }`}
+        className="mt-10 flex min-h-[60px] items-center justify-center rounded-2xl bg-brand-600 px-6 text-center text-lg font-bold text-white shadow-md shadow-brand-900/20 transition-all duration-300 hover:-translate-y-1 hover:bg-brand-700 hover:shadow-lg active:scale-98"
       >
         {PRICING_BUTTON_LABEL}
       </a>

@@ -33,7 +33,7 @@ export default function FinalCTA() {
               Начните с бесплатного разбора —<br className="hidden sm:block" /> а решение примете сами
             </h2>
 
-            <div className="mt-9 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <div className="mt-9 flex flex-col items-center justify-center gap-4">
               <motion.a
                 href="#readiness-map"
                 whileHover={prefersReducedMotion ? undefined : { scale: 1.02, y: -5 }}
@@ -42,16 +42,6 @@ export default function FinalCTA() {
                 className="group relative flex min-h-[60px] items-center justify-center overflow-hidden rounded-xl bg-brand-600 px-10 text-lg font-bold text-white shadow-lg shadow-brand-600/25 transition-all duration-300 hover:bg-brand-700 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-900"
               >
                 Записаться на бесплатный разбор
-              </motion.a>
-
-              <motion.a
-                href="#readiness-map"
-                whileHover={prefersReducedMotion ? undefined : { scale: 1.02, y: -5 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: "spring", stiffness: 90, damping: 18 }}
-                className="flex min-h-[60px] items-center justify-center rounded-xl border-2 border-white/40 bg-transparent px-10 text-lg font-bold text-white transition-all duration-300 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-900"
-              >
-                Собрать Карту готовности за 2 минуты
               </motion.a>
             </div>
           </div>

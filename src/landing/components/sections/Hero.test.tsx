@@ -4,17 +4,15 @@ import Hero from "./Hero";
 import { ExamProvider } from "@/landing/lib/exam-context";
 
 describe("Hero", () => {
-  it("renders the ОГЭ headline by default, not ЕГЭ", () => {
+  it("renders the ОГЭ guarantee headline by default, not ЕГЭ", () => {
     render(
       <ExamProvider>
         <Hero />
       </ExamProvider>,
     );
 
-    expect(
-      screen.getByText("Подготовим к ОГЭ так, что ребёнок сядет заниматься сам"),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/Подготовим к ЕГЭ/)).not.toBeInTheDocument();
+    expect(screen.getByText("ОГЭ С ГАРАНТИЕЙ:")).toBeInTheDocument();
+    expect(screen.queryByText("ЕГЭ С ГАРАНТИЕЙ:")).not.toBeInTheDocument();
   });
 
   it("frames the recommendation stat as a percentage instead of '4 из 5'", () => {

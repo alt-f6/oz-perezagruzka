@@ -1,32 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import Atmosphere from "@/landing/components/ui/Atmosphere";
 import { floatY } from "@/landing/components/ui/motion";
 import { reachGoal } from "@/landing/lib/analytics";
 import { useExam } from "@/landing/lib/exam-context";
-import { HERO_CONTENT } from "@/landing/lib/exam-content";
+import {
+  HERO_TITLE,
+  HERO_GUARANTEE_BULLETS,
+  HERO_SUBLIST_HEADER,
+  HERO_SUBLIST_ITEMS,
+} from "@/landing/lib/exam-content";
 
-const HERO_FACES = [
-  "photo_2023-06-19_11-11-04.jpg",
-  "photo_2023-06-19_11-19-47.jpg",
-  "photo_2023-06-19_11-19-56.jpg",
+const FLOATING_BADGES = [
+  { label: "9 лет практики", className: "bg-hero-glow-pink text-white" },
+  { label: "80% родителей — по рекомендации", className: "bg-accent-500 text-ink-900" },
+  { label: "Лицензия", className: "bg-brand-600 text-white" },
+  { label: "Налоговый вычет", className: "border-2 border-ink-900 text-ink-900 bg-white/80" },
 ];
 
-const HERO_BENEFITS = [
-  "Живой учитель видит именно вашего ребёнка, а не поток на сотни — мини-группа, а не поток",
-  "ИИ-репетитор на связи 24/7",
-  "Берём только после бесплатного разбора — если не доведём до результата, честно скажем и не возьмём денег",
-];
+const BLOB_SHAPE = "42% 58% 63% 37% / 41% 44% 56% 59%";
 
 export default function Hero() {
   const prefersReducedMotion = useReducedMotion();
   const [aiReplyTimerFired, setAiReplyTimerFired] = useState(false);
   const aiReplyVisible = Boolean(prefersReducedMotion) || aiReplyTimerFired;
   const { exam } = useExam();
-  const { title, subtitle } = HERO_CONTENT[exam];
+  const title = HERO_TITLE[exam];
+  const sublistItems = HERO_SUBLIST_ITEMS[exam];
 
   useEffect(() => {
     if (prefersReducedMotion) return;
@@ -72,27 +74,37 @@ export default function Hero() {
               </motion.h1>
             </AnimatePresence>
 
+            <ul className="mx-auto max-w-lg space-y-2.5 text-left md:mx-0">
+              {HERO_GUARANTEE_BULLETS.map((bullet) => (
+                <li key={bullet} className="flex items-start gap-2.5 text-lg leading-relaxed text-white/70 font-normal">
+                  <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent-300" aria-hidden="true" />
+                  <span>{bullet}</span>
+                </li>
+              ))}
+            </ul>
+
             <AnimatePresence mode="wait">
-              <motion.p
-                key={`subtitle-${exam}`}
+              <motion.div
+                key={`sublist-${exam}`}
                 initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={prefersReducedMotion ? undefined : { opacity: 0, y: -6 }}
                 transition={{ duration: 0.25, ease: "easeOut", delay: 0.04 }}
-                className="max-w-lg text-lg leading-relaxed text-white/70 font-normal"
+                className="max-w-lg rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm"
               >
-                {subtitle}
-              </motion.p>
+                <p className="text-sm font-bold uppercase tracking-wide text-accent-300">
+                  {HERO_SUBLIST_HEADER}
+                </p>
+                <ul className="mt-2 space-y-1.5 text-left">
+                  {sublistItems.map((item) => (
+                    <li key={item} className="flex items-start gap-2 text-base leading-relaxed text-white/85">
+                      <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-white/60" aria-hidden="true" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </motion.div>
             </AnimatePresence>
-
-            <ul className="mx-auto max-w-lg space-y-2.5 text-left md:mx-0">
-              {HERO_BENEFITS.map((benefit) => (
-                <li key={benefit} className="flex items-start gap-2.5 text-lg leading-relaxed text-white/70 font-normal">
-                  <span className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent-300" aria-hidden="true" />
-                  <span>{benefit}</span>
-                </li>
-              ))}
-            </ul>
 
             <div className="flex flex-col gap-4 sm:flex-row sm:justify-center md:justify-start pt-2">
               <motion.a
@@ -119,42 +131,20 @@ export default function Hero() {
               Целевой балл — в договоре. Не выводим на него — возвращаем деньги
             </p>
 
-            <div className="flex items-center justify-center gap-3 pt-4 md:justify-start">
-              <div className="flex -space-x-3">
-                {HERO_FACES.map((file) => (
-                  <div
-                    key={file}
-                    className="relative h-9 w-9 overflow-hidden rounded-full border-2 border-white shadow-sm"
-                  >
-                    <Image
-                      src={`/photos/${file}`}
-                      alt="Ученик образовательного центра «Перезагрузка»"
-                      fill
-                      sizes="36px"
-                      className="object-cover"
-                    />
-                  </div>
-                ))}
-              </div>
-              <span className="text-sm font-medium text-white/50">Присоединяйся к нашим ученикам</span>
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2 md:justify-start">
+              {FLOATING_BADGES.map((badge, i) => (
+                <motion.div
+                  key={badge.label}
+                  initial={prefersReducedMotion ? undefined : { opacity: 0, y: 12, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.4, ease: "easeOut", delay: prefersReducedMotion ? 0 : i * 0.12 }}
+                  style={{ borderRadius: BLOB_SHAPE }}
+                  className={`px-5 py-3 text-sm font-bold shadow-card backdrop-blur-xl ${badge.className}`}
+                >
+                  <span className="font-mono">{badge.label}</span>
+                </motion.div>
+              ))}
             </div>
-
-            <dl className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2.5 pt-2 text-sm font-semibold text-ink-600 md:justify-start">
-              <motion.div
-                {...floatY(prefersReducedMotion, 4)}
-                className="flex items-center gap-1.5 rounded-full border border-white/40 bg-white/70 px-3.5 py-1.5 shadow-card backdrop-blur-xl"
-              >
-                <dt className="sr-only">Опыт практики</dt>
-                <dd className="font-mono">9 лет практики</dd>
-              </motion.div>
-              <motion.div
-                {...floatY(prefersReducedMotion, 5)}
-                className="flex items-center gap-1.5 rounded-full border border-white/40 bg-white/70 px-3.5 py-1.5 shadow-card backdrop-blur-xl"
-              >
-                <dt className="sr-only">Родители по рекомендации</dt>
-                <dd className="font-mono">80% родителей — по рекомендации</dd>
-              </motion.div>
-            </dl>
           </div>
 
           <div className="relative w-full flex-1 max-w-[520px] lg:max-w-none group">

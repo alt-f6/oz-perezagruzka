@@ -4,17 +4,29 @@ import type { ExamType } from "@/landing/lib/exam-context";
 // EGE toggle states. Kept as plain data (not JSX) so it can be unit-tested
 // and imported by any section without pulling in component code.
 
-export const HERO_CONTENT: Record<ExamType, { title: string; subtitle: string }> = {
-  oge: {
-    title: "Подготовим к ОГЭ так, что ребёнок сядет заниматься сам",
-    subtitle:
-      "У него есть голова. Просто в мае может не хватить пары баллов — и вы заплатите за то, что могло быть бесплатным. На бесплатном разборе за 20–30 минут посчитаем, сколько баллов нужно именно вашему ребёнку.",
-  },
-  ege: {
-    title: "Подготовим к ЕГЭ так, что ребёнок сядет заниматься сам",
-    subtitle:
-      "У него есть все шансы поступить туда, куда хочет. Иногда для бюджета не хватает пары баллов — и второй попытки в этом году уже не будет. На бесплатном разборе за 20–30 минут посчитаем реальный разрыв.",
-  },
+export const HERO_TITLE: Record<ExamType, string> = {
+  oge: "ОГЭ С ГАРАНТИЕЙ:",
+  ege: "ЕГЭ С ГАРАНТИЕЙ:",
+};
+
+export const HERO_GUARANTEE_BULLETS = [
+  "Целевой балл прописываем в договоре.",
+  "Не выводим — возвращаем стоимость.",
+  "Берём только после разбора.",
+];
+
+export const HERO_SUBLIST_HEADER =
+  "На разборе получите документ с конкретикой под вашего ребёнка:";
+
+export const HERO_SUBLIST_ITEMS: Record<ExamType, string[]> = {
+  oge: [
+    "2 предмета к заявлению на ОГЭ и почему именно они",
+    "5 колледжей/вузов со специальностями и баллами",
+  ],
+  ege: [
+    "2 предмета к заявлению на ЕГЭ и почему именно они",
+    "5 вузов со специальностями и баллами",
+  ],
 };
 
 export const PAIN_POINTS_TITLE: Record<ExamType, string> = {

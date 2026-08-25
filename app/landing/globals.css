@@ -67,26 +67,26 @@
   --color-whatsapp: #25d366;
 
   --shadow-card: 0 20px 40px -15px rgba(0, 0, 0, 0.05);
-  --shadow-card-hover: 0 25px 50px -12px rgba(109, 66, 189, 0.15);
+  --shadow-card-hover: 0 25px 50px -12px rgba(0, 85, 255, 0.15);
 
-  /* Glow shadows/gradients derived from --color-brand-500 (#6d42bd) and
-     --color-accent-500 (#f7a80c) — kept here instead of re-typed as raw
+  /* Glow shadows/gradients derived from --color-brand-500 (#1a5cff) and
+     --color-accent-500 (#aaee00) — kept here instead of re-typed as raw
      rgba() literals per component, so a palette change only touches this
      file. */
   --shadow-brand-elevated: 0 32px 80px rgba(0, 0, 0, 0.4);
   --shadow-brand-soft: 0 20px 40px -15px rgba(0, 0, 0, 0.08);
   --shadow-brand-photo: 0 20px 40px -15px rgba(0, 0, 0, 0.12);
-  --shadow-accent-glow: 0 4px 32px rgba(247, 168, 12, 0.4);
-  --shadow-accent-glow-0: 0 0 0 0 rgba(247, 168, 12, 0.4);
-  --shadow-accent-glow-hover: 0 0 45px 5px rgba(247, 168, 12, 0.35);
-  --shadow-brand-glow: 0 0 50px rgba(109, 66, 189, 0.2);
-  --shadow-brand-glow-hover: 0 0 60px rgba(109, 66, 189, 0.28);
-  --shadow-rose-glow: 0 25px 50px -12px rgba(225, 29, 72, 0.12);
+  --shadow-accent-glow: 0 4px 32px rgba(170, 238, 0, 0.4);
+  --shadow-accent-glow-0: 0 0 0 0 rgba(170, 238, 0, 0.4);
+  --shadow-accent-glow-hover: 0 0 45px 5px rgba(170, 238, 0, 0.35);
+  --shadow-brand-glow: 0 0 50px rgba(26, 92, 255, 0.2);
+  --shadow-brand-glow-hover: 0 0 60px rgba(26, 92, 255, 0.28);
+  --shadow-rose-glow: 0 25px 50px -12px rgba(255, 110, 180, 0.12);
 
-  --gradient-brand-radial: radial-gradient(closest-side, rgba(109, 66, 189, 0.16), transparent 70%);
-  --gradient-brand-ellipse: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(109, 66, 189, 0.3) 0%, transparent 70%);
+  --gradient-brand-radial: radial-gradient(closest-side, rgba(26, 92, 255, 0.16), transparent 70%);
+  --gradient-brand-ellipse: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(26, 92, 255, 0.3) 0%, transparent 70%);
   --gradient-white-glow: radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.1), transparent 60%);
-  --gradient-accent-glow: radial-gradient(circle, rgba(247, 168, 12, 0.08) 0%, transparent 70%);
+  --gradient-accent-glow: radial-gradient(circle, rgba(170, 238, 0, 0.12) 0%, transparent 70%);
 }
 
 @theme inline {
@@ -181,7 +181,7 @@ body {
 }
 
 ::selection {
-  background: rgba(109, 66, 189, 0.15);
+  background: rgba(26, 92, 255, 0.15);
 }
 
 html {

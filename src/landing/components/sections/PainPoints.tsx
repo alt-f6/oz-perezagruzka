@@ -26,9 +26,6 @@ export default function PainPoints() {
   return (
     <Section tone="brand-wash" className="border-y border-ink-100">
       <div className="relative mx-auto max-w-6xl px-6">
-        <span className="mb-4 block text-center text-sm font-bold uppercase tracking-wider text-brand-600">
-          Знакомо?
-        </span>
         <h2 className="mb-10 text-center font-bold tracking-tight text-ink-900 text-balance">
           {PAIN_POINTS_TITLE[exam]}
         </h2>

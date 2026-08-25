@@ -28,7 +28,7 @@ const TINT = {
   brand: "bg-brand-50/60 border-brand-100 shadow-sm shadow-ink-900/5",
   glass: "border-white/40 bg-white/70 shadow-card backdrop-blur-xl",
   "glass-active": "border-brand-200 bg-brand-50/90 shadow-xl shadow-brand-900/10 backdrop-blur-xl",
-  premium: "border-purple-100/80 bg-white/80 shadow-xl shadow-purple-950/5 backdrop-blur-md",
+  premium: "border-brand-100/80 bg-white/80 shadow-xl shadow-ink-900/5 backdrop-blur-md",
 } as const;
 
 export default function Card({

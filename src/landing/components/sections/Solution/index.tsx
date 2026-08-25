@@ -20,7 +20,7 @@ export default function Solution() {
         <Atmosphere variant="brand" intensity="premium" />
 
         <div className="relative mx-auto max-w-6xl px-6">
-          <div className="mt-4 mb-24 overflow-hidden rounded-[32px] border border-purple-100/80 bg-white/80 p-8 md:p-12 shadow-xl shadow-purple-950/5 backdrop-blur-md">
+          <div className="mt-4 mb-24 overflow-hidden rounded-[32px] border border-brand-100/80 bg-white/80 p-8 md:p-12 shadow-xl shadow-ink-900/5 backdrop-blur-md">
             <div className="max-w-3xl mb-10">
             <span className="inline-block rounded-full bg-brand-50 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-brand-700 mb-3">
               Честное сравнение подходов

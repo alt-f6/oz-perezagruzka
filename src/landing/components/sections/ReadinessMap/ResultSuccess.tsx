@@ -92,7 +92,7 @@ export function ResultSuccess({ leadId, map }: ResultSuccessProps) {
         transition={{ duration: 0.3, ease: "easeOut" }}
         className="relative mx-auto max-w-2xl px-6"
       >
-        <div className="rounded-[40px] border border-purple-100/80 bg-white/90 p-8 sm:p-10 shadow-2xl shadow-brand-900/10 backdrop-blur-md">
+        <div className="rounded-[40px] border border-brand-100/80 bg-white/90 p-8 sm:p-10 shadow-2xl shadow-brand-900/10 backdrop-blur-md">
 
           <div className="mb-8 border-b border-ink-100 pb-6">
             <span className="text-xs font-black uppercase tracking-widest text-brand-600">Результат анализа</span>

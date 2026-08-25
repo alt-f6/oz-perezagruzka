@@ -125,7 +125,7 @@ function PricingCard({ plan }: { plan: PricingPlanContent }) {
   }
 
   return (
-    <div className="relative flex h-full flex-col rounded-[36px] border border-purple-100/80 bg-white/80 p-8 shadow-xl shadow-purple-950/5 backdrop-blur-md transition-all duration-300 ease-out hover:-translate-y-2 hover:border-brand-300 hover:shadow-2xl hover:shadow-brand-900/10 md:p-10">
+    <div className="relative flex h-full flex-col rounded-[36px] border border-brand-100/80 bg-white/80 p-8 shadow-xl shadow-ink-900/5 backdrop-blur-md transition-all duration-300 ease-out hover:-translate-y-2 hover:border-brand-300 hover:shadow-2xl hover:shadow-brand-900/10 md:p-10">
       {content}
     </div>
   );

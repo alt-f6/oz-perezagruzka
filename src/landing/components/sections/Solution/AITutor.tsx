@@ -134,7 +134,7 @@ export default function AITutor() {
     <div className="relative overflow-hidden py-20 md:py-28">
       <div className="pointer-events-none absolute -top-24 left-1/4 -z-10 h-96 w-96 -translate-x-1/2 rounded-full bg-brand-300/25 blur-[110px]" />
       <div className="pointer-events-none absolute -bottom-24 right-1/4 -z-10 h-96 w-96 translate-x-1/2 rounded-full bg-accent-300/20 blur-[110px]" />
-      <div className="pointer-events-none absolute top-1/3 right-1/3 -z-10 h-72 w-72 rounded-full bg-purple-300/15 blur-[100px]" />
+      <div className="pointer-events-none absolute top-1/3 right-1/3 -z-10 h-72 w-72 rounded-full bg-hero-glow-pink/15 blur-[100px]" />
 
       <div className="mx-auto mb-10 max-w-2xl px-6 text-center md:mb-14">
         <span className="inline-block rounded-full bg-brand-50 px-4 py-1.5 text-sm font-bold uppercase tracking-wider text-brand-700">

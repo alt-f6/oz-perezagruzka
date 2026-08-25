@@ -137,10 +137,7 @@ export default function AITutor() {
       <div className="pointer-events-none absolute top-1/3 right-1/3 -z-10 h-72 w-72 rounded-full bg-hero-glow-pink/15 blur-[100px]" />
 
       <div className="mx-auto mb-10 max-w-2xl px-6 text-center md:mb-14">
-        <span className="inline-block rounded-full bg-brand-50 px-4 py-1.5 text-sm font-bold uppercase tracking-wider text-brand-700">
-          Интерактивный ИИ-Наставник
-        </span>
-        <h3 className="mt-4 font-bold leading-tight tracking-tight text-ink-900 text-balance">
+        <h3 className="font-bold leading-tight tracking-tight text-brand-600 text-balance text-[clamp(2.25rem,4vw,2.75rem)]">
           Смотрите, как работает ИИ-репетитор
         </h3>
         <p className="mt-4 text-base leading-relaxed text-ink-600 font-medium md:text-lg">

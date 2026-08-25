@@ -49,7 +49,7 @@ describe("Hero", () => {
       screen.getByText("Целевой балл — в договоре. Не выводим на него — возвращаем деньги"),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Записаться на бесплатный разбор с экспертом" }),
+      screen.getByRole("link", { name: "Записаться на бесплатный разбор" }),
     ).toBeInTheDocument();
   });
 });

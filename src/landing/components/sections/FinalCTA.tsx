@@ -41,7 +41,7 @@ export default function FinalCTA() {
                 transition={{ type: "spring", stiffness: 90, damping: 18 }}
                 className="group relative flex min-h-[60px] items-center justify-center overflow-hidden rounded-xl bg-brand-600 px-10 text-lg font-bold text-white shadow-lg shadow-brand-600/25 transition-all duration-300 hover:bg-brand-700 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-900"
               >
-                Записаться на бесплатный разбор с экспертом
+                Записаться на бесплатный разбор
               </motion.a>
 
               <motion.a

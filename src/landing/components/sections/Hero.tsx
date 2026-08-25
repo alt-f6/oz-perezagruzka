@@ -111,7 +111,7 @@ export default function Hero() {
                     transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
                   />
                 )}
-                Записаться на бесплатный разбор с экспертом
+                Записаться на бесплатный разбор
               </motion.a>
             </div>
 

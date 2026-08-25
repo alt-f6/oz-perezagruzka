@@ -43,6 +43,10 @@ export default function Solution() {
                 <p className="text-sm leading-relaxed text-ink-600 font-medium">
                   Масштабируются на тысячи учеников — ваш ребёнок там <span className="text-ink-800 font-semibold underline decoration-ink-400 decoration-2">один из безликого потока</span>. Учитель физически работает с усреднённым сценарием и не видит затыков конкретного подростка.
                 </p>
+                <p className="mt-3 text-xs leading-relaxed text-ink-500">
+                  Часто это репетитор-одиночка: он один готовит методичку, ведёт документы и проверяет
+                  себя сам — никто не перепроверяет качество занятий.
+                </p>
               </div>
 
               <div className="relative rounded-3xl border-2 border-brand-300 bg-brand-50 p-6 pt-8 md:p-8 md:pt-10 shadow-xl shadow-brand-900/10">
@@ -59,6 +63,10 @@ export default function Solution() {
                 </div>
                 <p className="text-sm leading-relaxed text-ink-800 font-medium">
                   У нас строго <span className="bg-brand-100 text-brand-800 px-1.5 py-0.5 rounded font-bold">мини-группа</span>, поэтому учитель правда контролирует прогресс каждого. А персональный <span className="font-bold text-brand-700">ИИ-репетитор дополняет это 24/7</span> — он мгновенно объяснит тему, когда ребёнок сам готов задать вопрос.
+                </p>
+                <p className="mt-3 text-xs font-medium leading-relaxed text-brand-700">
+                  У нас каждого учителя проверяет методист — поэтому учитель может на 100% сосредоточиться
+                  на ученике, а не на администрировании и методичках.
                 </p>
               </div>
             </div>

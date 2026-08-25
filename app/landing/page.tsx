@@ -4,16 +4,11 @@ import Header from "@/landing/components/sections/Header";
 import ExamToggle from "@/landing/components/ui/ExamToggle";
 import Hero from "@/landing/components/sections/Hero";
 import PainPoints from "@/landing/components/sections/PainPoints";
-import WhatYouGet from "@/landing/components/sections/WhatYouGet";
 import AttestatPredictable from "@/landing/components/sections/AttestatPredictable";
 import Solution from "@/landing/components/sections/Solution";
-import PreparationComposition from "@/landing/components/sections/PreparationComposition";
-import HowItWorks from "@/landing/components/sections/HowItWorks";
 import StudentCarousel from "@/landing/components/sections/StudentCarousel";
 import YandexReviews from "@/landing/components/sections/YandexReviews";
-import PreQuestions from "@/landing/components/sections/PreQuestions";
 import Pricing from "@/landing/components/sections/Pricing";
-import Guarantee from "@/landing/components/sections/Guarantee";
 import FAQ from "@/landing/components/sections/FAQ";
 import { FAQ_ITEMS } from "@/landing/data/faq";
 import FinalCTA from "@/landing/components/sections/FinalCTA";
@@ -117,19 +112,14 @@ export default function Home() {
 
         <Hero />
         <PainPoints />
-        <WhatYouGet />
         <AttestatPredictable />
         <Solution />
-        <PreparationComposition />
-        <HowItWorks />
-        <ReadinessMapWizard />
         <StudentCarousel />
         <YandexReviews />
-        <PreQuestions />
         <Pricing />
-        <Guarantee />
         <FAQ />
         <FinalCTA />
+        <ReadinessMapWizard />
         <Footer />
       </main>
     </>

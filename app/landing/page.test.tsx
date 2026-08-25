@@ -14,17 +14,11 @@ vi.mock("@/landing/components/sections/Header", () => ({ default: () => null }))
 vi.mock("@/landing/components/ui/ExamToggle", () => ({ default: () => null }));
 vi.mock("@/landing/components/sections/Hero", () => ({ default: () => null }));
 vi.mock("@/landing/components/sections/PainPoints", () => ({ default: () => null }));
-vi.mock("@/landing/components/sections/WhatYouGet", () => ({ default: () => null }));
 vi.mock("@/landing/components/sections/AttestatPredictable", () => ({ default: () => null }));
-vi.mock("@/landing/components/sections/StudyingAlone", () => ({ default: () => null }));
 vi.mock("@/landing/components/sections/Solution", () => ({ default: () => null }));
-vi.mock("@/landing/components/sections/PreparationComposition", () => ({ default: () => null }));
-vi.mock("@/landing/components/sections/HowItWorks", () => ({ default: () => null }));
 vi.mock("@/landing/components/sections/StudentCarousel", () => ({ default: () => null }));
 vi.mock("@/landing/components/sections/YandexReviews", () => ({ default: () => null }));
-vi.mock("@/landing/components/sections/PreQuestions", () => ({ default: () => null }));
 vi.mock("@/landing/components/sections/Pricing", () => ({ default: () => null }));
-vi.mock("@/landing/components/sections/Guarantee", () => ({ default: () => null }));
 vi.mock("@/landing/components/sections/FAQ", () => ({ default: () => null }));
 vi.mock("@/landing/components/sections/FinalCTA", () => ({ default: () => null }));
 vi.mock("@/landing/components/sections/Footer", () => ({ default: () => null }));

@@ -22,7 +22,7 @@ describe("Hero", () => {
       </ExamProvider>,
     );
 
-    expect(screen.getByText("80% родителей — по рекомендации")).toBeInTheDocument();
+    expect(screen.getAllByText("80% родителей — по рекомендации").length).toBeGreaterThan(0);
     expect(screen.queryByText(/4 из 5/)).not.toBeInTheDocument();
   });
 

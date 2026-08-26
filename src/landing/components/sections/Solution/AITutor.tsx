@@ -19,8 +19,6 @@ const STATUS_BADGES = [
   { icon: "🎯", label: "База задач ОГЭ и ЕГЭ 2026" },
 ];
 
-// Auto-playing demo loop shown until the visitor interacts with the input —
-// then it hands off to the live chat below.
 const DEMO_PAIRS = [
   {
     question: "Почему в квадратном уравнении, если дискриминант меньше нуля, то нет корней? 🧐",
@@ -54,16 +52,13 @@ export default function AITutor() {
   const [autoplay, setAutoplay] = useState(true);
   const [demoIndex, setDemoIndex] = useState(0);
   const [demoShowAnswer, setDemoShowAnswer] = useState(false);
-
   const [sessionId, setSessionId] = useState("");
 
   useEffect(() => {
     const id = getOrCreateSessionId();
-
     const timer = setTimeout(() => {
       setSessionId(id);
     }, 0);
-
     return () => clearTimeout(timer);
   }, []);
 
@@ -131,24 +126,20 @@ export default function AITutor() {
   };
 
   return (
-    <div className="relative overflow-hidden py-20 md:py-28">
-      <div className="pointer-events-none absolute -top-24 left-1/4 -z-10 h-96 w-96 -translate-x-1/2 rounded-full bg-brand-300/25 blur-[110px]" />
-      <div className="pointer-events-none absolute -bottom-24 right-1/4 -z-10 h-96 w-96 translate-x-1/2 rounded-full bg-accent-300/20 blur-[110px]" />
-      <div className="pointer-events-none absolute top-1/3 right-1/3 -z-10 h-72 w-72 rounded-full bg-hero-glow-pink/15 blur-[100px]" />
-
-      <div className="mx-auto mb-10 max-w-2xl px-6 text-center md:mb-14">
-        <h3 className="font-bold leading-tight tracking-tight text-brand-600 text-balance text-[clamp(2.25rem,4vw,2.75rem)]">
+    <div className="relative overflow-hidden py-12 md:py-20 bg-transparent">
+      <div className="mx-auto mb-8 max-w-2xl px-6 text-center md:mb-12">
+        <h3 className="font-extrabold leading-tight tracking-tight text-brand-600 text-balance text-3xl md:text-4xl">
           Смотрите, как работает ИИ-репетитор
         </h3>
-        <p className="mt-4 text-base leading-relaxed text-ink-600 font-medium md:text-lg">
+        <p className="mt-3 text-base leading-relaxed text-ink-600 font-medium md:text-lg">
           Персональный виртуальный преподаватель, который моментально объясняет сложные задачи 24/7 и адаптируется под уровень ученика.
         </p>
 
-        <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
           {STATUS_BADGES.map((badge) => (
             <span
               key={badge.label}
-              className="inline-flex items-center gap-1.5 rounded-full border border-brand-100/80 bg-white/80 px-3.5 py-1.5 text-sm font-semibold text-ink-700 shadow-sm backdrop-blur-sm"
+              className="inline-flex items-center gap-1.5 rounded-full border border-brand-200/80 bg-white/90 px-3.5 py-1.5 text-xs md:text-sm font-semibold text-ink-700 shadow-sm backdrop-blur-sm"
             >
               <span aria-hidden="true">{badge.icon}</span>
               {badge.label}
@@ -157,28 +148,28 @@ export default function AITutor() {
         </div>
       </div>
 
-      <div className="relative mx-auto max-w-3xl overflow-hidden rounded-3xl border border-brand-100/50 bg-white/90 p-6 shadow-2xl shadow-brand-950/10 backdrop-blur-md md:p-8 mx-6 sm:mx-auto">
-        <div className="absolute -right-20 -top-20 -z-10 h-48 w-48 rounded-full bg-brand-200/25 blur-3xl pointer-events-none" />
-        <div className="absolute -left-20 -bottom-20 -z-10 h-48 w-48 rounded-full bg-accent-200/15 blur-3xl pointer-events-none" />
-
-        <div className="mb-6 flex items-center justify-between border-b border-ink-100 pb-4">
-          <div className="flex items-center gap-2">
-            <div className="flex gap-1.5">
-              <span className="h-3 w-3 rounded-full bg-ink-200" />
-              <span className="h-3 w-3 rounded-full bg-accent-300" />
-              <span className="h-3 w-3 rounded-full bg-brand-300" />
+      <div className="relative mx-auto max-w-3xl flex flex-col justify-between min-h-[580px] overflow-hidden rounded-3xl border border-brand-200/80 bg-white/95 p-6 shadow-xl shadow-brand-900/5 backdrop-blur-md md:p-8 mx-6 sm:mx-auto">
+        
+        <div>
+          <div className="mb-5 flex items-center justify-between border-b border-ink-100 pb-4">
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1.5">
+                <span className="h-3 w-3 rounded-full bg-ink-200" />
+                <span className="h-3 w-3 rounded-full bg-accent-300" />
+                <span className="h-3 w-3 rounded-full bg-brand-300" />
+              </div>
+              <div className="h-4 w-px bg-ink-200 mx-2" />
+              <span className="text-xs md:text-sm font-bold tracking-wider text-brand-600 uppercase">Interactive Demo</span>
             </div>
-            <div className="h-4 w-px bg-ink-200 mx-2" />
-            <span className="text-sm font-bold tracking-wider text-brand-600 uppercase">Interactive Demo</span>
           </div>
+
+          <h4 className="mb-1 text-xl md:text-2xl font-bold leading-tight tracking-tight text-ink-900">Демо ИИ-репетитора</h4>
+          <p className="mb-5 text-sm text-ink-600 leading-relaxed">
+            Задайте любой школьный вопрос или кликните по подсказке ниже, чтобы проверить его в деле.
+          </p>
         </div>
 
-        <h4 className="mb-2 text-2-5xl font-bold leading-tight tracking-tight text-ink-900">Демо ИИ-репетитора</h4>
-        <p className="mb-6 max-w-prose text-ink-600 leading-relaxed">
-          Задайте любой школьный вопрос или кликните по подсказке ниже, чтобы проверить его в деле.
-        </p>
-
-        <div className="flex max-h-[min(20rem,40dvh)] min-h-[120px] flex-col gap-3 overflow-y-auto pr-1">
+        <div className="flex-1 flex flex-col justify-start min-h-[250px] overflow-y-auto pr-1">
           {showDemo ? (
             <AnimatePresence mode="wait">
               <motion.div
@@ -187,30 +178,33 @@ export default function AITutor() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.25, ease: "easeOut" }}
-                className="flex flex-col gap-3"
+                className="flex flex-col gap-3.5"
               >
-                <div className="ml-auto max-w-[85%] rounded-2xl rounded-tr-none bg-brand-600 px-4 py-3 text-base leading-relaxed text-white shadow-md shadow-brand-600/20">
+                <div className="ml-auto max-w-[85%] rounded-2xl rounded-tr-none bg-brand-600 px-4 py-3 text-sm md:text-base leading-relaxed text-white shadow-md shadow-brand-600/20">
                   {DEMO_PAIRS[demoIndex].question}
                 </div>
-                {demoShowAnswer ? (
-                  <motion.div
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.25, ease: "easeOut" }}
-                    className="mr-auto max-w-[85%] rounded-2xl rounded-tl-none border border-brand-100 bg-brand-50 px-4 py-3 text-base leading-relaxed text-ink-800"
-                  >
-                    {DEMO_PAIRS[demoIndex].answer}
-                  </motion.div>
-                ) : (
-                  <div
-                    className="mr-auto flex items-center gap-1.5 rounded-2xl rounded-tl-none border border-brand-100 bg-brand-50 px-4 py-3"
-                    aria-label="ИИ-Репетитор печатает ответ"
-                  >
-                    <span className="h-2 w-2 rounded-full bg-brand-400 motion-safe:animate-bounce motion-safe:[animation-delay:-0.2s]" />
-                    <span className="h-2 w-2 rounded-full bg-brand-400 motion-safe:animate-bounce motion-safe:[animation-delay:-0.1s]" />
-                    <span className="h-2 w-2 rounded-full bg-brand-400 motion-safe:animate-bounce" />
-                  </div>
-                )}
+
+                <div className="min-h-[140px] flex items-start">
+                  {demoShowAnswer ? (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.25, ease: "easeOut" }}
+                      className="mr-auto max-w-[88%] rounded-2xl rounded-tl-none border border-brand-100 bg-brand-50/90 px-4 py-3 text-sm md:text-base leading-relaxed text-ink-800"
+                    >
+                      {DEMO_PAIRS[demoIndex].answer}
+                    </motion.div>
+                  ) : (
+                    <div
+                      className="mr-auto flex items-center gap-1.5 rounded-2xl rounded-tl-none border border-brand-100 bg-brand-50 px-4 py-3"
+                      aria-label="ИИ-Репетитор печатает ответ"
+                    >
+                      <span className="h-2 w-2 rounded-full bg-brand-400 motion-safe:animate-bounce motion-safe:[animation-delay:-0.2s]" />
+                      <span className="h-2 w-2 rounded-full bg-brand-400 motion-safe:animate-bounce motion-safe:[animation-delay:-0.1s]" />
+                      <span className="h-2 w-2 rounded-full bg-brand-400 motion-safe:animate-bounce" />
+                    </div>
+                  )}
+                </div>
               </motion.div>
             </AnimatePresence>
           ) : (
@@ -225,7 +219,7 @@ export default function AITutor() {
           {messages.map((message) => (
             <div
               key={message.id}
-              className={`max-w-[85%] rounded-2xl px-4 py-3 text-base leading-relaxed ${
+              className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm md:text-base leading-relaxed ${
                 message.role === "user"
                   ? "ml-auto rounded-tr-none bg-brand-600 text-white shadow-md shadow-brand-600/20"
                   : "mr-auto rounded-tl-none bg-brand-50 border border-brand-100 text-ink-800"
@@ -255,69 +249,71 @@ export default function AITutor() {
           </AnimatePresence>
         </div>
 
-        {!reachedLimit && messages.length === 0 && (
-          <div className="mt-6 flex flex-wrap gap-2">
-            {QUICK_PROMPTS.map((prompt) => (
-              <button
-                key={prompt}
-                type="button"
-                onClick={() => handlePromptClick(prompt)}
-                className="min-h-[44px] flex items-center rounded-full border border-brand-200 bg-brand-50 px-3.5 py-2.5 text-sm leading-snug font-semibold text-brand-700 transition-all hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 active:scale-95"
+        <div className="mt-4 border-t border-ink-100 pt-4">
+          {!reachedLimit && messages.length === 0 && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              {QUICK_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => handlePromptClick(prompt)}
+                  className="min-h-[40px] flex items-center rounded-full border border-brand-200 bg-brand-50/90 px-3.5 py-2 text-xs md:text-sm font-semibold text-brand-700 transition-all hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 active:scale-95"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {serverErrorMessage && !reachedLimit && (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs md:text-sm font-medium text-red-700">
+              {serverErrorMessage}
+            </div>
+          )}
+
+          {reachedLimit ? (
+            <div className="rounded-2xl border border-accent-200 bg-accent-50/80 p-5 text-center backdrop-blur-sm">
+              <p className="mb-3 text-sm font-semibold text-ink-900 leading-relaxed">
+                Бесплатные вопросы закончились — а с живым педагогом вы можете детально разобрать любую тему.
+              </p>
+              <a
+                href="#readiness-map"
+                className="inline-flex min-h-[52px] items-center rounded-xl bg-brand-600 px-6 text-sm font-bold text-white shadow-md shadow-brand-600/25 transition-all hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 active:scale-95"
               >
-                {prompt}
+                Пройти разбор с живым педагогом
+              </a>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row">
+              <input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onFocus={stopAutoplay}
+                disabled={isBusy}
+                placeholder="Например: как работают квадратные уравнения?"
+                className="flex-1 rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm md:text-base text-ink-900 placeholder:text-ink-400 outline-none shadow-sm transition-all duration-200 focus:border-brand-400 focus:ring-4 focus:ring-brand-100 disabled:opacity-60"
+              />
+              <button
+                type="submit"
+                disabled={isBusy || !input.trim()}
+                className="group relative overflow-hidden rounded-xl bg-brand-600 px-7 py-3 text-sm md:text-base font-bold text-white shadow-md shadow-brand-900/20 transition-all duration-200 hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 active:scale-95 disabled:opacity-50 disabled:hover:bg-brand-600 disabled:active:scale-100"
+              >
+                {isBusy ? (
+                  <span className="flex items-center gap-2 justify-center">
+                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Думаю...
+                  </span>
+                ) : (
+                  "Задать вопрос ИИ"
+                )}
               </button>
-            ))}
-          </div>
-        )}
+            </form>
+          )}
 
-        {serverErrorMessage && !reachedLimit && (
-          <div className="mt-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            {serverErrorMessage}
-          </div>
-        )}
-
-        {reachedLimit ? (
-          <div className="mt-6 rounded-2xl border border-accent-200 bg-accent-50/80 p-6 text-center backdrop-blur-sm">
-            <p className="mb-4 text-sm font-semibold text-ink-900 leading-relaxed">
-              Бесплатные вопросы закончились — а с живым педагогом вы можете детально разобрать любую тему и составить Карту готовности.
-            </p>
-            <a
-              href="#readiness-map"
-              className="inline-flex min-h-[60px] items-center rounded-xl bg-brand-600 px-6 text-base font-bold text-white shadow-md shadow-brand-600/25 transition-all hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 active:scale-95"
-            >
-              Пройти разбор с живым педагогом
-            </a>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-2 sm:flex-row">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onFocus={stopAutoplay}
-              disabled={isBusy}
-              placeholder="Например: как работают квадратные уравнения?"
-              className="flex-1 rounded-xl border border-ink-200 bg-white px-4 py-3.5 text-ink-900 placeholder:text-ink-400 outline-none shadow-sm transition-all duration-200 focus:border-brand-400 focus:ring-4 focus:ring-brand-100 disabled:opacity-60"
-            />
-            <button
-              type="submit"
-              disabled={isBusy || !input.trim()}
-              className="group relative overflow-hidden rounded-xl bg-brand-600 px-8 py-3.5 font-bold text-white shadow-md shadow-brand-900/20 transition-all duration-200 hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2 active:scale-95 disabled:opacity-50 disabled:hover:bg-brand-600 disabled:active:scale-100"
-            >
-              {isBusy ? (
-                <span className="flex items-center gap-2 justify-center">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Думаю...
-                </span>
-              ) : (
-                "Задать вопрос ИИ"
-              )}
-            </button>
-          </form>
-        )}
-
-        <p className="mt-4 text-center text-sm font-bold uppercase tracking-wider text-brand-500">
-          Рядом с ИИ всегда есть живой учитель «Перезагрузки»
-        </p>
+          <p className="mt-3.5 text-center text-xs md:text-sm font-bold uppercase tracking-wider text-brand-600">
+            Рядом с ИИ всегда есть живой учитель «Перезагрузки»
+          </p>
+        </div>
       </div>
     </div>
   );

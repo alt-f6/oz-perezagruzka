@@ -60,8 +60,6 @@ export async function generateMetadata({
   };
 }
 
-// Built from the same FAQ_ITEMS the FAQ section renders, so the schema can
-// never drift out of sync with what's actually on the page.
 function faqJsonLd() {
   return {
     "@context": "https://schema.org",
@@ -80,9 +78,6 @@ function faqJsonLd() {
 const ReadinessMapWizard = dynamic(
   () => import("@/landing/components/sections/ReadinessMap/ReadinessMapWizard"),
   {
-    // id + scroll-mt-20 match the real section (ReadinessMapWizard.tsx) so a
-    // direct link to #readiness-map has a scroll target immediately, even
-    // before the code-split chunk resolves.
     loading: () => (
       <div id="readiness-map" className="scroll-mt-20 p-8 text-center text-ink-400">
         Загрузка...
@@ -104,22 +99,48 @@ export default function Home() {
       <ExamToggle />
       <main
         id="top"
-        className="relative min-h-screen overflow-hidden bg-sky-50 text-foreground selection:bg-brand-200"
+        className="relative min-h-screen overflow-hidden bg-[#F4F9FD] text-foreground selection:bg-brand-200"
       >
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#0000000d_1px,transparent_1px),linear-gradient(to_bottom,#0000000d_1px,transparent_1px)] bg-[size:32px_32px]" />
+        {/* Живые размытые переливы цветов бренда по всей высоте страницы */}
+        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
+          {/* Свечение Hero / верх страницы (Sky + Electric) */}
+          <div className="absolute -top-24 left-1/2 h-[600px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-br from-[#BEE0F5]/70 via-[#0055FF]/10 to-transparent blur-[120px]" />
+          
+          {/* Акцентное свечение середины (Pink + Neon) */}
+          <div className="absolute top-[30%] -left-32 h-[550px] w-[550px] rounded-full bg-[#FF6EB4]/10 blur-[140px]" />
+          <div className="absolute top-[48%] -right-32 h-[600px] w-[600px] rounded-full bg-[#AAEE00]/15 blur-[150px]" />
+          
+          {/* Свечение тарифов и квиза (Electric + Sky) */}
+          <div className="absolute top-[70%] left-1/4 h-[650px] w-[700px] rounded-full bg-[#0055FF]/10 blur-[160px]" />
+          <div className="absolute bottom-20 right-1/4 h-[500px] w-[500px] rounded-full bg-[#BEE0F5]/80 blur-[130px]" />
+
+          {/* Единая аккуратная тетрадная клетка */}
+          <div 
+            className="absolute inset-0 opacity-55"
+            style={{
+              backgroundImage: `
+                linear-gradient(to right, rgba(0, 85, 255, 0.07) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0, 85, 255, 0.07) 1px, transparent 1px)
+              `,
+              backgroundSize: "32px 32px",
+            }}
+          />
         </div>
 
-        <Hero />
-        <PainPoints />
-        <AttestatPredictable />
-        <Solution />
-        <StudentCarousel />
-        <YandexReviews />
-        <Pricing />
-        <FAQ />
-        <FinalCTA />
-        <ReadinessMapWizard />
+        {/* Контентная часть */}
+        <div className="relative z-10">
+          <Hero />
+          <PainPoints />
+          <AttestatPredictable />
+          <Solution />
+          <StudentCarousel />
+          <YandexReviews />
+          <Pricing />
+          <FAQ />
+          <FinalCTA />
+          <ReadinessMapWizard />
+        </div>
+        
         <Footer />
       </main>
     </>

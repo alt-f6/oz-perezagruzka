@@ -20,12 +20,12 @@ export const HERO_SUBLIST_HEADER =
 
 export const HERO_SUBLIST_ITEMS: Record<ExamType, string[]> = {
   oge: [
-    "2 предмета к заявлению на ОГЭ и почему именно они",
-    "5 колледжей/вузов со специальностями и баллами",
+    "✅ 2 предмета к заявлению на ОГЭ и почему именно они",
+    "✅ 5 колледжей/вузов со специальностями и баллами прошлого года и почему именно они",
   ],
   ege: [
-    "2 предмета к заявлению на ЕГЭ и почему именно они",
-    "5 вузов со специальностями и баллами",
+    "✅ 2 предмета к заявлению на ЕГЭ и почему именно они",
+    "✅ 5 вузов со специальностями и баллами прошлого года и почему именно они",
   ],
 };
 
@@ -96,23 +96,23 @@ export const PREPARATION_AI_SKILL: Record<ExamType, string> = {
   ege: "Навык работы с ИИ остаётся после ЕГЭ",
 };
 
-export interface PricingPlanContent {
-  id: string;
-  name: string;
+export interface PricingTierContent {
+  subjects: 1 | 2 | 3;
+  label: string;
   price: string;
-  description: string;
+  pricePerSubject: string;
   isBestValue?: boolean;
 }
 
-export const PRICING_PLANS: Record<ExamType, PricingPlanContent[]> = {
+export const PRICING_TIERS: Record<ExamType, PricingTierContent[]> = {
   oge: [
-    { id: "1-subject", name: "1 предмет", price: "8 000 ₽", description: "Для тех, кому нужно подтянуть один предмет к ОГЭ." },
-    { id: "2-subjects", name: "2 предмета", price: "13 000 ₽", description: "Подготовка сразу по двум предметам — выгоднее и системнее.", isBestValue: true },
-    { id: "3-subjects", name: "3 предмета", price: "15 000 ₽", description: "Полная подготовка сразу по трём предметам к ОГЭ." },
+    { subjects: 1, label: "1 предмет", price: "8 000 ₽", pricePerSubject: "8 000 ₽ за предмет" },
+    { subjects: 2, label: "2 предмета", price: "13 000 ₽", pricePerSubject: "6 500 ₽ за предмет" },
+    { subjects: 3, label: "3 предмета", price: "15 000 ₽", pricePerSubject: "5 000 ₽ — самая низкая цена за предмет", isBestValue: true },
   ],
   ege: [
-    { id: "1-subject", name: "1 предмет", price: "13 000 ₽", description: "Для тех, кому нужно подтянуть один предмет к ЕГЭ." },
-    { id: "2-subjects", name: "2 предмета", price: "18 000 ₽", description: "Подготовка сразу по двум предметам — выгоднее и системнее.", isBestValue: true },
-    { id: "3-subjects", name: "3 предмета", price: "20 000 ₽", description: "Полная подготовка сразу по трём предметам к ЕГЭ." },
+    { subjects: 1, label: "1 предмет", price: "13 000 ₽", pricePerSubject: "13 000 ₽ за предмет" },
+    { subjects: 2, label: "2 предмета", price: "18 000 ₽", pricePerSubject: "9 000 ₽ за предмет" },
+    { subjects: 3, label: "3 предмета", price: "20 000 ₽", pricePerSubject: "6 667 ₽ — самая низкая цена за предмет", isBestValue: true },
   ],
 };

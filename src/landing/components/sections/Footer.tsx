@@ -2,8 +2,10 @@ import { ENTITY_FULL_NAME, INN, OGRN, LEGAL_ADDRESS, CONTACT_EMAIL, CONTACT_PHON
 import { NAV_LINKS } from "@/landing/lib/navigation";
 
 const LEGAL_LINKS = [
+  { label: "Документы", href: "/docs" },
+  { label: "Платные образовательные услуги", href: "/docs#paid-services" },
   { label: "Политика конфиденциальности", href: "/privacy" },
-  { label: "Условия использования и оферта", href: "/terms" },
+  { label: "Публичная оферта", href: "/terms" },
   { label: "Правила ПЭП", href: "/pep" },
 ];
 

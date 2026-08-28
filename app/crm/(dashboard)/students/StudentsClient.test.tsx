@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 const toastMock = vi.hoisted(() => vi.fn());
@@ -17,8 +17,8 @@ type StudentsClientProps = Parameters<typeof StudentsClient>[0];
 const groups = [{ id: "g1", name: "Группа 1", teacherId: "t1" }];
 
 function makeStudent(
-  overrides: Partial<StudentsClientProps["students"][number]> = {},
-): StudentsClientProps["students"][number] {
+  overrides: Partial<StudentsClientProps["initialStudents"][number]> = {},
+): StudentsClientProps["initialStudents"][number] {
   return {
     id: "student_1",
     fullName: "Иван Иванов",
@@ -26,13 +26,18 @@ function makeStudent(
     groups: [{ id: "g1", name: "Группа 1", teacherId: "t1" }],
     transactions: [{ amount: 5000 }],
     ...overrides,
-  } as StudentsClientProps["students"][number];
+  } as StudentsClientProps["initialStudents"][number];
 }
 
 describe("StudentsClient", () => {
   it("shows phone and balance columns for ADMIN/MANAGER", () => {
     render(
-      <StudentsClient students={[makeStudent()]} groups={groups} userRole="ADMIN" />,
+      <StudentsClient
+        initialStudents={[makeStudent()]}
+        initialNextCursor={null}
+        groups={groups}
+        userRole="ADMIN"
+      />,
     );
 
     expect(screen.getByText("+79991234567")).toBeInTheDocument();
@@ -42,7 +47,8 @@ describe("StudentsClient", () => {
   it("hides phone number and balance from TEACHER", () => {
     render(
       <StudentsClient
-        students={[makeStudent({ phone: null, transactions: [] })]}
+        initialStudents={[makeStudent({ phone: null, transactions: [] })]}
+        initialNextCursor={null}
         groups={groups}
         userRole="TEACHER"
       />,
@@ -55,9 +61,43 @@ describe("StudentsClient", () => {
 
   it("hides the add-student control for TEACHER", () => {
     render(
-      <StudentsClient students={[makeStudent()]} groups={groups} userRole="TEACHER" />,
+      <StudentsClient
+        initialStudents={[makeStudent()]}
+        initialNextCursor={null}
+        groups={groups}
+        userRole="TEACHER"
+      />,
     );
 
     expect(screen.queryByText("Добавить студента")).not.toBeInTheDocument();
+  });
+
+  it("debounces a search query by calling the students API and replacing the list", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue({
+      json: async () => ({
+        ok: true,
+        students: [{ id: "s9", fullName: "Filtered", groups: [] }],
+        nextCursor: null,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <StudentsClient
+        initialStudents={[]}
+        initialNextCursor={null}
+        groups={[]}
+        userRole="ADMIN"
+      />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText(/Поиск/), {
+      target: { value: "Ann" },
+    });
+    await vi.advanceTimersByTimeAsync(300);
+    expect(fetchMock).toHaveBeenCalledWith("/crm/api/students?search=Ann");
+
+    vi.useRealTimers();
   });
 });

@@ -9,7 +9,7 @@ import {
   Wallet,
   MoreVertical,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { ConfirmDialog } from "@/crm/components/ConfirmDialog";
 import { Modal } from "@/crm/components/Modal";
@@ -19,23 +19,28 @@ import type { Group, Student } from "@/crm/lib/types";
 import { createStudent, deleteStudent, updateStudentBalance } from "./actions";
 import Link from "next/link";
 
-type StudentRow = Student & {
+type StudentRow = Omit<Student, "transactions"> & {
   groups: Group[];
   transactions?: { amount: number }[];
 };
 
 export function StudentsClient({
-  students,
+  initialStudents,
+  initialNextCursor,
   groups,
   userRole,
 }: {
-  students: StudentRow[];
+  initialStudents: StudentRow[];
+  initialNextCursor: string | null;
   groups: Group[];
   userRole?: string;
 }) {
   const showToast = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [students, setStudents] = useState(initialStudents);
+  const [nextCursor, setNextCursor] = useState(initialNextCursor);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [busyStudentId, setBusyStudentId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [balanceModal, setBalanceModal] = useState<{
@@ -44,6 +49,38 @@ export function StudentsClient({
   }>({ open: false, studentId: null });
 
   const isTeacher = userRole === "TEACHER";
+
+  useEffect(() => {
+    if (searchQuery === "") {
+      setStudents(initialStudents);
+      setNextCursor(initialNextCursor);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      const res = await fetch(`/crm/api/students?search=${encodeURIComponent(searchQuery)}`);
+      const json = await res.json();
+      if (json.ok) {
+        setStudents(json.students);
+        setNextCursor(json.nextCursor);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+
+  const loadMore = async () => {
+    if (!nextCursor || isLoadingMore) return;
+    setIsLoadingMore(true);
+    const params = new URLSearchParams({ cursor: nextCursor });
+    if (searchQuery) params.set("search", searchQuery);
+    const res = await fetch(`/crm/api/students?${params.toString()}`);
+    const json = await res.json();
+    if (json.ok) {
+      setStudents((prev) => [...prev, ...json.students]);
+      setNextCursor(json.nextCursor);
+    }
+    setIsLoadingMore(false);
+  };
 
   const {
     register,
@@ -82,12 +119,6 @@ export function StudentsClient({
     }
     showToast("Студент удален");
   };
-
-  const filteredStudents = students.filter(
-    (s) =>
-      s.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (s.phone && s.phone.includes(searchQuery)),
-  );
 
   return (
     <div className="space-y-6">
@@ -129,7 +160,7 @@ export function StudentsClient({
             </tr>
           </thead>
           <tbody>
-            {filteredStudents.map((student) => {
+            {students.map((student) => {
               const computedBalance =
                 student.transactions?.reduce((sum, t) => sum + t.amount, 0) ||
                 0;
@@ -240,7 +271,7 @@ export function StudentsClient({
                 </tr>
               );
             })}
-            {filteredStudents.length === 0 && (
+            {students.length === 0 && (
               <tr>
                 <td
                   colSpan={isTeacher ? 2 : 5}
@@ -253,6 +284,14 @@ export function StudentsClient({
           </tbody>
         </table>
       </div>
+
+      {nextCursor && (
+        <div className="flex justify-center">
+          <button onClick={loadMore} disabled={isLoadingMore} className="btn-secondary">
+            {isLoadingMore ? "Загрузка..." : "Показать ещё"}
+          </button>
+        </div>
+      )}
 
       <ConfirmDialog
         open={deleteCandidateId !== null}

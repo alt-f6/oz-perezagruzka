@@ -107,4 +107,20 @@ describe("LessonsClient", () => {
     const buttons = screen.getAllByTitle("Отменить оставшиеся занятия серии");
     expect(buttons).toHaveLength(1);
   });
+
+  it("hides the create-lesson control for teachers", () => {
+    render(
+      <LessonsClient lessons={[makeLesson({})]} groups={groups} userRole="TEACHER" />,
+    );
+
+    expect(screen.queryByText("Новое занятие")).not.toBeInTheDocument();
+  });
+
+  it("shows the create-lesson control for admins/managers", () => {
+    render(
+      <LessonsClient lessons={[makeLesson({})]} groups={groups} userRole="ADMIN" />,
+    );
+
+    expect(screen.getByText("Новое занятие")).toBeInTheDocument();
+  });
 });

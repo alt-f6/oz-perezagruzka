@@ -42,7 +42,7 @@ export function LessonFormFields({
   watch: UseFormWatch<LessonValues>;
   setValue: UseFormSetValue<LessonValues>;
   errors: FieldErrors<LessonValues>;
-  groups: { id: string; name: string }[];
+  groups: { id: string; name: string; teacherId?: string | null }[];
   isSubmitting: boolean;
 }) {
   const recurrence = watch("recurrence");
@@ -72,11 +72,24 @@ export function LessonFormFields({
         <label className="label">Группа</label>
         <select disabled={isSubmitting} {...register("groupId")} className="input">
           <option value="">Выберите группу...</option>
-          {groups.map((group) => (
-            <option key={group.id} value={group.id}>
-              {group.name}
-            </option>
-          ))}
+          {groups.map((group) => {
+            const hasTeacher = Boolean(group.teacherId);
+            return (
+              <option
+                key={group.id}
+                value={group.id}
+                disabled={!hasTeacher}
+                title={
+                  hasTeacher
+                    ? undefined
+                    : "Сначала назначьте преподавателя этой группе"
+                }
+              >
+                {group.name}
+                {hasTeacher ? "" : " (нет преподавателя)"}
+              </option>
+            );
+          })}
         </select>
         {errors.groupId && <p className="field-error">{errors.groupId.message}</p>}
       </div>

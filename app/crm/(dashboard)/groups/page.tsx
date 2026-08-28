@@ -46,8 +46,10 @@ export default async function GroupsPage() {
       select: {
         id: true,
         fullName: true,
-        phone: true,
         groups: { select: { groupId: true } },
+        // Teachers don't get student contact details here either — this
+        // page never renders phone, but it also shouldn't be fetched.
+        ...(isTeacher ? {} : { phone: true }),
       },
       orderBy: { fullName: "asc" },
     }),
@@ -66,7 +68,7 @@ export default async function GroupsPage() {
       students: groupStudents.map((s) => ({
         id: s.id,
         fullName: s.fullName,
-        phone: s.phone,
+        phone: isTeacher ? null : (s as { phone?: string | null }).phone ?? null,
       })),
     };
   });

@@ -29,7 +29,7 @@ export default async function SchedulePage() {
     db.group.findMany({
       where: isTeacher ? { teacherId: sessionUser.id } : undefined,
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, teacherId: true },
     }),
     db.user.findMany({
       where: isTeacher
@@ -45,6 +45,7 @@ export default async function SchedulePage() {
       lessons={lessons as unknown as ScheduleLesson[]}
       groups={groups as ScheduleGroup[]}
       teachers={teachers as ScheduleTeacher[]}
+      userRole={sessionUser.role}
     />
   );
 }

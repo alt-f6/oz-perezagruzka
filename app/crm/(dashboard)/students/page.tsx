@@ -35,13 +35,16 @@ export default async function StudentsPage() {
       select: {
         id: true,
         fullName: true,
-        phone: true,
         groups: {
           select: {
             group: { select: { id: true, name: true, teacherId: true } },
           },
         },
-        transactions: { select: { amount: true } },
+        // Teachers never see contact details or financial data, so these
+        // aren't even queried for them, not just hidden client-side.
+        ...(isTeacher
+          ? {}
+          : { phone: true, transactions: { select: { amount: true } } }),
       },
     }),
 
@@ -55,11 +58,23 @@ export default async function StudentsPage() {
     }),
   ]);
 
-  const mappedStudents = students.map((s) => ({
-    ...s,
-    groups: s.groups.map((g) => g.group).filter(Boolean),
-    transactions: s.transactions.map((t) => ({ amount: Number(t.amount) })),
-  }));
+  const mappedStudents = students.map((s) => {
+    const withFinancials = s as typeof s & {
+      phone?: string | null;
+      transactions?: { amount: unknown }[];
+    };
+    return {
+      id: s.id,
+      fullName: s.fullName,
+      phone: isTeacher ? null : (withFinancials.phone ?? null),
+      groups: s.groups.map((g) => g.group).filter(Boolean),
+      transactions: isTeacher
+        ? []
+        : (withFinancials.transactions ?? []).map((t) => ({
+            amount: Number(t.amount),
+          })),
+    };
+  });
 
   return (
     <StudentsClient

@@ -33,6 +33,7 @@ export default async function LessonsPage() {
     <LessonsClient
       lessons={lessons as unknown as ClassSessionWithGroup[]}
       groups={groups}
+      userRole={sessionUser.role}
     />
   );
 }

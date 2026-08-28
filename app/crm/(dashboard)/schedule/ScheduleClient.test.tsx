@@ -82,4 +82,28 @@ describe("ScheduleClient", () => {
     await user.click(screen.getByRole("button", { name: "Месяц" }));
     expect(screen.getByText(/15:00–16:00/)).toBeInTheDocument();
   });
+
+  it("hides the create-lesson control for teachers", () => {
+    render(
+      <ScheduleClient
+        lessons={[makeLesson({})]}
+        groups={groups}
+        teachers={teachers}
+        userRole="TEACHER"
+      />,
+    );
+    expect(screen.queryByText("Новое занятие")).not.toBeInTheDocument();
+  });
+
+  it("shows the create-lesson control for admins/managers", () => {
+    render(
+      <ScheduleClient
+        lessons={[makeLesson({})]}
+        groups={groups}
+        teachers={teachers}
+        userRole="ADMIN"
+      />,
+    );
+    expect(screen.getByText("Новое занятие")).toBeInTheDocument();
+  });
 });

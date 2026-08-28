@@ -25,10 +25,13 @@ type CancelCandidate =
 export function LessonsClient({
   lessons,
   groups,
+  userRole,
 }: {
   lessons: ClassSessionWithGroup[];
   groups: Group[];
+  userRole?: string;
 }) {
+  const isTeacher = userRole === "TEACHER";
   const showToast = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
@@ -143,14 +146,16 @@ export function LessonsClient({
             />
             Показать отменённые
           </label>
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="btn-primary"
-          >
-            <Plus size={16} />
-            Новое занятие
-          </button>
+          {!isTeacher && (
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="btn-primary"
+            >
+              <Plus size={16} />
+              Новое занятие
+            </button>
+          )}
         </div>
       </div>
 
@@ -271,6 +276,7 @@ export function LessonsClient({
         onClose={() => setCancelCandidate(null)}
       />
 
+      {!isTeacher && (
       <Modal
         open={isModalOpen}
         title="Новое занятие"
@@ -294,6 +300,7 @@ export function LessonsClient({
           </button>
         </form>
       </Modal>
+      )}
     </div>
   );
 }

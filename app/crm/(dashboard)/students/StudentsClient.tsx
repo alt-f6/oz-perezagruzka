@@ -122,9 +122,9 @@ export function StudentsClient({
           <thead>
             <tr>
               <th>Имя</th>
-              <th>Телефон</th>
+              {!isTeacher && <th>Телефон</th>}
               <th>Группы</th>
-              <th className="text-right">Баланс</th>
+              {!isTeacher && <th className="text-right">Баланс</th>}
               {!isTeacher && <th className="w-10"></th>}
             </tr>
           </thead>
@@ -145,16 +145,18 @@ export function StudentsClient({
                       {student.fullName}
                     </Link>
                   </td>
-                  <td className="text-slate-600">
-                    {student.phone ? (
-                      <span className="flex items-center gap-1.5">
-                        <Phone size={14} className="text-slate-400" />
-                        {student.phone}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400">—</span>
-                    )}
-                  </td>
+                  {!isTeacher && (
+                    <td className="text-slate-600">
+                      {student.phone ? (
+                        <span className="flex items-center gap-1.5">
+                          <Phone size={14} className="text-slate-400" />
+                          {student.phone}
+                        </span>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                    </td>
+                  )}
                   <td>
                     <div className="flex flex-wrap gap-1">
                       {student.groups?.length > 0 ? (
@@ -170,19 +172,21 @@ export function StudentsClient({
                       )}
                     </div>
                   </td>
-                  <td className="text-right">
-                    <span
-                      className={`tabular-nums ${
-                        isDebt
-                          ? "badge-warning"
-                          : computedBalance === 0
-                            ? "badge-neutral"
-                            : "badge-success"
-                      }`}
-                    >
-                      {computedBalance.toLocaleString("ru-RU")} ₽
-                    </span>
-                  </td>
+                  {!isTeacher && (
+                    <td className="text-right">
+                      <span
+                        className={`tabular-nums ${
+                          isDebt
+                            ? "badge-warning"
+                            : computedBalance === 0
+                              ? "badge-neutral"
+                              : "badge-success"
+                        }`}
+                      >
+                        {computedBalance.toLocaleString("ru-RU")} ₽
+                      </span>
+                    </td>
+                  )}
                   {!isTeacher && (
                     <td className="relative">
                       <div className="flex items-center gap-1">
@@ -239,7 +243,7 @@ export function StudentsClient({
             {filteredStudents.length === 0 && (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={isTeacher ? 2 : 5}
                   className="px-6 py-12 text-center text-sm text-slate-500"
                 >
                   Студенты не найдены

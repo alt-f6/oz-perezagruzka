@@ -34,6 +34,7 @@ export interface ScheduleLesson {
 export interface ScheduleGroup {
   id: string;
   name: string;
+  teacherId?: string | null;
 }
 
 export interface ScheduleTeacher {
@@ -53,11 +54,14 @@ export function ScheduleClient({
   lessons,
   groups,
   teachers,
+  userRole,
 }: {
   lessons: ScheduleLesson[];
   groups: ScheduleGroup[];
   teachers: ScheduleTeacher[];
+  userRole?: string;
 }) {
+  const isTeacher = userRole === "TEACHER";
   const showToast = useToast();
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split("T")[0],
@@ -162,14 +166,16 @@ export function ScheduleClient({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setIsModalOpen(true)}
-          className="btn-primary"
-        >
-          <Plus size={16} />
-          Новое занятие
-        </button>
+        {!isTeacher && (
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="btn-primary"
+          >
+            <Plus size={16} />
+            Новое занятие
+          </button>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -423,29 +429,31 @@ export function ScheduleClient({
         </div>
       )}
 
-      <Modal
-        open={isModalOpen}
-        title="Новое занятие"
-        onClose={() => setIsModalOpen(false)}
-      >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <LessonFormFields
-            register={register}
-            watch={watch}
-            setValue={setValue}
-            errors={errors}
-            groups={groups}
-            isSubmitting={isSubmitting}
-          />
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="btn-primary w-full"
-          >
-            {isSubmitting ? "Создание..." : "Создать"}
-          </button>
-        </form>
-      </Modal>
+      {!isTeacher && (
+        <Modal
+          open={isModalOpen}
+          title="Новое занятие"
+          onClose={() => setIsModalOpen(false)}
+        >
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <LessonFormFields
+              register={register}
+              watch={watch}
+              setValue={setValue}
+              errors={errors}
+              groups={groups}
+              isSubmitting={isSubmitting}
+            />
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="btn-primary w-full"
+            >
+              {isSubmitting ? "Создание..." : "Создать"}
+            </button>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
+import { assertStudentVisibleToTeacher } from "@/crm/lib/access";
 import { PaymentModal } from "@/crm/components/PaymentModal";
 import { ExamTrackerSection } from "./ExamTrackerSection";
 import { FreezeSection } from "./FreezeSection";
@@ -14,34 +15,36 @@ export default async function StudentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
+  const isTeacher = sessionUser.role === "TEACHER";
 
   const { id } = await params;
 
-  if (sessionUser.role === "TEACHER") {
-    const link = await db.groupStudent.findFirst({
-      where: { studentId: id, group: { teacherId: sessionUser.id } },
-      select: { studentId: true },
-    });
-    if (!link) {
-      return (
-        <div className="p-8 text-sm text-slate-500">
-          Ученик не входит в ваши группы
-        </div>
-      );
-    }
-  }
+  await assertStudentVisibleToTeacher(sessionUser, id);
 
-  const student = await db.student.findUnique({ where: { id } });
+  const student = await db.student.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      fullName: true,
+      userId: true,
+      ...(isTeacher ? {} : { phone: true }),
+    },
+  });
 
   if (!student) {
     notFound();
   }
 
-  const balanceAgg = await db.transaction.aggregate({
-    where: { studentId: id },
-    _sum: { amount: true },
-  });
-  const computedBalance = Number(balanceAgg._sum.amount ?? 0);
+  const computedBalance = isTeacher
+    ? null
+    : Number(
+        (
+          await db.transaction.aggregate({
+            where: { studentId: id },
+            _sum: { amount: true },
+          })
+        )._sum.amount ?? 0,
+      );
 
   const [examGoals, examResults, parentLinks, freezes] = await Promise.all([
     db.studentExamGoal.findMany({ where: { studentId: id } }),
@@ -69,6 +72,8 @@ export default async function StudentDetailPage({
     testedAt: r.testedAt.toISOString(),
   }));
 
+  const phone = isTeacher ? null : (student as { phone: string | null }).phone;
+
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <div className="card flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
@@ -85,24 +90,28 @@ export default async function StudentDetailPage({
             <h1 className="truncate text-2xl font-semibold tracking-tight text-slate-900">
               {student.fullName}
             </h1>
-            <p className="mt-0.5 text-sm text-slate-500">
-              Телефон: {student.phone || "Не указан"}
-            </p>
+            {!isTeacher && (
+              <p className="mt-0.5 text-sm text-slate-500">
+                Телефон: {phone || "Не указан"}
+              </p>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="rounded-xl bg-slate-50 px-4 py-2.5 text-right">
-            <p className="overline">Баланс</p>
-            <p
-              className={`text-lg font-semibold tracking-tight ${
-                computedBalance < 0 ? "text-cancel" : "text-emerald-600"
-              }`}
-            >
-              {computedBalance.toLocaleString("ru-RU")} ₽
-            </p>
+        {!isTeacher && (
+          <div className="flex items-center gap-4">
+            <div className="rounded-xl bg-slate-50 px-4 py-2.5 text-right">
+              <p className="overline">Баланс</p>
+              <p
+                className={`text-lg font-semibold tracking-tight ${
+                  (computedBalance ?? 0) < 0 ? "text-cancel" : "text-emerald-600"
+                }`}
+              >
+                {(computedBalance ?? 0).toLocaleString("ru-RU")} ₽
+              </p>
+            </div>
+            <PaymentModal studentId={id} createPaymentSession={createStudentPaymentSession} />
           </div>
-          <PaymentModal studentId={id} createPaymentSession={createStudentPaymentSession} />
-        </div>
+        )}
       </div>
 
       <PortalInviteSection

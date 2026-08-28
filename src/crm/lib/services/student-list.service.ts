@@ -1,5 +1,5 @@
 import { db } from "@/shared/lib/db";
-import { buildCursorPage, parsePaginationParams } from "@/shared/lib/pagination";
+import { buildCursorPage } from "@/shared/lib/pagination";
 
 export interface StudentListRow {
   id: string;
@@ -37,7 +37,7 @@ export async function listStudents(
           }
         : {}),
     },
-    orderBy: { id: "desc" },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
     take: limit + 1,
     ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
     select: {

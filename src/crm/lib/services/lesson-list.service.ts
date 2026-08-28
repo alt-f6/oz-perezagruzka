@@ -17,7 +17,7 @@ export async function listLessons(
 
   const rows = await db.classSession.findMany({
     where: isTeacher ? { teacherId: sessionUser.id } : undefined,
-    orderBy: { scheduledAt: "desc" },
+    orderBy: [{ scheduledAt: "desc" }, { id: "desc" }],
     take: limit + 1,
     ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
     select: {

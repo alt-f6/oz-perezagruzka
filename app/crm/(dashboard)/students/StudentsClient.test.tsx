@@ -75,6 +75,7 @@ describe("StudentsClient", () => {
   it("debounces a search query by calling the students API and replacing the list", async () => {
     vi.useFakeTimers();
     const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
       json: async () => ({
         ok: true,
         students: [{ id: "s9", fullName: "Filtered", groups: [] }],
@@ -99,5 +100,6 @@ describe("StudentsClient", () => {
     expect(fetchMock).toHaveBeenCalledWith("/crm/api/students?search=Ann");
 
     vi.useRealTimers();
+    expect(await screen.findByText("Filtered")).toBeInTheDocument();
   });
 });

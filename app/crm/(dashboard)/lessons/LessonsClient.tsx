@@ -47,13 +47,18 @@ export function LessonsClient({
   const loadMore = async () => {
     if (!nextCursor || isLoadingMore) return;
     setIsLoadingMore(true);
-    const res = await fetch(`/crm/api/lessons?cursor=${nextCursor}`);
-    const json = await res.json();
-    if (json.ok) {
+    try {
+      const res = await fetch(`/crm/api/lessons?cursor=${nextCursor}`);
+      if (!res.ok) throw new Error("request failed");
+      const json = await res.json();
+      if (!json.ok) throw new Error("request failed");
       setLessons((prev) => [...prev, ...json.lessons]);
       setNextCursor(json.nextCursor);
+    } catch {
+      showToast("Не удалось загрузить занятия", "error");
+    } finally {
+      setIsLoadingMore(false);
     }
-    setIsLoadingMore(false);
   };
 
   const {

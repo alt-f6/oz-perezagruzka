@@ -145,6 +145,7 @@ describe("LessonsClient", () => {
   it("shows a load-more button when nextCursor is set and appends fetched lessons on click", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
       json: async () => ({
         ok: true,
         lessons: [makeLesson({ id: "loaded_1" })],

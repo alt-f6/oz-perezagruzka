@@ -57,11 +57,15 @@ export function StudentsClient({
       return;
     }
     const timer = setTimeout(async () => {
-      const res = await fetch(`/crm/api/students?search=${encodeURIComponent(searchQuery)}`);
-      const json = await res.json();
-      if (json.ok) {
+      try {
+        const res = await fetch(`/crm/api/students?search=${encodeURIComponent(searchQuery)}`);
+        if (!res.ok) throw new Error("request failed");
+        const json = await res.json();
+        if (!json.ok) throw new Error("request failed");
         setStudents(json.students);
         setNextCursor(json.nextCursor);
+      } catch {
+        showToast("Не удалось выполнить поиск", "error");
       }
     }, 300);
     return () => clearTimeout(timer);
@@ -71,15 +75,20 @@ export function StudentsClient({
   const loadMore = async () => {
     if (!nextCursor || isLoadingMore) return;
     setIsLoadingMore(true);
-    const params = new URLSearchParams({ cursor: nextCursor });
-    if (searchQuery) params.set("search", searchQuery);
-    const res = await fetch(`/crm/api/students?${params.toString()}`);
-    const json = await res.json();
-    if (json.ok) {
+    try {
+      const params = new URLSearchParams({ cursor: nextCursor });
+      if (searchQuery) params.set("search", searchQuery);
+      const res = await fetch(`/crm/api/students?${params.toString()}`);
+      if (!res.ok) throw new Error("request failed");
+      const json = await res.json();
+      if (!json.ok) throw new Error("request failed");
       setStudents((prev) => [...prev, ...json.students]);
       setNextCursor(json.nextCursor);
+    } catch {
+      showToast("Не удалось загрузить студентов", "error");
+    } finally {
+      setIsLoadingMore(false);
     }
-    setIsLoadingMore(false);
   };
 
   const {

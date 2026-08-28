@@ -72,7 +72,7 @@ describe("listStudents", () => {
     expect(findManyMock.mock.calls[0][0].where.OR).toBeUndefined();
   });
 
-  it("requests limit+1 rows, orders by id desc, and returns nextCursor from the extra row", async () => {
+  it("requests limit+1 rows, orders by createdAt/id asc, and returns nextCursor from the extra row", async () => {
     findManyMock.mockResolvedValue([
       { id: "s2", fullName: "B", groups: [] },
       { id: "s1", fullName: "A", groups: [] },
@@ -81,7 +81,10 @@ describe("listStudents", () => {
     const result = await listStudents({ sessionUser: { id: "a1", role: "ADMIN" }, limit: 1 });
 
     expect(findManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({ orderBy: { id: "desc" }, take: 2 }),
+      expect.objectContaining({
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        take: 2,
+      }),
     );
     expect(result.students).toHaveLength(1);
     expect(result.nextCursor).toBe("s2");

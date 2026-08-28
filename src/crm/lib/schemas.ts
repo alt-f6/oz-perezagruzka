@@ -35,6 +35,17 @@ export const createGroupSchema = groupSchema.extend({
     .optional(),
 });
 
+// Full server-side input for updateGroup: unlike createGroupSchema, teacherId
+// is nullable (not just optional) so the edit modal can explicitly unassign
+// the teacher, and price is required since the edit form always shows it.
+export const updateGroupSchema = groupSchema.extend({
+  teacherId: z.uuid({ message: "Некорректный преподаватель" }).nullable(),
+  price: z.coerce
+    .number()
+    .min(0, { message: "Цена не может быть отрицательной" })
+    .max(1_000_000, { message: "Слишком большая цена" }),
+});
+
 export const balanceAdjustmentSchema = z.object({
   amount: z.coerce
     .number()
@@ -159,6 +170,7 @@ export const leadSchema = z
 export type LoginValues = z.infer<typeof loginSchema>;
 export type RegisterValues = z.infer<typeof registerSchema>;
 export type GroupValues = z.infer<typeof groupSchema>;
+export type UpdateGroupValues = z.infer<typeof updateGroupSchema>;
 export type StudentValues = z.infer<typeof studentSchema>;
 export type LessonValues = z.infer<typeof lessonSchema>;
 export type MakeupValues = z.infer<typeof makeupSchema>;

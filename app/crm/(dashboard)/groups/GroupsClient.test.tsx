@@ -10,6 +10,8 @@ const actionsMock = vi.hoisted(() => ({
   createGroup: vi.fn(),
   deleteGroup: vi.fn(),
   cancelGroupUpcomingSessions: vi.fn(),
+  assignTeacherToGroup: vi.fn(),
+  updateGroup: vi.fn(),
 }));
 vi.mock("./actions", () => actionsMock);
 vi.mock("../students/actions", () => ({

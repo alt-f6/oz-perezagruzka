@@ -48,6 +48,23 @@ describe("createLesson", () => {
       data: [expect.objectContaining({ durationMinutes: 90 })],
     });
   });
+
+  it("rejects scheduling for a group with no assigned teacher", async () => {
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: null });
+
+    const result = await createLesson({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2026-09-01",
+      time: "15:00",
+      durationMinutes: 90,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+    });
+
+    expect(result?.error).toBeTruthy();
+    expect(dbMock.classSession.createMany).not.toHaveBeenCalled();
+  });
 });
 
 describe("deleteLesson", () => {

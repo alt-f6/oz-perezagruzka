@@ -222,14 +222,14 @@ model Invite {
 model Group {
   id             String    @id @default(uuid())
   name           String
-  teacherId      String
+  teacherId      String?
   pricePerLesson Decimal   @default(0.00) @db.Decimal(10, 2)
   meetingUrl     String?
   capacity       Int       @default(10)
   createdAt      DateTime  @default(now())
   deletedAt      DateTime?
 
-  teacher       User           @relation("GroupTeacher", fields: [teacherId], references: [id])
+  teacher       User?          @relation("GroupTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
   students      GroupStudent[]
   classSessions ClassSession[]
 

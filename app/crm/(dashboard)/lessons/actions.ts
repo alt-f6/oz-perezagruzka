@@ -64,6 +64,10 @@ export async function createLesson(
   if (!group) {
     return { error: "Группа не найдена" };
   }
+  if (!group.teacherId) {
+    return { error: "Сначала назначьте преподавателя группе" };
+  }
+  const teacherId = group.teacherId;
 
   const occurrences = expandOccurrences(parsed.data);
   if (occurrences.length === 0) {
@@ -77,7 +81,7 @@ export async function createLesson(
     await db.classSession.createMany({
       data: occurrences.map((scheduledAt) => ({
         groupId: parsed.data.groupId,
-        teacherId: group.teacherId,
+        teacherId,
         scheduledAt,
         durationMinutes: parsed.data.durationMinutes,
         recurrenceGroupId,

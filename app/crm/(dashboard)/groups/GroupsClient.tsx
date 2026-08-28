@@ -1,8 +1,18 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, Trash2, Users, Banknote, UserPlus, X, CalendarX } from "lucide-react";
-import React, { useState } from "react";
+import {
+  Plus,
+  Trash2,
+  Users,
+  Banknote,
+  UserPlus,
+  X,
+  CalendarX,
+  Pencil,
+  Loader2,
+} from "lucide-react";
+import React, { useOptimistic, useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { ConfirmDialog } from "@/crm/components/ConfirmDialog";
 import { Modal } from "@/crm/components/Modal";
@@ -13,7 +23,13 @@ import {
   assignStudentToGroup,
   removeStudentFromGroup,
 } from "../students/actions";
-import { cancelGroupUpcomingSessions, createGroup, deleteGroup } from "./actions";
+import {
+  assignTeacherToGroup,
+  cancelGroupUpcomingSessions,
+  createGroup,
+  deleteGroup,
+  updateGroup,
+} from "./actions";
 
 interface StudentLookup {
   id: string;
@@ -36,6 +52,8 @@ export function GroupsClient({
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [manageGroup, setManageGroup] = useState<GroupWithDetails | null>(null);
+  const [editGroup, setEditGroup] = useState<GroupWithDetails | null>(null);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteCandidateId, setDeleteCandidateId] = useState<string | null>(
@@ -45,6 +63,27 @@ export function GroupsClient({
   const [isClearingSchedule, setIsClearingSchedule] = useState(false);
   const [isUpdatingStudents, setIsUpdatingStudents] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
+
+  const [savingTeacherGroupId, setSavingTeacherGroupId] = useState<
+    string | null
+  >(null);
+  const [, startTeacherTransition] = useTransition();
+  const [optimisticGroups, applyOptimisticTeacher] = useOptimistic(
+    groups,
+    (
+      state: GroupWithDetails[],
+      update: { groupId: string; teacherId: string | null; teacherName: string | null },
+    ) =>
+      state.map((g) =>
+        g.id === update.groupId
+          ? {
+              ...g,
+              teacherId: update.teacherId,
+              teacher: update.teacherName ? { fullName: update.teacherName } : null,
+            }
+          : g,
+      ),
+  );
 
   const {
     register,
@@ -162,6 +201,55 @@ export function GroupsClient({
     }
   };
 
+  const handleAssignTeacher = (groupId: string, teacherId: string) => {
+    const teacherName =
+      teachers.find((t) => t.id === teacherId)?.fullName ?? null;
+    setSavingTeacherGroupId(groupId);
+    startTeacherTransition(async () => {
+      applyOptimisticTeacher({
+        groupId,
+        teacherId: teacherId || null,
+        teacherName: teacherId ? teacherName : null,
+      });
+      try {
+        const result = await assignTeacherToGroup(groupId, teacherId || null);
+        if (result?.error) {
+          showToast(result.error, "error");
+        } else {
+          showToast("Преподаватель обновлён");
+        }
+      } catch {
+        showToast("Не удалось назначить преподавателя", "error");
+      } finally {
+        setSavingTeacherGroupId(null);
+      }
+    });
+  };
+
+  const handleEditGroup = async (
+    data: { name: string; teacherId: string; price: string },
+  ) => {
+    if (!editGroup) return;
+    setIsSavingEdit(true);
+    try {
+      const result = await updateGroup(editGroup.id, {
+        name: data.name,
+        teacherId: data.teacherId || null,
+        price: Number(data.price),
+      });
+      if (result?.error) {
+        showToast(result.error, "error");
+      } else {
+        showToast("Группа обновлена");
+        setEditGroup(null);
+      }
+    } catch {
+      showToast("Не удалось обновить группу", "error");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -178,7 +266,7 @@ export function GroupsClient({
         )}
       </div>
 
-      {groups.length === 0 && (
+      {optimisticGroups.length === 0 && (
         <div className="empty-state">
           <Users size={28} className="text-slate-300" />
           <p className="font-medium text-slate-600">Групп пока нет</p>
@@ -187,7 +275,7 @@ export function GroupsClient({
       )}
 
       <div className="grid gap-4 md:grid-cols-2">
-        {groups.map((group) => (
+        {optimisticGroups.map((group) => (
           <div
             key={group.id}
             className="card card-hover flex flex-col justify-between p-5"
@@ -199,6 +287,13 @@ export function GroupsClient({
                 </h3>
                 {!isTeacher && (
                   <div className="-mr-1.5 -mt-1 flex items-center gap-1">
+                    <button
+                      onClick={() => setEditGroup(group)}
+                      className="icon-btn"
+                      title="Редактировать группу"
+                    >
+                      <Pencil size={17} />
+                    </button>
                     <button
                       onClick={() => setClearScheduleCandidateId(group.id)}
                       className="icon-btn-danger"
@@ -229,8 +324,24 @@ export function GroupsClient({
                   <Users size={13} /> Студентов: {group.students?.length || 0}
                 </span>
                 {!isTeacher && (
-                  <span className="badge-info">
-                    {group.teacher?.fullName || "Без преподавателя"}
+                  <span className="badge-info relative inline-flex items-center gap-1.5 pr-1">
+                    <select
+                      value={group.teacherId ?? ""}
+                      disabled={savingTeacherGroupId === group.id}
+                      onChange={(e) => handleAssignTeacher(group.id, e.target.value)}
+                      className="cursor-pointer appearance-none bg-transparent pr-1 outline-none disabled:cursor-wait"
+                      title="Изменить преподавателя"
+                    >
+                      <option value="">Без преподавателя</option>
+                      {teachers.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.fullName}
+                        </option>
+                      ))}
+                    </select>
+                    {savingTeacherGroupId === group.id && (
+                      <Loader2 size={12} className="animate-spin" />
+                    )}
                   </span>
                 )}
               </div>
@@ -425,6 +536,74 @@ export function GroupsClient({
               )}
             </div>
           </div>
+        </Modal>
+      )}
+
+      {!isTeacher && (
+        <Modal
+          open={editGroup !== null}
+          title="Редактировать группу"
+          onClose={() => setEditGroup(null)}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new globalThis.FormData(e.currentTarget);
+              handleEditGroup({
+                name: String(formData.get("name") || ""),
+                teacherId: String(formData.get("teacherId") || ""),
+                price: String(formData.get("price") || "0"),
+              });
+            }}
+            className="space-y-4"
+          >
+            <div>
+              <label className="label">Название группы</label>
+              <input
+                type="text"
+                name="name"
+                defaultValue={editGroup?.name}
+                disabled={isSavingEdit}
+                className="input"
+              />
+            </div>
+
+            <div>
+              <label className="label">Стоимость одного занятия (₽)</label>
+              <input
+                type="number"
+                name="price"
+                defaultValue={editGroup?.pricePerLesson ?? 0}
+                disabled={isSavingEdit}
+                className="input"
+              />
+            </div>
+
+            <div>
+              <label className="label">Преподаватель</label>
+              <select
+                name="teacherId"
+                defaultValue={editGroup?.teacherId ?? ""}
+                disabled={isSavingEdit}
+                className="input"
+              >
+                <option value="">Без преподавателя</option>
+                {teachers.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.fullName}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSavingEdit}
+              className="btn-primary w-full"
+            >
+              {isSavingEdit ? "Сохранение..." : "Сохранить"}
+            </button>
+          </form>
         </Modal>
       )}
     </div>

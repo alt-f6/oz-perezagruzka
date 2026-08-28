@@ -3,6 +3,7 @@ import { CRM_ROLES, getSessionUser } from "@/shared/lib/auth";
 import { db } from "@/shared/lib/db";
 import type { GroupWithDetails, User } from "@/crm/lib/types";
 import { GroupsClient } from "./GroupsClient";
+import { getTeachers } from "./actions";
 
 export default async function GroupsPage() {
   const sessionUser = await getSessionUser();
@@ -34,12 +35,7 @@ export default async function GroupsPage() {
       },
       orderBy: { createdAt: "asc" },
     }),
-    !isTeacher
-      ? db.user.findMany({
-          where: { role: "TEACHER" },
-          select: { id: true, fullName: true },
-        })
-      : Promise.resolve([]),
+    !isTeacher ? getTeachers() : Promise.resolve([]),
     db.student.findMany({
       where: {
         deletedAt: null,

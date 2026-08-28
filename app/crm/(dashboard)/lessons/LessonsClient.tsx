@@ -23,11 +23,13 @@ type CancelCandidate =
   | { kind: "selection"; sessionIds: string[] };
 
 export function LessonsClient({
-  lessons,
+  initialLessons,
+  initialNextCursor,
   groups,
   userRole,
 }: {
-  lessons: ClassSessionWithGroup[];
+  initialLessons: ClassSessionWithGroup[];
+  initialNextCursor: string | null;
   groups: Group[];
   userRole?: string;
 }) {
@@ -38,6 +40,21 @@ export function LessonsClient({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [cancelCandidate, setCancelCandidate] = useState<CancelCandidate | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [lessons, setLessons] = useState(initialLessons);
+  const [nextCursor, setNextCursor] = useState(initialNextCursor);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const loadMore = async () => {
+    if (!nextCursor || isLoadingMore) return;
+    setIsLoadingMore(true);
+    const res = await fetch(`/crm/api/lessons?cursor=${nextCursor}`);
+    const json = await res.json();
+    if (json.ok) {
+      setLessons((prev) => [...prev, ...json.lessons]);
+      setNextCursor(json.nextCursor);
+    }
+    setIsLoadingMore(false);
+  };
 
   const {
     register,
@@ -260,6 +277,14 @@ export function LessonsClient({
               </motion.div>
             );
           })}
+        </div>
+      )}
+
+      {nextCursor && (
+        <div className="flex justify-center">
+          <button onClick={loadMore} disabled={isLoadingMore} className="btn-secondary">
+            {isLoadingMore ? "Загрузка..." : "Показать ещё"}
+          </button>
         </div>
       )}
 

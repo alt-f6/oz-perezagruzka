@@ -39,7 +39,8 @@ describe("LessonsClient", () => {
   it("shows the start-end time range instead of just the start time", () => {
     render(
       <LessonsClient
-        lessons={[makeLesson({ scheduledAt: "2026-09-01T15:00:00.000Z", durationMinutes: 90 })]}
+        initialLessons={[makeLesson({ scheduledAt: "2026-09-01T15:00:00.000Z", durationMinutes: 90 })]}
+        initialNextCursor={null}
         groups={groups}
       />,
     );
@@ -50,7 +51,8 @@ describe("LessonsClient", () => {
     const user = userEvent.setup();
     render(
       <LessonsClient
-        lessons={[makeLesson({ id: "cancelled_1", status: "cancelled" })]}
+        initialLessons={[makeLesson({ id: "cancelled_1", status: "cancelled" })]}
+        initialNextCursor={null}
         groups={groups}
       />,
     );
@@ -65,7 +67,8 @@ describe("LessonsClient", () => {
     const user = userEvent.setup();
     render(
       <LessonsClient
-        lessons={[makeLesson({ id: "a" }), makeLesson({ id: "b" })]}
+        initialLessons={[makeLesson({ id: "a" }), makeLesson({ id: "b" })]}
+        initialNextCursor={null}
         groups={groups}
       />,
     );
@@ -81,7 +84,11 @@ describe("LessonsClient", () => {
     actionsMock.bulkCancelSessions.mockResolvedValue({ cancelledCount: 1, skippedCount: 0 });
 
     render(
-      <LessonsClient lessons={[makeLesson({ id: "a" })]} groups={groups} />,
+      <LessonsClient
+        initialLessons={[makeLesson({ id: "a" })]}
+        initialNextCursor={null}
+        groups={groups}
+      />,
     );
 
     await user.click(screen.getByRole("checkbox", { name: /Выбрать занятие/ }));
@@ -96,10 +103,11 @@ describe("LessonsClient", () => {
   it("shows a 'cancel remaining series' button only for lessons with a recurrenceGroupId", () => {
     render(
       <LessonsClient
-        lessons={[
+        initialLessons={[
           makeLesson({ id: "solo", recurrenceGroupId: null }),
           makeLesson({ id: "series", recurrenceGroupId: "series_1" }),
         ]}
+        initialNextCursor={null}
         groups={groups}
       />,
     );
@@ -110,7 +118,12 @@ describe("LessonsClient", () => {
 
   it("hides the create-lesson control for teachers", () => {
     render(
-      <LessonsClient lessons={[makeLesson({})]} groups={groups} userRole="TEACHER" />,
+      <LessonsClient
+        initialLessons={[makeLesson({})]}
+        initialNextCursor={null}
+        groups={groups}
+        userRole="TEACHER"
+      />,
     );
 
     expect(screen.queryByText("Новое занятие")).not.toBeInTheDocument();
@@ -118,9 +131,35 @@ describe("LessonsClient", () => {
 
   it("shows the create-lesson control for admins/managers", () => {
     render(
-      <LessonsClient lessons={[makeLesson({})]} groups={groups} userRole="ADMIN" />,
+      <LessonsClient
+        initialLessons={[makeLesson({})]}
+        initialNextCursor={null}
+        groups={groups}
+        userRole="ADMIN"
+      />,
     );
 
     expect(screen.getByText("Новое занятие")).toBeInTheDocument();
+  });
+
+  it("shows a load-more button when nextCursor is set and appends fetched lessons on click", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn().mockResolvedValue({
+      json: async () => ({
+        ok: true,
+        lessons: [makeLesson({ id: "loaded_1" })],
+        nextCursor: null,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <LessonsClient initialLessons={[]} initialNextCursor="l5" groups={groups} userRole="ADMIN" />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Показать ещё/i }));
+
+    expect(fetchMock).toHaveBeenCalledWith("/crm/api/lessons?cursor=l5");
+    expect(await screen.findByText("Группа 1")).toBeInTheDocument();
   });
 });

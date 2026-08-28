@@ -21,8 +21,14 @@ import {
   TableRow,
 } from "@/shared/components/ui/table";
 
-type Student = { id: string; email: string; role: string };
-type Lesson = { id: string; title: string; is_published: boolean; order: number };
+type Student = { id: string; email: string | null; fullName: string | null; role: string };
+type Lesson = {
+  id: string;
+  title: string;
+  isPublished: boolean;
+  order: number;
+  module: { title: string; course: { title: string } } | null;
+};
 
 type ApiPayload = {
   ok: boolean;
@@ -31,6 +37,13 @@ type ApiPayload = {
   assignedLessonIds: string[];
   error?: string;
 };
+
+function formatStudentLabel(st: Student): string {
+  if (st.fullName && st.email) return `${st.fullName} (${st.email})`;
+  if (st.fullName) return st.fullName;
+  if (st.email) return st.email;
+  return "Ученик без имени";
+}
 
 export default function AdminAssignmentsClient({
   initialStudentId,
@@ -112,7 +125,7 @@ export default function AdminAssignmentsClient({
   }
 
   function selectAllPublished() {
-    setSelected(new Set(lessons.filter((l) => l.is_published).map((l) => l.id)));
+    setSelected(new Set(lessons.filter((l) => l.isPublished).map((l) => l.id)));
   }
 
   function clearAll() {
@@ -178,7 +191,7 @@ export default function AdminAssignmentsClient({
             <SelectContent>
               {students.map((st) => (
                 <SelectItem key={st.id} value={String(st.id)}>
-                  {st.email} (id: {st.id})
+                  {formatStudentLabel(st)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -231,14 +244,18 @@ export default function AdminAssignmentsClient({
                 <TableCell className="font-mono text-muted-foreground">{l.order ?? 0}</TableCell>
 
                 <TableCell>
-                  <div className="flex items-baseline gap-2">
+                  <div className="flex flex-col">
                     <span className="truncate font-bold">{l.title}</span>
-                    <span className="shrink-0 text-xs text-muted-foreground">ID: {l.id}</span>
+                    {l.module?.course.title ? (
+                      <span className="truncate text-xs text-muted-foreground">
+                        Курс: {l.module.course.title}
+                      </span>
+                    ) : null}
                   </div>
                 </TableCell>
 
                 <TableCell>
-                  {l.is_published ? (
+                  {l.isPublished ? (
                     <Badge variant="success">Опубликован</Badge>
                   ) : (
                     <Badge variant="secondary">Черновик</Badge>

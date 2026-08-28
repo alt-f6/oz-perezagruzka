@@ -3,7 +3,7 @@ import { db } from "@/shared/lib/db";
 export async function listStudents() {
   return db.user.findMany({
     where: { role: "STUDENT" },
-    select: { id: true, email: true, role: true },
+    select: { id: true, email: true, fullName: true, role: true },
     orderBy: { id: "asc" },
     take: 1000,
   });
@@ -11,7 +11,13 @@ export async function listStudents() {
 
 export async function listLessons() {
   return db.lesson.findMany({
-    select: { id: true, title: true, isPublished: true, order: true },
+    select: {
+      id: true,
+      title: true,
+      isPublished: true,
+      order: true,
+      module: { select: { title: true, course: { select: { title: true } } } },
+    },
     orderBy: [{ order: "asc" }, { id: "asc" }],
     take: 1000,
   });

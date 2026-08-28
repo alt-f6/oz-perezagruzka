@@ -72,6 +72,12 @@ export async function proxy(request: NextRequest) {
   const response = NextResponse.next();
 
   if (app === "landing") {
+    // Static assets under public/docs, public/landing/photos, etc. are served
+    // from their own root-level paths (e.g. /docs/foo.pdf) rather than being
+    // namespaced under public/landing/**, so they must bypass the rewrite.
+    if (isStaticAssetPath(pathname)) {
+      return response;
+    }
     return rewriteToApp(request, app, response);
   }
 

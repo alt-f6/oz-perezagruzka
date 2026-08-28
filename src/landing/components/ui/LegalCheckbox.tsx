@@ -18,7 +18,7 @@ export function LegalCheckbox({ checked, onChange, error, id = "consent" }: Lega
   return (
     <label
       htmlFor={id}
-      className="flex cursor-pointer items-start gap-3 text-left select-none"
+      className="mt-1 flex cursor-pointer items-start gap-2.5 text-left select-none"
     >
       <input
         id={id}

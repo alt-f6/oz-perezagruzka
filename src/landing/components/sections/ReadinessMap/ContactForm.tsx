@@ -121,48 +121,49 @@ export function ContactForm({ leadId, ctaLabel }: ContactFormProps) {
         className="absolute left-[-9999px] h-px w-px overflow-hidden opacity-0"
         {...form.register("honeypot")}
       />
-      <div className="flex flex-col gap-4 sm:flex-row">
-        <div className="flex-1 relative">
+      <div className="flex flex-col gap-3 w-full sm:flex-row sm:items-start">
+        <div className="flex-1 min-h-[56px] flex flex-col">
           <input
             {...phoneRegister}
             placeholder="+7 (999) 123-45-67"
             aria-label="Номер телефона"
             inputMode="tel"
-            className={`min-h-[44px] w-full rounded-2xl border px-5 py-4 bg-white text-ink-900 placeholder:text-ink-400 outline-none transition-all duration-200 focus:ring-4 ${
+            className={`min-h-[56px] w-full rounded-2xl border px-5 py-4 bg-white text-ink-900 placeholder:text-ink-400 outline-none transition-all duration-200 focus:ring-4 ${
               hasError
-                ? "border-rose-400/60 bg-rose-50 focus:border-rose-400 focus:ring-rose-100"
+                ? "border-rose-400 bg-rose-50 focus:border-rose-500 focus:ring-rose-200"
                 : "border-ink-200 focus:border-brand-400 focus:ring-brand-100"
             }`}
           />
 
-          <AnimatePresence>
-            {form.formState.errors.phone && (
-              <motion.p
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                className="absolute left-1 top-full mt-1.5 text-xs font-semibold text-rose-500"
-              >
-                {form.formState.errors.phone.message}
-              </motion.p>
-            )}
-            {serverError && (
-              <motion.p
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                className="absolute left-1 top-full mt-1.5 text-xs font-semibold text-rose-500"
-              >
-                {serverError}
-              </motion.p>
-            )}
-          </AnimatePresence>
+          <div className="mt-1.5 min-h-[18px] text-xs font-medium text-rose-500">
+            <AnimatePresence mode="wait">
+              {form.formState.errors.phone ? (
+                <motion.p
+                  key="phone-error"
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                >
+                  {form.formState.errors.phone.message}
+                </motion.p>
+              ) : serverError ? (
+                <motion.p
+                  key="server-error"
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                >
+                  {serverError}
+                </motion.p>
+              ) : null}
+            </AnimatePresence>
+          </div>
         </div>
 
         <button
           type="submit"
           disabled={state === "submitting"}
-          className="min-h-[60px] rounded-2xl bg-brand-600 px-8 py-4 text-lg font-extrabold text-white shadow-md shadow-brand-600/25 transition-all duration-150 hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 active:scale-95 disabled:opacity-50 disabled:hover:translate-y-0 disabled:active:scale-100"
+          className="min-h-[56px] shrink-0 rounded-2xl bg-brand-600 px-8 py-4 text-base font-extrabold text-white shadow-md shadow-brand-600/25 transition-all duration-150 hover:-translate-y-0.5 hover:bg-brand-700 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 active:scale-95 disabled:opacity-50 disabled:hover:translate-y-0 disabled:active:scale-100 whitespace-nowrap"
         >
         {state === "submitting" ? (
           <span className="flex items-center gap-2 justify-center">

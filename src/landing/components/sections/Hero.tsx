@@ -127,14 +127,14 @@ export default function Hero() {
           <div className="relative aspect-[9/16] w-full overflow-hidden rounded-[2rem] border-4 border-white shadow-2xl shadow-brand-900/20">
             <video
               className="h-full w-full object-cover"
-              poster="/photos/photo_2023-06-19_11-11-04.jpg"
+              poster="/landing/photos/photo_2023-06-19_11-11-04.jpg"
               autoPlay
               muted
               loop
               playsInline
               aria-hidden="true"
             >
-              <source src="/videos/4873106-hd_1080_1920_25fps.mp4" type="video/mp4" />
+              <source src="/landing/videos/4873106-hd_1080_1920_25fps.mp4" type="video/mp4" />
             </video>
             <div
               aria-hidden="true"

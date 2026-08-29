@@ -5,9 +5,10 @@ import { motion, useReducedMotion } from "framer-motion";
 import Section from "@/landing/components/ui/Section";
 import { fadeInUp, staggerContainer } from "@/landing/components/ui/motion";
 
-// Files live in public/landing/photos/, but proxy.ts rewrites every request
-// on the root host to /landing/<path>, so the src here must NOT repeat the
-// "landing" segment. `/photos/x.jpg` is what actually resolves.
+// Files live in public/landing/photos/. proxy.ts bypasses the /landing
+// rewrite for any path with a file extension (see isStaticAssetPath), so
+// static assets are served from their literal public/ path -- the "landing"
+// segment must be included here.
 const GALLERY_CARDS = [
   {
     file: "photo_2026-08-23_11-24-55.jpg",
@@ -48,7 +49,7 @@ export default function StudentCarousel() {
               className="group relative aspect-[4/3] w-full overflow-hidden rounded-3xl border-[3px] border-accent-500 shadow-lg"
             >
               <Image
-                src={`/photos/${card.file}`}
+                src={`/landing/photos/${card.file}`}
                 alt={card.alt}
                 fill
                 sizes="(min-width: 768px) 45vw, 90vw"

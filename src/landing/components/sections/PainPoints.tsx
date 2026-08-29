@@ -32,7 +32,7 @@ export default function PainPoints() {
 
         <div className="relative mx-auto mb-14 aspect-[16/9] max-w-4xl overflow-hidden rounded-3xl border-[3px] border-accent-500 shadow-xl shadow-ink-900/10">
           <Image
-            src={`/photos/${PAIN_POINTS_PHOTO}`}
+            src={`/landing/photos/${PAIN_POINTS_PHOTO}`}
             alt="Ученики в панике перед экзаменом у доски"
             fill
             sizes="(min-width: 1024px) 896px, 90vw"

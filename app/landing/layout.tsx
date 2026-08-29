@@ -9,7 +9,7 @@ import { ExamProvider } from "@/landing/lib/exam-context";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://perezagruzka-edu.ru";
 const ymCounterId = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID ?? process.env.NEXT_PUBLIC_YM_COUNTER_ID;
 
-const title = "Перезагрузка — Подготовка к ОГЭ с живым учителем и ИИ-репетитором";
+const title = "Перезагрузка: Подготовка к ОГЭ с живым учителем и ИИ-репетитором";
 const description =
   "Онлайн-школа для подростков 7–9 класса: мини-группы, живой учитель и ИИ-репетитор на связи 24/7. Бесплатный разбор перед стартом.";
 
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
     default: title,
-    template: "%s — Перезагрузка",
+    template: "%s: Перезагрузка",
   },
   description,
   keywords: [

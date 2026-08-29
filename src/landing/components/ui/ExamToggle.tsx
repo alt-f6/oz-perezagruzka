@@ -31,7 +31,7 @@ export default function ExamToggle() {
       <div
         role="radiogroup"
         aria-label="Класс и экзамен"
-        className="mx-auto flex max-w-2xl items-center justify-center rounded-2xl border border-brand-200/80 bg-white/90 p-1.5 shadow-md shadow-brand-900/5 backdrop-blur-md"
+        className="mx-auto flex max-w-2xl items-center justify-center rounded-2xl border border-brand-200/80 bg-white/90 p-1.5 shadow-sm backdrop-blur-md"
       >
         {OPTIONS.map((option) => {
           const selected = exam === option.value;
@@ -50,7 +50,7 @@ export default function ExamToggle() {
                 <motion.div
                   layoutId="activeExamToggleTab"
                   transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  className="absolute inset-0 rounded-xl bg-brand-600 shadow-md shadow-brand-600/25"
+                  className="absolute inset-0 rounded-xl bg-[#0055FF] shadow-md shadow-brand-600/25"
                 />
               )}
               <span className="relative z-10 flex items-center justify-center gap-2 sm:gap-2.5">

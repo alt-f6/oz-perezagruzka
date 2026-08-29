@@ -13,26 +13,22 @@ import {
 const TRUST_BADGES = [
   {
     label: "9 лет практики",
-    className: "bg-[#0055FF] text-white",
-    radius: "42% 58% 63% 37% / 41% 44% 56% 59%",
+    className: "bg-[#FF6EB4] text-[#111111]",
     from: { opacity: 0, x: -80, y: -40 },
   },
   {
     label: "80% родителей — по рекомендации",
     className: "bg-[#AAEE00] text-[#111111]",
-    radius: "58% 42% 37% 63% / 44% 41% 59% 56%",
     from: { opacity: 0, x: 80, y: -40 },
   },
   {
     label: "Лицензия",
-    className: "bg-[#FF6EB4] text-[#111111]",
-    radius: "63% 37% 42% 58% / 56% 59% 41% 44%",
+    className: "bg-[#0055FF] text-white",
     from: { opacity: 0, x: -80, y: 40 },
   },
   {
     label: "Налоговый вычет",
-    className: "bg-white text-[#111111] border-2 border-[#111111]",
-    radius: "37% 63% 58% 42% / 59% 56% 44% 41%",
+    className: "bg-white text-[#111111] border border-slate-300",
     from: { opacity: 0, x: 80, y: 40 },
   },
 ];
@@ -82,11 +78,10 @@ export default function Hero() {
               <p className="text-xs md:text-sm font-bold uppercase tracking-wider text-brand-700">
                 {HERO_SUBLIST_HEADER}
               </p>
-              <ul className="mt-2.5 space-y-1.5 text-left">
+              <ul className="mt-2.5 list-none space-y-1.5 text-left">
                 {sublistItems.map((item) => (
-                  <li key={item} className="flex items-start gap-2 text-sm md:text-base leading-relaxed text-ink-800">
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent-600" aria-hidden="true" />
-                    <span>{item}</span>
+                  <li key={item} className="text-sm md:text-base leading-relaxed text-ink-800">
+                    {item}
                   </li>
                 ))}
               </ul>
@@ -106,7 +101,7 @@ export default function Hero() {
             </motion.a>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-4 pt-6 md:justify-start">
+          <div className="flex flex-wrap items-center gap-2.5 mt-4 justify-center md:justify-start">
             {TRUST_BADGES.map((badge, i) => (
               <motion.div
                 key={badge.label}
@@ -114,8 +109,7 @@ export default function Hero() {
                 whileInView={{ opacity: 1, x: 0, y: 0 }}
                 viewport={{ once: true, margin: "-40px" }}
                 transition={{ type: "spring", stiffness: 70, damping: 14, delay: prefersReducedMotion ? 0 : i * 0.1 }}
-                style={{ borderRadius: badge.radius }}
-                className={`inline-flex max-w-[170px] items-center justify-center whitespace-normal px-6 py-5 text-center font-sans text-sm md:text-base font-bold leading-tight shadow-md ${badge.className}`}
+                className={`inline-flex items-center px-4 py-2 rounded-full text-xs sm:text-sm font-bold tracking-tight shadow-sm whitespace-nowrap ${badge.className}`}
               >
                 {badge.label}
               </motion.div>

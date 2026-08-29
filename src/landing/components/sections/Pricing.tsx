@@ -36,7 +36,7 @@ export default function Pricing() {
 
       <div className="relative mx-auto max-w-3xl px-6">
         <div className="mb-12 text-center">
-          <h2 className="font-bold tracking-tight text-ink-900">Тарифы и что в них входит</h2>
+          <h2 className="font-bold tracking-tight text-ink-900">Тарифы</h2>
           <p className="mx-auto mt-3.5 max-w-xl text-lg text-ink-600">
             Прозрачная цена без скрытых платежей — набор поддержки одинаковый на любом тарифе.
           </p>

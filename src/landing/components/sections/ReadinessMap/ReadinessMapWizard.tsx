@@ -305,6 +305,7 @@ export default function ReadinessMapWizard() {
         return;
       }
       reachGoal("quiz_submitted");
+      reachGoal("form_submit_success");
       setResult(actionResult);
       setPhase("result");
     } catch (error) {
@@ -659,7 +660,7 @@ export default function ReadinessMapWizard() {
               add compensating body padding, so on short viewports it can
               render directly over this row without the extra clearance.
               256px matches the worst-case banner footprint documented in
-              FloatingWhatsApp.tsx's bottom-64 comment. */}
+              FloatingContacts.tsx's bottom-64 comment. */}
           <div className="mt-8 flex items-center justify-between border-t border-ink-100 pt-6 pb-64 sm:pb-0">
             <button
               type="button"

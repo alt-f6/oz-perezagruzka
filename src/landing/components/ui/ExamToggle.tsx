@@ -42,7 +42,7 @@ export default function ExamToggle() {
               role="radio"
               aria-checked={selected}
               onClick={() => handleSelect(option.value)}
-              className={`relative flex min-h-[58px] flex-1 items-center justify-center rounded-xl px-4 text-base font-bold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:min-h-[66px] sm:text-lg ${
+              className={`relative flex min-h-[70px] flex-1 items-center justify-center rounded-xl px-4 text-lg font-bold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:min-h-[90px] sm:text-2xl ${
                 selected ? "text-white" : "text-ink-600 hover:bg-slate-100/50 hover:text-ink-900"
               }`}
             >
@@ -58,7 +58,7 @@ export default function ExamToggle() {
                   {option.grade}
                 </span>
                 <span className="h-1 w-1 rounded-full bg-current opacity-40" aria-hidden="true" />
-                <span className="font-extrabold tracking-tight sm:text-xl">
+                <span className="font-extrabold tracking-tight sm:text-2xl">
                   {option.title}
                 </span>
               </span>

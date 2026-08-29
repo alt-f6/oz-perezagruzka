@@ -12,9 +12,9 @@ import { PAIN_POINTS_TITLE } from "@/landing/lib/exam-content";
 const PAIN_POINTS_PHOTO = "photo_2026-08-23_11-25-16.jpg";
 
 const PAIRS = [
-  { before: "Репетитора не контролирует никто.", after: "Педагогов контролируем мы сами." },
-  { before: "О проблеме узнаёте через месяцы.", after: "Отчёт каждые 2 недели." },
-  { before: "Ребёнок — один из сотни в потоке.", after: "Мини-группа, а не поток." },
+  { before: "Репетитора не контролирует никто.", after: "Контролируем сами." },
+  { before: "Узнаёте через месяцы.", after: "Отчёт раз в 2 недели." },
+  { before: "Ребёнок — один из потока.", after: "Мини-группа." },
 ];
 
 export default function PainPoints() {

@@ -3,6 +3,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 
 import Section from "@/landing/components/ui/Section";
+import { reachGoal } from "@/landing/lib/analytics";
 
 export default function FinalCTA() {
   const prefersReducedMotion = useReducedMotion();
@@ -36,6 +37,7 @@ export default function FinalCTA() {
             <div className="mt-9 flex flex-col items-center justify-center gap-4">
               <motion.a
                 href="#readiness-map"
+                onClick={() => reachGoal("cta_analysis_click")}
                 whileHover={prefersReducedMotion ? undefined : { scale: 1.02, y: -5 }}
                 whileTap={{ scale: 0.98 }}
                 transition={{ type: "spring", stiffness: 90, damping: 18 }}

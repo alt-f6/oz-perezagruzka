@@ -12,11 +12,11 @@ describe("PainPoints", () => {
     );
 
     expect(screen.getByText("Репетитора не контролирует никто.")).toBeInTheDocument();
-    expect(screen.getByText("Педагогов контролируем мы сами.")).toBeInTheDocument();
-    expect(screen.getByText("О проблеме узнаёте через месяцы.")).toBeInTheDocument();
-    expect(screen.getByText("Отчёт каждые 2 недели.")).toBeInTheDocument();
-    expect(screen.getByText("Ребёнок — один из сотни в потоке.")).toBeInTheDocument();
-    expect(screen.getByText("Мини-группа, а не поток.")).toBeInTheDocument();
+    expect(screen.getByText("Контролируем сами.")).toBeInTheDocument();
+    expect(screen.getByText("Узнаёте через месяцы.")).toBeInTheDocument();
+    expect(screen.getByText("Отчёт раз в 2 недели.")).toBeInTheDocument();
+    expect(screen.getByText("Ребёнок — один из потока.")).toBeInTheDocument();
+    expect(screen.getByText("Мини-группа.")).toBeInTheDocument();
   });
 
   it("shows the OGE title by default", () => {

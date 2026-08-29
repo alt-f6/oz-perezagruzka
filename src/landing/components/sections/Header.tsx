@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { NAV_LINKS } from "@/landing/lib/navigation";
+import { reachGoal } from "@/landing/lib/analytics";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
@@ -30,6 +31,7 @@ export default function Header() {
 
         <a
           href="#readiness-map"
+          onClick={() => reachGoal("cta_analysis_click")}
           className="hidden min-h-[60px] items-center rounded-xl bg-brand-600 px-6 text-base font-bold text-white shadow-md shadow-brand-600/25 transition-shadow hover:bg-brand-700 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 md:inline-flex"
         >
           Записаться на бесплатный разбор
@@ -78,7 +80,10 @@ export default function Header() {
             ))}
             <a
               href="#readiness-map"
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                reachGoal("cta_analysis_click");
+              }}
               className="mt-2 flex min-h-[60px] items-center justify-center rounded-xl bg-brand-600 px-4 text-center text-base font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
             >
               Записаться на бесплатный разбор

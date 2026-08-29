@@ -5,6 +5,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { getOrCreateSessionId } from "@/landing/lib/session-id";
+import { reachGoal } from "@/landing/lib/analytics";
 
 const MAX_USER_MESSAGES = 3;
 
@@ -128,7 +129,7 @@ export default function AITutor() {
   return (
     <div className="relative overflow-hidden py-12 md:py-20 bg-transparent">
       <div className="mx-auto mb-8 max-w-2xl px-6 text-center md:mb-12">
-        <h3 className="font-extrabold leading-tight tracking-tight text-brand-600 text-balance text-3xl md:text-4xl">
+        <h3 className="font-extrabold leading-tight tracking-tight text-brand-600 text-balance text-4xl md:text-[44px]">
           Смотрите, как работает ИИ-репетитор
         </h3>
         <p className="mt-3 text-base leading-relaxed text-ink-600 font-medium md:text-lg">
@@ -278,9 +279,10 @@ export default function AITutor() {
               </p>
               <a
                 href="#readiness-map"
+                onClick={() => reachGoal("cta_analysis_click")}
                 className="inline-flex min-h-[52px] items-center rounded-xl bg-brand-600 px-6 text-sm font-bold text-white shadow-md shadow-brand-600/25 transition-all hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 active:scale-95"
               >
-                Пройти разбор с живым педагогом
+                Записаться на бесплатный разбор
               </a>
             </div>
           ) : (

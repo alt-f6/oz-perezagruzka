@@ -11,10 +11,30 @@ import {
 } from "@/landing/lib/exam-content";
 
 const TRUST_BADGES = [
-  { label: "9 лет практики", className: "bg-[#FF6EB4] text-[#111111]" },
-  { label: "80% родителей — по рекомендации", className: "bg-[#AAEE00] text-[#111111]" },
-  { label: "Лицензия", className: "bg-[#0055FF] text-white" },
-  { label: "Налоговый вычет", className: "bg-white text-[#111111] border border-slate-300" },
+  {
+    label: "9 лет практики",
+    className: "bg-[#0055FF] text-white",
+    radius: "42% 58% 63% 37% / 41% 44% 56% 59%",
+    from: { opacity: 0, x: -80, y: -40 },
+  },
+  {
+    label: "80% родителей — по рекомендации",
+    className: "bg-[#AAEE00] text-[#111111]",
+    radius: "58% 42% 37% 63% / 44% 41% 59% 56%",
+    from: { opacity: 0, x: 80, y: -40 },
+  },
+  {
+    label: "Лицензия",
+    className: "bg-[#FF6EB4] text-[#111111]",
+    radius: "63% 37% 42% 58% / 56% 59% 41% 44%",
+    from: { opacity: 0, x: -80, y: 40 },
+  },
+  {
+    label: "Налоговый вычет",
+    className: "bg-white text-[#111111] border-2 border-[#111111]",
+    radius: "37% 63% 58% 42% / 59% 56% 44% 41%",
+    from: { opacity: 0, x: 80, y: 40 },
+  },
 ];
 
 export default function Hero() {
@@ -24,7 +44,7 @@ export default function Hero() {
   const sublistItems = HERO_SUBLIST_ITEMS[exam];
 
   return (
-    <section className="relative overflow-hidden bg-transparent px-6 py-16 md:py-24 text-ink-900">
+    <section className="relative overflow-hidden bg-transparent px-6 pt-16 pb-28 md:py-24 text-ink-900">
       <div className="relative z-10 mx-auto flex max-w-6xl flex-col items-center gap-12 lg:flex-row lg:items-center">
 
         <div className="flex-1 space-y-6 text-center md:text-left">
@@ -76,28 +96,26 @@ export default function Hero() {
           <div className="flex flex-col gap-3 sm:flex-row sm:justify-center md:justify-start pt-1">
             <motion.a
               href="#readiness-map"
-              onClick={() => reachGoal("quiz_start")}
+              onClick={() => reachGoal("cta_analysis_click")}
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.98 }}
               transition={{ type: "spring", stiffness: 90, damping: 18 }}
-              className="group relative flex min-h-[64px] items-center justify-center overflow-hidden rounded-xl bg-brand-600 px-8 py-4 text-center text-lg md:text-xl font-bold text-white shadow-lg shadow-brand-600/25 transition-all hover:bg-brand-700 hover:shadow-xl hover:shadow-brand-600/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:min-h-[72px]"
+              className="group relative flex min-h-[70px] items-center justify-center overflow-hidden rounded-xl bg-brand-600 px-8 py-4 text-center text-xl md:text-2xl font-bold text-white shadow-lg shadow-brand-600/25 transition-all hover:bg-brand-700 hover:shadow-xl hover:shadow-brand-600/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:min-h-[80px]"
             >
               Записаться на бесплатный разбор
             </motion.a>
           </div>
 
-          <p className="max-w-lg text-sm font-semibold text-ink-500">
-            Целевой балл — в договоре. Не выводим на него — возвращаем деньги
-          </p>
-
-          <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2 md:justify-start">
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-6 md:justify-start">
             {TRUST_BADGES.map((badge, i) => (
               <motion.div
                 key={badge.label}
-                initial={prefersReducedMotion ? undefined : { opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, ease: "easeOut", delay: prefersReducedMotion ? 0 : i * 0.06 }}
-                className={`inline-flex items-center whitespace-nowrap rounded-full px-4 py-2 font-sans text-xs md:text-sm font-bold shadow-sm ${badge.className}`}
+                initial={prefersReducedMotion ? undefined : badge.from}
+                whileInView={{ opacity: 1, x: 0, y: 0 }}
+                viewport={{ once: true, margin: "-40px" }}
+                transition={{ type: "spring", stiffness: 70, damping: 14, delay: prefersReducedMotion ? 0 : i * 0.1 }}
+                style={{ borderRadius: badge.radius }}
+                className={`inline-flex max-w-[170px] items-center justify-center whitespace-normal px-6 py-5 text-center font-sans text-sm md:text-base font-bold leading-tight shadow-md ${badge.className}`}
               >
                 {badge.label}
               </motion.div>

@@ -7,6 +7,7 @@ import Section from "@/landing/components/ui/Section";
 import { fadeInUp } from "@/landing/components/ui/motion";
 import { useExam } from "@/landing/lib/exam-context";
 import { PRICING_TIERS, type PricingTierContent } from "@/landing/lib/exam-content";
+import { reachGoal } from "@/landing/lib/analytics";
 
 const FEATURES = [
   "Живые занятия в мини-группах",
@@ -111,6 +112,7 @@ export default function Pricing() {
 
             <a
               href="#readiness-map"
+              onClick={() => reachGoal("cta_analysis_click")}
               className="mt-8 flex min-h-[60px] items-center justify-center rounded-2xl bg-brand-600 px-6 text-center text-lg font-bold text-white shadow-md shadow-brand-900/20 transition-all duration-300 hover:-translate-y-1 hover:bg-brand-700 hover:shadow-lg active:scale-98"
             >
               {PRICING_BUTTON_LABEL}

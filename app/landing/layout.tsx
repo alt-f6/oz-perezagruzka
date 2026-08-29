@@ -3,12 +3,11 @@ import type { Metadata } from "next";
 import { MotionConfig } from "framer-motion";
 import Script from "next/script";
 import ConsentBanner from "@/landing/components/ui/ConsentBannerClient";
-import FloatingWhatsApp from "@/landing/components/ui/FloatingWhatsApp";
-import FloatingTelegram from "@/landing/components/ui/FloatingTelegram";
+import FloatingContacts from "@/landing/components/ui/FloatingContacts";
 import { ExamProvider } from "@/landing/lib/exam-context";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://perezagruzka-edu.ru";
-const ymCounterId = process.env.NEXT_PUBLIC_YM_COUNTER_ID;
+const ymCounterId = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID ?? process.env.NEXT_PUBLIC_YM_COUNTER_ID;
 
 const title = "Перезагрузка — Подготовка к ОГЭ с живым учителем и ИИ-репетитором";
 const description =
@@ -73,7 +72,7 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
             m[i].l=1*new Date();for(var j=0;j<document.scripts.length;j++){if(document.scripts[j].src===r){return}}
             k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
             (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
-            ym(${ymCounterId}, "init", { clickmap: true, trackLinks: true, accurateTrackBounce: true });
+            ym(${ymCounterId}, "init", { clickmap: true, trackLinks: true, accurateTrackBounce: true, webvisor: true });
           `}
         </Script>
       )}
@@ -82,8 +81,7 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
       <MotionConfig reducedMotion="user">
         <ExamProvider>{children}</ExamProvider>
         <ConsentBanner />
-        <FloatingWhatsApp />
-        <FloatingTelegram />
+        <FloatingContacts />
       </MotionConfig>
     </div>
   );

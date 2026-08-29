@@ -1,15 +1,15 @@
 // Single source of truth for the organization's legal requisites and the
 // current legal-document version, so /pep, /terms, /privacy, and the footer
 // disclaimer can never drift out of sync with each other.
-export const ENTITY_NAME = "ЧУДО «Перезагрузка ХМ»";
+export const ENTITY_NAME = "ЧУДО «Образовательный центр «Перезагрузка»";
 export const ENTITY_FULL_NAME =
-  "Частное учреждение дополнительного образования «Перезагрузка ХМ»";
+  "Частное учреждение дополнительного образования «Образовательный центр «Перезагрузка»";
 
 export const INN = "8601058874";
 export const KPP = "860101001";
 export const OGRN = "1168600051443";
 
-export const LICENSE_NUMBER = "№ 3256 от 4 марта 2019 г.";
+export const LICENSE_NUMBER = "№ 3256 от 04.03.2019";
 export const LICENSE_ISSUER =
   "Служба по контролю и надзору в сфере образования по ХМАО–Югре";
 
@@ -38,7 +38,7 @@ export const BANK_CORR_ACCOUNT = "30101 810 8 0000 0000651";
 // Bumped whenever the wording of /pep, /terms, or /privacy materially
 // changes — recorded on every ConsentLog row so a signed document's version
 // at the time of signing can always be reconstructed.
-export const LEGAL_DOCUMENT_VERSION = "2026-08-08";
+export const LEGAL_DOCUMENT_VERSION = "2026-08-20";
 
 // Human-readable Russian rendering of LEGAL_DOCUMENT_VERSION, so /privacy,
 // /terms, and /pep display one date that can never drift from the version

@@ -31,7 +31,7 @@ export default function FinalCTA() {
             </span>
 
             <h2 className="mt-5 font-bold tracking-tight text-white text-balance">
-              Начните с бесплатного разбора —<br className="hidden sm:block" /> а решение примете сами
+              Начните с бесплатного разбора —<br className="hidden sm:block" /> а решение примете позже
             </h2>
 
             <div className="mt-9 flex flex-col items-center justify-center gap-4">

@@ -129,10 +129,10 @@ export default function AITutor() {
   return (
     <div className="relative overflow-hidden py-12 md:py-20 bg-transparent">
       <div className="mx-auto mb-8 max-w-2xl px-6 text-center md:mb-12">
-        <h3 className="font-extrabold leading-tight tracking-tight text-brand-600 text-balance text-4xl md:text-[44px]">
+        <h3 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold text-[#0055FF] tracking-tight leading-tight text-balance">
           Смотрите, как работает ИИ-репетитор
         </h3>
-        <p className="mt-3 text-base leading-relaxed text-ink-600 font-medium md:text-lg">
+        <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-ink-900 font-bold leading-relaxed max-w-4xl mx-auto mt-4">
           Персональный виртуальный преподаватель, который моментально объясняет сложные задачи 24/7 и адаптируется под уровень ученика.
         </p>
 
@@ -140,7 +140,7 @@ export default function AITutor() {
           {STATUS_BADGES.map((badge) => (
             <span
               key={badge.label}
-              className="inline-flex items-center gap-1.5 rounded-full border border-brand-200/80 bg-white/90 px-3.5 py-1.5 text-xs md:text-sm font-semibold text-ink-700 shadow-sm backdrop-blur-sm"
+              className="inline-flex items-center gap-1.5 text-sm md:text-base lg:text-lg font-bold px-5 py-2.5 rounded-full border-2 border-brand-200 bg-white shadow-md text-ink-700"
             >
               <span aria-hidden="true">{badge.icon}</span>
               {badge.label}

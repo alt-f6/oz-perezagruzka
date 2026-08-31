@@ -13,8 +13,6 @@ vi.mock("next/dynamic", () => ({
 vi.mock("@/landing/components/sections/Header", () => ({ default: () => null }));
 vi.mock("@/landing/components/ui/ExamToggle", () => ({ default: () => null }));
 vi.mock("@/landing/components/sections/Hero", () => ({ default: () => null }));
-vi.mock("@/landing/components/sections/PainPoints", () => ({ default: () => null }));
-vi.mock("@/landing/components/sections/AttestatPredictable", () => ({ default: () => null }));
 vi.mock("@/landing/components/sections/Solution", () => ({ default: () => null }));
 vi.mock("@/landing/components/sections/StudentCarousel", () => ({ default: () => null }));
 vi.mock("@/landing/components/sections/YandexReviews", () => ({ default: () => null }));

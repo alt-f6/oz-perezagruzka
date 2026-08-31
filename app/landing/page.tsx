@@ -3,8 +3,6 @@ import type { Metadata } from "next";
 import Header from "@/landing/components/sections/Header";
 import ExamToggle from "@/landing/components/ui/ExamToggle";
 import Hero from "@/landing/components/sections/Hero";
-import PainPoints from "@/landing/components/sections/PainPoints";
-import AttestatPredictable from "@/landing/components/sections/AttestatPredictable";
 import Solution from "@/landing/components/sections/Solution";
 import StudentCarousel from "@/landing/components/sections/StudentCarousel";
 import YandexReviews from "@/landing/components/sections/YandexReviews";
@@ -130,8 +128,6 @@ export default function Home() {
         {/* Контентная часть */}
         <div className="relative z-10">
           <Hero />
-          <PainPoints />
-          <AttestatPredictable />
           <Solution />
           <StudentCarousel />
           <YandexReviews />

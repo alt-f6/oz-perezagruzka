@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import { withApiErrors } from "@/lms/server/http/api-guard";
+import { parseAndNormalizeVideoUrl } from "@/lms/lib/video-url";
 import type { LessonMedia } from "@prisma/client";
 
 export const runtime = "nodejs";
+
+const BAD_VIDEO_URL_MESSAGE =
+  "Некорректная ссылка на видео. Поддерживаются VK Видео, RuTube, Kinescope, YouTube, Vimeo и прямые MP4 файлы";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -12,24 +16,6 @@ async function readLessonId(ctx: Ctx) {
   const { id } = await ctx.params;
   if (!id || typeof id !== "string") return null;
   return id;
-}
-
-function normalize(url: string) {
-  const raw = url.trim();
-
-  const yt =
-    raw.match(/youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/) ||
-    raw.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
-  if (yt) {
-    return { provider: "youtube", embed_url: `https://www.youtube.com/embed/${yt[1]}`, url: raw };
-  }
-
-  const vimeo = raw.match(/vimeo\.com\/(\d+)/);
-  if (vimeo) {
-    return { provider: "vimeo", embed_url: `https://player.vimeo.com/video/${vimeo[1]}`, url: raw };
-  }
-
-  throw new Error("UNSUPPORTED");
 }
 
 function toMediaJson(media: LessonMedia) {
@@ -74,11 +60,12 @@ export const POST = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
   const urlRaw = typeof body.url === "string" ? body.url : "";
   const is_public = body.is_public === undefined ? true : Boolean(body.is_public);
 
-  let norm;
-  try {
-    norm = normalize(urlRaw);
-  } catch {
-    return NextResponse.json({ ok: false, error: "bad_video_url" }, { status: 400 });
+  const norm = parseAndNormalizeVideoUrl(urlRaw);
+  if (!norm.isValid) {
+    return NextResponse.json(
+      { ok: false, error: "bad_video_url", message: BAD_VIDEO_URL_MESSAGE },
+      { status: 400 }
+    );
   }
 
   const max = await db.lessonMedia.aggregate({
@@ -92,9 +79,9 @@ export const POST = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
       lessonId,
       kind: "video",
       title: title || null,
-      url: norm.url,
+      url: norm.originalUrl,
       provider: norm.provider,
-      embedUrl: norm.embed_url,
+      embedUrl: norm.embedUrl,
       order,
       isPublic: is_public,
     },

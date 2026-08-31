@@ -77,20 +77,28 @@ describe("POST /api/ai/tutor", () => {
     }
   });
 
-  it("orders system messages core → toc → topic for prefix caching", async () => {
+  it("passes topic context via the system option, not inside messages", async () => {
     await POST(makeRequest({ topicCode: "1.4", messages: [userMessage] }));
 
     expect(loadTopicMock).toHaveBeenCalledWith("1.4");
     const call = streamTextMock.mock.calls[0][0] as {
-      messages: { role: string; content: string }[];
+      system: string;
+      messages: { role: string; content: unknown }[];
     };
-    expect(call.messages[0]).toEqual({ role: "system", content: "CORE_PROMPT" });
-    expect(call.messages[1]).toEqual({ role: "system", content: "TOC_CONTENT" });
-    expect(call.messages[2].role).toBe("system");
-    expect(call.messages[2].content).toContain("TOPIC_MATERIAL");
-    expect(call.messages[2].content).toContain("1.4");
-    // The user turn follows the system prefix.
-    expect(call.messages[3]).toMatchObject({ role: "user" });
+
+    // Compiled instruction block, ordered core → toc → topic for prefix caching.
+    expect(typeof call.system).toBe("string");
+    const coreAt = call.system.indexOf("CORE_PROMPT");
+    const tocAt = call.system.indexOf("TOC_CONTENT");
+    const topicAt = call.system.indexOf("TOPIC_MATERIAL");
+    expect(coreAt).toBeGreaterThanOrEqual(0);
+    expect(coreAt).toBeLessThan(tocAt);
+    expect(tocAt).toBeLessThan(topicAt);
+    expect(call.system).toContain("1.4");
+
+    // messages must contain ONLY client turns — no system role may leak in.
+    expect(call.messages.every((m) => m.role !== "system")).toBe(true);
+    expect(call.messages[0]).toMatchObject({ role: "user" });
   });
 
   it("returns 400 when the pack cannot be loaded", async () => {

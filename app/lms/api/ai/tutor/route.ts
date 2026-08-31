@@ -1,4 +1,4 @@
-import { streamText, convertToModelMessages, type ModelMessage, type UIMessage } from "ai";
+import { streamText, convertToModelMessages, type UIMessage } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 
 import { requireRole } from "@/shared/lib/rbac";
@@ -62,6 +62,10 @@ export async function POST(req: Request) {
     return Response.json({ error: "Тема недоступна." }, { status: 400 });
   }
 
+  // The AI SDK forbids `{ role: "system" }` inside `messages` — system content
+  // must go through the dedicated `system` option. We compile core + TOC +
+  // current topic into one instruction block.
+  //
   // Ordered for DeepSeek automatic prefix caching: the most stable content
   // comes first so the longest possible token prefix is shared across requests.
   //   core  → identical for every request
@@ -69,22 +73,25 @@ export async function POST(req: Request) {
   //   topic → identical for every request on the same topic
   // Only the trailing conversation varies, so switching topics still reuses the
   // core+toc prefix, and repeat turns on one topic reuse core+toc+topic.
-  const systemMessages: ModelMessage[] = [
-    { role: "system", content: core },
-    { role: "system", content: toc },
-    {
-      role: "system",
-      content: `Материал текущей темы ${topicCode}. Отвечай строго в её рамках.\n\n${topicMaterial}`,
-    },
-  ];
+  const systemPrompt = [
+    core,
+    toc,
+    `Материал текущей темы ${topicCode}. Отвечай строго в её рамках.\n\n${topicMaterial}`,
+  ].join("\n\n");
 
-  const conversation = await convertToModelMessages(messages as unknown as UIMessage[]);
+  // `messages` must carry only client turns (user/assistant). convertToModelMessages
+  // never emits system turns, but we filter defensively so no system content can
+  // leak into the messages field.
+  const conversation = (
+    await convertToModelMessages(messages as unknown as UIMessage[])
+  ).filter((m) => m.role !== "system");
 
   const result = streamText({
     // DeepSeek only implements Chat Completions, not OpenAI's Responses API,
     // so the model must be selected via .chat() explicitly.
     model: deepseek.chat(MODEL_ID),
-    messages: [...systemMessages, ...conversation],
+    system: systemPrompt,
+    messages: conversation,
     timeout: { totalMs: CHAT_TIMEOUT_MS },
     onError: async ({ error }) => {
       logger.error("AI tutor stream error", error);

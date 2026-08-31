@@ -66,9 +66,12 @@ export function VideoPlayer({
 }: Props) {
   const containerId = `yt-player-${mediaId}`;
   const playerRef = useRef<any>(null);
+  const lastDirectSyncRef = useRef(0);
   const [error, setError] = useState<string | null>(null);
 
   const isYouTube = provider === "youtube";
+  const isDirect = provider === "direct";
+  const isGenericEmbed = !isYouTube && !isDirect;
   const videoId = isYouTube ? extractYouTubeId(embedUrl) : null;
 
   useEffect(() => {
@@ -124,6 +127,32 @@ export function VideoPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isYouTube, videoId, containerId, lessonId]);
 
+  useEffect(() => {
+    if (!isGenericEmbed) return;
+
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+      void syncPlaybackPosition(lessonId, initialPositionSeconds + elapsed);
+    }, SYNC_INTERVAL_MS);
+
+    return () => clearInterval(timer);
+  }, [isGenericEmbed, lessonId, initialPositionSeconds]);
+
+  function handleDirectTimeUpdate(e: React.SyntheticEvent<HTMLVideoElement>) {
+    const now = Date.now();
+    if (now - lastDirectSyncRef.current < SYNC_INTERVAL_MS) return;
+    lastDirectSyncRef.current = now;
+    void syncPlaybackPosition(lessonId, e.currentTarget.currentTime);
+  }
+
+  function handleDirectLoadedMetadata(e: React.SyntheticEvent<HTMLVideoElement>) {
+    if (initialPositionSeconds > 0) {
+      e.currentTarget.currentTime = initialPositionSeconds;
+    }
+  }
+
   if (isYouTube) {
     return (
       <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-border bg-black">
@@ -138,20 +167,33 @@ export function VideoPlayer({
     );
   }
 
-  return (
-    <div className="flex flex-col gap-2">
+  if (isDirect) {
+    return (
       <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-border bg-black">
-        <iframe
+        <video
+          controls
+          playsInline
+          className="h-full w-full"
           src={embedUrl}
-          className="h-full w-full border-0"
-          allow="autoplay; encrypted-media"
-          allowFullScreen
-          title={title ?? "video"}
-        />
+          onTimeUpdate={handleDirectTimeUpdate}
+          onLoadedMetadata={handleDirectLoadedMetadata}
+          onEnded={() => void setLessonCompletion(lessonId, true)}
+        >
+          {title}
+        </video>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Прогресс просмотра не отслеживается для этого источника.
-      </p>
+    );
+  }
+
+  return (
+    <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-border bg-black">
+      <iframe
+        src={embedUrl}
+        className="h-full w-full border-0"
+        allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+        allowFullScreen
+        title={title ?? "video"}
+      />
     </div>
   );
 }

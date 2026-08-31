@@ -8,6 +8,21 @@ import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/shared/components/ui/card";
 import { Input } from "@/shared/components/ui/input";
 
+import type { VideoProvider } from "@/lms/lib/video-url";
+
+const PROVIDER_LABELS: Record<VideoProvider, string> = {
+  vk: "VK Видео",
+  rutube: "RuTube",
+  kinescope: "Kinescope",
+  youtube: "YouTube",
+  vimeo: "Vimeo",
+  direct: "MP4",
+};
+
+function providerLabel(provider: string): string {
+  return PROVIDER_LABELS[provider as VideoProvider] ?? provider;
+}
+
 type Media = {
   id: string;
   lesson_id: string;
@@ -36,7 +51,7 @@ export function LessonVideoManager({ lessonId }: { lessonId: string }) {
     const j = await r.json().catch(() => null);
 
     if (!r.ok || !j?.ok) {
-      setMediaErr(j?.message || j?.error || "Failed to load media");
+      setMediaErr(j?.message || j?.error || "Не удалось загрузить видео");
       setMediaLoading(false);
       setMedia([]);
       return;
@@ -55,7 +70,7 @@ export function LessonVideoManager({ lessonId }: { lessonId: string }) {
     setMediaErr(null);
     const url = addUrl.trim();
     if (!url) {
-      setMediaErr("URL is required");
+      setMediaErr("Ссылка обязательна");
       return;
     }
 
@@ -67,7 +82,7 @@ export function LessonVideoManager({ lessonId }: { lessonId: string }) {
 
     const j = await r.json().catch(() => null);
     if (!r.ok || !j?.ok) {
-      setMediaErr(j?.message || j?.error || "Failed to add video");
+      setMediaErr(j?.message || j?.error || "Не удалось добавить видео");
       return;
     }
 
@@ -90,7 +105,7 @@ export function LessonVideoManager({ lessonId }: { lessonId: string }) {
 
     const j = await r.json().catch(() => null);
     if (!r.ok || !j?.ok) {
-      setMediaErr(j?.message || j?.error || "Failed to update video");
+      setMediaErr(j?.message || j?.error || "Не удалось обновить видео");
       return;
     }
 
@@ -104,7 +119,7 @@ export function LessonVideoManager({ lessonId }: { lessonId: string }) {
     const j = await r.json().catch(() => null);
 
     if (!r.ok || !j?.ok) {
-      setMediaErr(j?.message || j?.error || "Failed to delete video");
+      setMediaErr(j?.message || j?.error || "Не удалось удалить видео");
       return;
     }
 
@@ -127,11 +142,13 @@ export function LessonVideoManager({ lessonId }: { lessonId: string }) {
     <Card>
       <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
         <div>
-          <CardTitle>Lesson Video</CardTitle>
-          <CardDescription>Add YouTube or Vimeo links.</CardDescription>
+          <CardTitle>Видео урока</CardTitle>
+          <CardDescription>
+            Вставьте ссылку на VK Видео, RuTube, Kinescope, YouTube или прямую ссылку MP4
+          </CardDescription>
         </div>
         <Button variant="outline" size="sm" onClick={loadMedia} loading={mediaLoading}>
-          Refresh
+          Обновить
         </Button>
       </CardHeader>
 
@@ -140,15 +157,15 @@ export function LessonVideoManager({ lessonId }: { lessonId: string }) {
           <Input
             value={addTitle}
             onChange={(e) => setAddTitle(e.target.value)}
-            placeholder="Title (optional)"
+            placeholder="Название (необязательно)"
           />
           <Input
             value={addUrl}
             onChange={(e) => setAddUrl(e.target.value)}
-            placeholder="https://youtu.be/... or https://vimeo.com/..."
+            placeholder="https://vkvideo.ru/video-... или https://rutube.ru/video/..."
           />
           <Button type="button" onClick={addMedia}>
-            Add
+            Добавить видео
           </Button>
         </div>
 
@@ -163,38 +180,41 @@ export function LessonVideoManager({ lessonId }: { lessonId: string }) {
 
         <div className="mt-4 flex flex-col gap-3">
           {mediaLoading && media.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Loading videos...</p>
+            <p className="text-sm text-muted-foreground">Загрузка видео...</p>
           ) : null}
           {!mediaLoading && media.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No videos yet</p>
+            <p className="text-sm text-muted-foreground">К этому уроку видео пока не прикреплено</p>
           ) : null}
 
           {media.map((m) => (
             <div key={m.id} className="rounded-2xl border border-border bg-black/10 p-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate font-bold">{m.title || <span className="text-muted-foreground">(untitled)</span>}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    #{m.order} · {m.provider}
+                  <p className="truncate font-bold">
+                    {m.title || <span className="text-muted-foreground">(без названия)</span>}
                   </p>
+                  <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>#{m.order}</span>
+                    <Badge variant="outline">{providerLabel(m.provider)}</Badge>
+                  </div>
                 </div>
 
                 <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
-                  <Button variant="outline" size="icon" onClick={() => moveUp(m)} aria-label="Move up">
+                  <Button variant="outline" size="icon" onClick={() => moveUp(m)} aria-label="Переместить вверх">
                     <ArrowUp />
                   </Button>
-                  <Button variant="outline" size="icon" onClick={() => moveDown(m)} aria-label="Move down">
+                  <Button variant="outline" size="icon" onClick={() => moveDown(m)} aria-label="Переместить вниз">
                     <ArrowDown />
                   </Button>
                   <Button
                     variant="outline"
                     size="icon"
                     onClick={() => patchMedia(m.id, { is_public: !m.is_public })}
-                    aria-label={m.is_public ? "Hide" : "Show"}
+                    aria-label={m.is_public ? "Скрыть" : "Показать"}
                   >
                     {m.is_public ? <Eye /> : <EyeOff />}
                   </Button>
-                  <Button variant="destructive" size="icon" onClick={() => deleteMedia(m.id)} aria-label="Delete">
+                  <Button variant="destructive" size="icon" onClick={() => deleteMedia(m.id)} aria-label="Удалить">
                     <Trash2 />
                   </Button>
                 </div>
@@ -206,7 +226,7 @@ export function LessonVideoManager({ lessonId }: { lessonId: string }) {
                 <iframe
                   src={m.embed_url}
                   className="h-full w-full border-0"
-                  allow="accelerometer; autoplay; encrypted-media; picture-in-picture"
+                  allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                   allowFullScreen
                   title={m.title ?? "video"}
                 />

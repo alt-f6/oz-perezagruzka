@@ -192,3 +192,33 @@ describe("parseAndNormalizeVideoUrl", () => {
     });
   });
 });
+
+describe("Hostname anchoring (regression)", () => {
+  it("rejects a malicious host with a vimeo.com substring in the query string", () => {
+    const result = parseAndNormalizeVideoUrl(
+      "https://malicious.example.com/?redirect=https://vimeo.com/123456"
+    );
+    expect(result.isValid).toBe(false);
+  });
+
+  it("rejects a malicious host with a vk.com substring in the path", () => {
+    const result = parseAndNormalizeVideoUrl(
+      "https://evil.example.com/vk.com/video-123456_456789"
+    );
+    expect(result.isValid).toBe(false);
+  });
+
+  it("rejects a malicious host with a rutube.ru substring in the query string", () => {
+    const result = parseAndNormalizeVideoUrl(
+      "https://malicious.example.com/?u=rutube.ru/video/8a4c1c4b3f6f5e2d1a0b9c8d7e6f5a4b"
+    );
+    expect(result.isValid).toBe(false);
+  });
+
+  it("rejects a malicious host with a kinescope.io substring in the query string", () => {
+    const result = parseAndNormalizeVideoUrl(
+      "https://malicious.example.com/?u=kinescope.io/abcDEF123456"
+    );
+    expect(result.isValid).toBe(false);
+  });
+});

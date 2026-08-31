@@ -13,17 +13,20 @@ function toUrl(raw: string): URL | null {
 }
 
 function parseVk(raw: string): string | null {
-  const extMatch = raw.match(/vk\.com\/video_ext\.php\?([^\s"']+)/i);
-  if (extMatch) {
-    const params = new URLSearchParams(extMatch[1]);
-    const oid = params.get("oid");
-    const id = params.get("id");
-    const hash = params.get("hash");
+  const url = toUrl(raw);
+  if (!url) return null;
+  const host = url.hostname.replace(/^www\./i, "").toLowerCase();
+  if (host !== "vk.com" && host !== "vkvideo.ru") return null;
+
+  if (url.pathname === "/video_ext.php") {
+    const oid = url.searchParams.get("oid");
+    const id = url.searchParams.get("id");
+    const hash = url.searchParams.get("hash");
     if (!oid || !id) return null;
     return `https://vk.com/video_ext.php?oid=${oid}&id=${id}${hash ? `&hash=${hash}` : ""}`;
   }
 
-  const idMatch = raw.match(/(?:vk\.com|vkvideo\.ru)\/video(-?\d+)_(\d+)(?:_([a-zA-Z0-9]+))?/i);
+  const idMatch = url.pathname.match(/^\/video(-?\d+)_(\d+)(?:_([a-zA-Z0-9]+))?/);
   if (idMatch) {
     const [, oid, id, hash] = idMatch;
     return `https://vk.com/video_ext.php?oid=${oid}&id=${id}${hash ? `&hash=${hash}` : ""}`;
@@ -33,12 +36,22 @@ function parseVk(raw: string): string | null {
 }
 
 function parseRutube(raw: string): string | null {
-  const match = raw.match(/rutube\.ru\/(?:video|play\/embed)\/([a-zA-Z0-9]+)/i);
+  const url = toUrl(raw);
+  if (!url) return null;
+  const host = url.hostname.replace(/^www\./i, "").toLowerCase();
+  if (host !== "rutube.ru") return null;
+
+  const match = url.pathname.match(/^\/(?:video|play\/embed)\/([a-zA-Z0-9]+)/);
   return match ? `https://rutube.ru/play/embed/${match[1]}` : null;
 }
 
 function parseKinescope(raw: string): string | null {
-  const match = raw.match(/kinescope\.io\/(?:embed\/)?([a-zA-Z0-9_-]+)/i);
+  const url = toUrl(raw);
+  if (!url) return null;
+  const host = url.hostname.replace(/^www\./i, "").toLowerCase();
+  if (host !== "kinescope.io") return null;
+
+  const match = url.pathname.match(/^\/(?:embed\/)?([a-zA-Z0-9_-]+)/);
   return match ? `https://kinescope.io/embed/${match[1]}` : null;
 }
 
@@ -69,7 +82,12 @@ function parseYoutube(raw: string): string | null {
 }
 
 function parseVimeo(raw: string): string | null {
-  const match = raw.match(/vimeo\.com\/(\d+)/i);
+  const url = toUrl(raw);
+  if (!url) return null;
+  const host = url.hostname.replace(/^www\./i, "").toLowerCase();
+  if (host !== "vimeo.com") return null;
+
+  const match = url.pathname.match(/^\/(\d+)/);
   return match ? `https://player.vimeo.com/video/${match[1]}` : null;
 }
 

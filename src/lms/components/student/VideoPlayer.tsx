@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { setLessonCompletion, syncPlaybackPosition } from "../../../../app/lms/student/lessons/[id]/actions";
+import Hls from "hls.js";
 
 declare global {
   interface Window {
@@ -73,6 +74,8 @@ export function VideoPlayer({
   const isDirect = provider === "direct";
   const isGenericEmbed = !isYouTube && !isDirect;
   const videoId = isYouTube ? extractYouTubeId(embedUrl) : null;
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const isHls = isDirect && /\.m3u8(\?|#|$)/i.test(embedUrl);
 
   useEffect(() => {
     if (!isYouTube || !videoId) return;
@@ -140,6 +143,33 @@ export function VideoPlayer({
     return () => clearInterval(timer);
   }, [isGenericEmbed, lessonId, initialPositionSeconds]);
 
+  useEffect(() => {
+    if (!isHls) return;
+
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = embedUrl;
+      return;
+    }
+
+    if (Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(embedUrl);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (data.fatal) setError("Не удалось загрузить видео");
+      });
+
+      return () => {
+        hls.destroy();
+      };
+    }
+
+    setError("Ваш браузер не поддерживает воспроизведение этого видео");
+  }, [isHls, embedUrl]);
+
   function handleDirectTimeUpdate(e: React.SyntheticEvent<HTMLVideoElement>) {
     const now = Date.now();
     if (now - lastDirectSyncRef.current < SYNC_INTERVAL_MS) return;
@@ -151,6 +181,10 @@ export function VideoPlayer({
     if (initialPositionSeconds > 0) {
       e.currentTarget.currentTime = initialPositionSeconds;
     }
+  }
+
+  function handleDirectError() {
+    setError("Не удалось загрузить видео");
   }
 
   if (isYouTube) {
@@ -171,16 +205,24 @@ export function VideoPlayer({
     return (
       <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-border bg-black">
         <video
+          ref={videoRef}
           controls
           playsInline
           className="h-full w-full"
-          src={embedUrl}
+          src={isHls ? undefined : embedUrl}
           onTimeUpdate={handleDirectTimeUpdate}
           onLoadedMetadata={handleDirectLoadedMetadata}
           onEnded={() => void setLessonCompletion(lessonId, true)}
+          onError={handleDirectError}
         >
           {title}
         </video>
+
+        {error ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-4 text-center text-sm text-destructive-foreground">
+            {error}
+          </div>
+        ) : null}
       </div>
     );
   }

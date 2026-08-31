@@ -94,6 +94,7 @@ function parseVimeo(raw: string): string | null {
 function parseDirect(raw: string): string | null {
   const url = toUrl(raw);
   if (!url) return null;
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
   return /\.(mp4|webm|m3u8)$/i.test(url.pathname) ? raw : null;
 }
 

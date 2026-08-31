@@ -170,6 +170,11 @@ describe("parseAndNormalizeVideoUrl", () => {
         expect(result.embedUrl).toBe("https://cdn.example.com/lessons/intro.m3u8?token=abc");
       }
     });
+
+    it("rejects a non-http(s) scheme even with a media extension", () => {
+      const result = parseAndNormalizeVideoUrl("ftp://cdn.example.com/lessons/intro.mp4");
+      expect(result.isValid).toBe(false);
+    });
   });
 
   describe("Invalid input", () => {

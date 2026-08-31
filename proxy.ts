@@ -48,6 +48,28 @@ function isStaticAssetPath(pathname: string) {
   return /\.[a-zA-Z0-9]+$/.test(pathname);
 }
 
+// Root-level icons/media (favicon.ico, icon.svg, apple-touch-icon.png, ...)
+// live at the true site root in public/ and app/, not namespaced under
+// public/<app>/**. Browsers request these by fixed, un-namespaced paths
+// (e.g. every host's <link rel="icon"> points at /favicon.ico), so on
+// crm./lms. hosts they must never be rewritten to /crm/favicon.ico or
+// /lms/favicon.ico -- those paths don't exist and the request would 404.
+// This intentionally takes priority over the per-app rewrite for any
+// matching extension; per-app static assets that still need the
+// /crm/** or /lms/** rewrite must live under their own namespaced path
+// instead of relying on an un-namespaced request.
+const ROOT_STATIC_ASSET_PATHS = new Set([
+  "/favicon.ico",
+  "/icon.svg",
+  "/favicon.svg",
+  "/apple-touch-icon.png",
+]);
+const ROOT_STATIC_ASSET_EXTENSIONS = /\.(?:svg|png|jpg|jpeg|gif|webp|ico|pdf|txt|woff2?)$/i;
+
+function isRootStaticAssetPath(pathname: string) {
+  return ROOT_STATIC_ASSET_PATHS.has(pathname) || ROOT_STATIC_ASSET_EXTENSIONS.test(pathname);
+}
+
 function isPublicPath(app: "crm" | "lms", pathname: string) {
   if (isStaticAssetPath(pathname)) return true;
   const publicPrefixes =
@@ -70,6 +92,10 @@ export async function proxy(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
   const app = resolveApp(host);
   const response = NextResponse.next();
+
+  if (isRootStaticAssetPath(pathname)) {
+    return response;
+  }
 
   if (app === "landing") {
     // Static assets under public/docs, public/landing/photos, etc. are served
@@ -129,6 +155,6 @@ export async function proxy(request: NextRequest) {
 // host-based rewrite as pages to resolve at all.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|favicon.svg|apple-touch-icon.png).*)",
   ],
 };

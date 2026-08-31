@@ -53,6 +53,14 @@ export const metadata: Metadata = {
     title,
     description,
   },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-touch-icon.png",
+    shortcut: "/favicon.ico",
+  },
 };
 
 // Structural wrapper only. <html>/<body> live in the single root app/layout.tsx.

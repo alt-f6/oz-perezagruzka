@@ -16,6 +16,14 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Перезагрузка",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-touch-icon.png",
+    shortcut: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

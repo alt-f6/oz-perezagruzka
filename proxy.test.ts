@@ -73,4 +73,16 @@ describe("proxy fail-closed routing", () => {
 
     expect(res.status).not.toBe(307);
   });
+
+  it.each(["crm.example.com", "lms.example.com"])(
+    "bypasses the %s rewrite for root static icons instead of namespacing them under /crm or /lms",
+    async (host) => {
+      for (const pathname of ["/favicon.ico", "/icon.svg", "/favicon.svg", "/apple-touch-icon.png"]) {
+        const res = await proxy(makeRequest(host, pathname));
+
+        expect(res.headers.get("x-middleware-rewrite")).toBeNull();
+        expect(authMocks.getSessionUserFromRequest).not.toHaveBeenCalled();
+      }
+    },
+  );
 });

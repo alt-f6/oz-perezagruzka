@@ -1,10 +1,11 @@
-import { streamText, convertToModelMessages, type UIMessage } from "ai";
+import { streamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 
 import { requireRole } from "@/shared/lib/rbac";
 import { createLogger } from "@/shared/lib/logger";
 import {
   tutorRequestSchema,
+  sanitizeTutorMessages,
   totalTutorChars,
   MAX_TOTAL_TUTOR_CHARS,
 } from "@/lms/lib/tutor";
@@ -41,7 +42,15 @@ export async function POST(req: Request) {
 
   const { messages, topicCode } = parsed.data;
 
-  if (totalTutorChars(messages) > MAX_TOTAL_TUTOR_CHARS) {
+  // Normalize the history into provider-safe turns: no empty content, no system
+  // turns, strictly alternating roles. This is what prevents the second turn
+  // from 400-ing when the client replays SDK part types / empty placeholders.
+  const conversation = sanitizeTutorMessages(messages);
+  if (conversation.length === 0) {
+    return Response.json({ error: "Некорректный запрос." }, { status: 400 });
+  }
+
+  if (totalTutorChars(conversation) > MAX_TOTAL_TUTOR_CHARS) {
     return Response.json({ error: "Сообщение слишком длинное." }, { status: 400 });
   }
 
@@ -79,21 +88,19 @@ export async function POST(req: Request) {
     `Материал текущей темы ${topicCode}. Отвечай строго в её рамках.\n\n${topicMaterial}`,
   ].join("\n\n");
 
-  // `messages` must carry only client turns (user/assistant). convertToModelMessages
-  // never emits system turns, but we filter defensively so no system content can
-  // leak into the messages field.
-  const conversation = (
-    await convertToModelMessages(messages as unknown as UIMessage[])
-  ).filter((m) => m.role !== "system");
-
   const result = streamText({
     // DeepSeek only implements Chat Completions, not OpenAI's Responses API,
     // so the model must be selected via .chat() explicitly.
     model: deepseek.chat(MODEL_ID),
     system: systemPrompt,
+    // Only sanitized user/assistant turns with non-empty string content reach
+    // the provider (see sanitizeTutorMessages).
     messages: conversation,
     timeout: { totalMs: CHAT_TIMEOUT_MS },
     onError: async ({ error }) => {
+      // Surface the exact provider error payload in the server terminal — the
+      // AI SDK wraps DeepSeek's response, so the useful detail is on `error`.
+      console.error("DeepSeek API error details:", error);
       logger.error("AI tutor stream error", error);
     },
   });

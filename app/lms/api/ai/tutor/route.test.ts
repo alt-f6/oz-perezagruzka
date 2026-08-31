@@ -101,6 +101,52 @@ describe("POST /api/ai/tutor", () => {
     expect(call.messages[0]).toMatchObject({ role: "user" });
   });
 
+  it("accepts a multi-turn history with SDK part types and empty placeholders (no turn-2 crash)", async () => {
+    const res = await POST(
+      makeRequest({
+        topicCode: "1.1",
+        messages: [
+          { id: "u1", role: "user", parts: [{ type: "text", text: "Привет" }] },
+          {
+            id: "a1",
+            role: "assistant",
+            parts: [{ type: "step-start" }, { type: "text", text: "Здравствуй!" }],
+          },
+          { id: "a-empty", role: "assistant", parts: [{ type: "step-start" }] },
+          {
+            id: "u2",
+            role: "user",
+            parts: [{ type: "text", text: "Биологическое — это речь?" }],
+          },
+        ],
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const call = streamTextMock.mock.calls[0][0] as {
+      messages: { role: string; content: string }[];
+    };
+    // Sanitized to strictly alternating, non-empty, string-content turns.
+    expect(call.messages).toEqual([
+      { role: "user", content: "Привет" },
+      { role: "assistant", content: "Здравствуй!" },
+      { role: "user", content: "Биологическое — это речь?" },
+    ]);
+    // No empty content and no leftover placeholder turns.
+    expect(call.messages.every((m) => m.content.trim().length > 0)).toBe(true);
+  });
+
+  it("returns 400 when the sanitized history is empty", async () => {
+    const res = await POST(
+      makeRequest({
+        topicCode: "1.1",
+        messages: [{ id: "a1", role: "assistant", parts: [{ type: "step-start" }] }],
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(streamTextMock).not.toHaveBeenCalled();
+  });
+
   it("returns 400 when the pack cannot be loaded", async () => {
     loadTopicMock.mockRejectedValue(new Error("ENOENT"));
     const res = await POST(makeRequest({ topicCode: "1.5", messages: [userMessage] }));

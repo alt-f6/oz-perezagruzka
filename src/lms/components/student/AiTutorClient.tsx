@@ -34,6 +34,18 @@ export function AiTutorClient({
       setErrorMessage(
         "Не удалось получить ответ. Проверьте соединение и попробуйте ещё раз через минуту.",
       );
+      // A failed/aborted turn can leave an empty assistant placeholder in state.
+      // Drop it so the history stays a clean sequence of completed, non-empty
+      // turns — both for the UI and for what the next request replays.
+      setMessages((prev) =>
+        prev.filter(
+          (message) =>
+            message.role !== "assistant" ||
+            message.parts.some(
+              (part) => part.type === "text" && part.text.trim().length > 0,
+            ),
+        ),
+      );
     },
   });
 

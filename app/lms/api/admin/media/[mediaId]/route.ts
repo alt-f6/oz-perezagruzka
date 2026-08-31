@@ -4,11 +4,15 @@ import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { createLogger } from "@/shared/lib/logger";
+import { parseAndNormalizeVideoUrl } from "@/lms/lib/video-url";
 import type { LessonMedia } from "@prisma/client";
 
 export const runtime = "nodejs";
 
 const log = createLogger("lms-admin-media");
+
+const BAD_VIDEO_URL_MESSAGE =
+  "Некорректная ссылка на видео. Поддерживаются VK Видео, RuTube, Kinescope, YouTube, Vimeo и прямые MP4 файлы";
 
 type Ctx = { params: Promise<{ mediaId: string }> };
 
@@ -20,33 +24,6 @@ async function readMediaId({ params }: Ctx) {
   const { mediaId } = await params;
   if (!mediaId || typeof mediaId !== "string") return null;
   return mediaId;
-}
-
-function normalize(url: string) {
-  const raw = url.trim();
-
-  const yt =
-    raw.match(/youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/) ||
-    raw.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
-
-  if (yt) {
-    return {
-      url: raw,
-      provider: "youtube",
-      embed_url: `https://www.youtube.com/embed/${yt[1]}`,
-    };
-  }
-
-  const vimeo = raw.match(/vimeo\.com\/(\d+)/);
-  if (vimeo) {
-    return {
-      url: raw,
-      provider: "vimeo",
-      embed_url: `https://player.vimeo.com/video/${vimeo[1]}`,
-    };
-  }
-
-  throw new Error("unsupported");
 }
 
 function toMediaJson(media: LessonMedia) {
@@ -95,10 +72,15 @@ export const PATCH = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
     embed_url: String(row.embedUrl ?? ""),
   };
 
-  try {
-    if (typeof urlRaw === "string" && urlRaw.trim()) norm = normalize(urlRaw);
-  } catch {
-    return NextResponse.json({ ok: false, error: "bad_url" }, { status: 400 });
+  if (typeof urlRaw === "string" && urlRaw.trim()) {
+    const parsed = parseAndNormalizeVideoUrl(urlRaw);
+    if (!parsed.isValid) {
+      return NextResponse.json(
+        { ok: false, error: "bad_url", message: BAD_VIDEO_URL_MESSAGE },
+        { status: 400 }
+      );
+    }
+    norm = { url: parsed.originalUrl, provider: parsed.provider, embed_url: parsed.embedUrl };
   }
 
   if (!Number.isFinite(order) || order <= 0) order = row.order;

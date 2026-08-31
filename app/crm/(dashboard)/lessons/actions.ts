@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import type { AttendanceStatus } from "@prisma/client";
 import { lessonSchema, makeupSchema, type LessonValues } from "@/crm/lib/schemas";
+import { parseDateKey } from "@/crm/lib/calendarGrid";
 import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import { BillingService } from "@/crm/lib/services/billing.service";
@@ -10,22 +11,57 @@ import type { ActionResult } from "@/crm/lib/types";
 
 const MAX_RECURRING_SESSIONS = 200;
 
+interface Occurrence {
+  scheduledAt: Date;
+  durationMinutes: number;
+}
+
 /**
- * Expands a recurring-lesson request into every occurrence's Date, capped at
- * MAX_RECURRING_SESSIONS as a backstop (schema already caps the end date to
- * ~3 months out, but a daily WEEKDAYS pattern over that range is still
- * bounded well under this).
+ * Resolves the start time + duration for a given weekday: its own per-day slot
+ * override when present, otherwise the top-level default.
  */
-function expandOccurrences(values: LessonValues): Date[] {
-  const [hours, minutes] = values.time.split(":").map(Number);
-  const start = new Date(values.date);
-  start.setHours(hours, minutes, 0, 0);
+function resolveSlot(
+  values: LessonValues,
+  weekday: number,
+): { time: string; durationMinutes: number } {
+  const slot = values.daySlots?.find((s) => s.day === weekday);
+  if (slot) {
+    return { time: slot.time, durationMinutes: slot.durationMinutes };
+  }
+  return { time: values.time, durationMinutes: values.durationMinutes };
+}
+
+function atTime(day: Date, time: string): Date {
+  const [hours, minutes] = time.split(":").map(Number);
+  const d = new Date(day);
+  d.setHours(hours, minutes, 0, 0);
+  return d;
+}
+
+/**
+ * Expands a recurring-lesson request into every occurrence, honoring per-day
+ * time/duration overrides, capped at MAX_RECURRING_SESSIONS as a backstop
+ * (schema already caps the end date to ~3 months out, but a daily WEEKDAYS
+ * pattern over that range is still bounded well under this).
+ *
+ * Dates are parsed with parseDateKey (local calendar fields), never
+ * `new Date("YYYY-MM-DD")` which parses as UTC midnight and would shift the day
+ * for non-UTC server timezones.
+ */
+function expandOccurrences(values: LessonValues): Occurrence[] {
+  // Local-midnight anchor for the chosen start date.
+  const start = parseDateKey(values.date);
 
   if (values.recurrence === "NONE") {
-    return [start];
+    return [
+      {
+        scheduledAt: atTime(start, values.time),
+        durationMinutes: values.durationMinutes,
+      },
+    ];
   }
 
-  const endDate = new Date(values.recurrenceEndDate as string);
+  const endDate = parseDateKey(values.recurrenceEndDate as string);
   endDate.setHours(23, 59, 59, 999);
 
   const allowedDays =
@@ -35,11 +71,15 @@ function expandOccurrences(values: LessonValues): Date[] {
         ? new Set([start.getDay()])
         : new Set(values.recurrenceDays ?? []);
 
-  const occurrences: Date[] = [];
+  const occurrences: Occurrence[] = [];
   const cursor = new Date(start);
   while (cursor <= endDate && occurrences.length < MAX_RECURRING_SESSIONS) {
     if (allowedDays.has(cursor.getDay())) {
-      occurrences.push(new Date(cursor));
+      const { time, durationMinutes } = resolveSlot(values, cursor.getDay());
+      occurrences.push({
+        scheduledAt: atTime(cursor, time),
+        durationMinutes,
+      });
     }
     cursor.setDate(cursor.getDate() + 1);
   }
@@ -79,11 +119,11 @@ export async function createLesson(
 
   try {
     await db.classSession.createMany({
-      data: occurrences.map((scheduledAt) => ({
+      data: occurrences.map(({ scheduledAt, durationMinutes }) => ({
         groupId: parsed.data.groupId,
         teacherId,
         scheduledAt,
-        durationMinutes: parsed.data.durationMinutes,
+        durationMinutes,
         recurrenceGroupId,
       })),
     });

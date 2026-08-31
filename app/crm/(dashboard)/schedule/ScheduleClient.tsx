@@ -10,11 +10,17 @@ import {
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
-import { LessonFormFields } from "@/crm/components/LessonFormFields";
+import { LessonWizard } from "@/crm/components/LessonWizard";
 import { Modal } from "@/crm/components/Modal";
 import { useToast } from "@/crm/components/ToastProvider";
 import { assignOverlapColumns } from "@/crm/lib/calendarLayout";
-import { addDays, startOfMonth, startOfWeekMonday, toDateKey } from "@/crm/lib/calendarGrid";
+import {
+  addDays,
+  parseDateKey,
+  startOfMonth,
+  startOfWeekMonday,
+  toDateKey,
+} from "@/crm/lib/calendarGrid";
 import { formatTimeRange } from "@/crm/lib/lessonTime";
 import { lessonSchema, type LessonValues } from "@/crm/lib/schemas";
 import { createLesson } from "../lessons/actions";
@@ -63,9 +69,7 @@ export function ScheduleClient({
 }) {
   const isTeacher = userRole === "TEACHER";
   const showToast = useToast();
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date().toISOString().split("T")[0],
-  );
+  const [selectedDate, setSelectedDate] = useState<string>(toDateKey(new Date()));
   const [view, setView] = useState<ViewMode>("day");
   const [groupFilter, setGroupFilter] = useState("");
   const [teacherFilter, setTeacherFilter] = useState("");
@@ -77,11 +81,17 @@ export function ScheduleClient({
     handleSubmit,
     watch,
     setValue,
+    trigger,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<LessonValues>({
     resolver: zodResolver(lessonSchema),
-    defaultValues: { recurrence: "NONE", recurrenceDays: [], durationMinutes: 60 },
+    defaultValues: {
+      recurrence: "NONE",
+      recurrenceDays: [],
+      durationMinutes: 60,
+      daySlots: [],
+    },
   });
 
   const onSubmit = async (values: LessonValues) => {
@@ -131,7 +141,7 @@ export function ScheduleClient({
   }, [filteredLessons]);
 
   const changeDate = (days: number) => {
-    const d = new Date(selectedDate);
+    const d = parseDateKey(selectedDate);
     d.setDate(d.getDate() + days);
     setSelectedDate(toDateKey(d));
   };
@@ -140,13 +150,13 @@ export function ScheduleClient({
     if (view === "day") changeDate(direction);
     else if (view === "week") changeDate(direction * 7);
     else {
-      const d = new Date(selectedDate);
+      const d = parseDateKey(selectedDate);
       d.setMonth(d.getMonth() + direction);
       setSelectedDate(toDateKey(d));
     }
   };
 
-  const selected = new Date(selectedDate);
+  const selected = parseDateKey(selectedDate);
   const dayLessons = lessonsByDay.get(selectedDate) ?? [];
   const weekStart = startOfWeekMonday(selected);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -435,23 +445,16 @@ export function ScheduleClient({
           title="Новое занятие"
           onClose={() => setIsModalOpen(false)}
         >
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <LessonFormFields
-              register={register}
-              watch={watch}
-              setValue={setValue}
-              errors={errors}
-              groups={groups}
-              isSubmitting={isSubmitting}
-            />
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="btn-primary w-full"
-            >
-              {isSubmitting ? "Создание..." : "Создать"}
-            </button>
-          </form>
+          <LessonWizard
+            register={register}
+            watch={watch}
+            setValue={setValue}
+            trigger={trigger}
+            errors={errors}
+            groups={groups}
+            isSubmitting={isSubmitting}
+            onSubmit={handleSubmit(onSubmit)}
+          />
         </Modal>
       )}
     </div>

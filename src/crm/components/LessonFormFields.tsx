@@ -2,13 +2,14 @@
 
 import type { FieldErrors, UseFormRegister, UseFormSetValue, UseFormWatch } from "react-hook-form";
 
+import { toDateKey, todayKey } from "@/crm/lib/calendarGrid";
 import { formatTimeRange } from "@/crm/lib/lessonTime";
 import type { LessonValues } from "@/crm/lib/schemas";
 import { DatePicker } from "./DatePicker";
 import { DurationChips } from "./DurationChips";
 import { TimeSlotPicker } from "./TimeSlotPicker";
 
-const WEEKDAY_OPTIONS: { value: number; label: string }[] = [
+export const WEEKDAY_OPTIONS: { value: number; label: string }[] = [
   { value: 1, label: "Пн" },
   { value: 2, label: "Вт" },
   { value: 3, label: "Ср" },
@@ -20,14 +21,17 @@ const WEEKDAY_OPTIONS: { value: number; label: string }[] = [
 
 const MAX_RECURRENCE_MONTHS = 3;
 
+// Local-calendar bounds for the date inputs. Using toDateKey (local fields)
+// rather than toISOString() avoids the UTC day-shift that can otherwise render
+// "today" as yesterday for positive-offset timezones late in the evening.
 function todayIso(): string {
-  return new Date().toISOString().split("T")[0];
+  return todayKey();
 }
 
 function maxEndDateIso(): string {
   const d = new Date();
   d.setMonth(d.getMonth() + MAX_RECURRENCE_MONTHS);
-  return d.toISOString().split("T")[0];
+  return toDateKey(d);
 }
 
 export function LessonFormFields({

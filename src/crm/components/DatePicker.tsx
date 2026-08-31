@@ -2,14 +2,15 @@
 
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { addDays, addMonths, buildMonthGrid, toDateKey } from "@/crm/lib/calendarGrid";
+import {
+  addDays,
+  addMonths,
+  buildMonthGrid,
+  parseDateKey,
+  toDateKey,
+} from "@/crm/lib/calendarGrid";
 
 const WEEKDAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
-
-function parseDateKey(value: string): Date {
-  const [y, m, d] = value.split("-").map(Number);
-  return new Date(y, (m || 1) - 1, d || 1);
-}
 
 export function DatePicker({
   value,

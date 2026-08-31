@@ -72,6 +72,28 @@ export const lessonDurationSchema = z.union([
   z.literal(120),
 ]);
 
+// Per-weekday time slot override. When a recurring series should run at a
+// different start time / duration on individual days (e.g. Mon 15:00·60min but
+// Sat 10:00·90min), each selected day carries its own slot here. Days without
+// an override fall back to the top-level `time` / `durationMinutes`.
+export const daySlotSchema = z.object({
+  // JS Date#getDay() convention: 0 = Sunday .. 6 = Saturday.
+  day: z.number().int().min(0).max(6),
+  time: z.string().min(1, { message: "Укажите время" }),
+  durationMinutes: lessonDurationSchema,
+});
+
+// The set of weekdays a given recurrence pattern lands on. WEEKLY resolves at
+// runtime from the start date, so it has no fixed per-day config here.
+function recurrenceTargetDays(
+  recurrence: z.infer<typeof recurrencePatternSchema>,
+  recurrenceDays: number[] | undefined,
+): number[] {
+  if (recurrence === "WEEKDAYS") return [1, 2, 3, 4, 5];
+  if (recurrence === "CUSTOM") return recurrenceDays ?? [];
+  return [];
+}
+
 export const lessonSchema = z
   .object({
     groupId: z.uuid({ message: "Выберите группу" }),
@@ -82,6 +104,8 @@ export const lessonSchema = z
     // JS Date#getDay() convention: 0 = Sunday .. 6 = Saturday.
     recurrenceDays: z.array(z.number().int().min(0).max(6)).optional(),
     recurrenceEndDate: z.string().optional().or(z.literal("")),
+    // Optional per-weekday time/duration overrides for multi-day series.
+    daySlots: z.array(daySlotSchema).optional(),
   })
   .refine(
     (data) => data.recurrence !== "CUSTOM" || (data.recurrenceDays && data.recurrenceDays.length > 0),
@@ -90,7 +114,16 @@ export const lessonSchema = z
   .refine((data) => data.recurrence === "NONE" || !!data.recurrenceEndDate, {
     message: "Укажите дату окончания повтора",
     path: ["recurrenceEndDate"],
-  });
+  })
+  .refine(
+    // Every weekday the series lands on must resolve to a concrete start time:
+    // either its own daySlot override or the top-level default `time`.
+    (data) =>
+      recurrenceTargetDays(data.recurrence, data.recurrenceDays).every(
+        (day) => data.daySlots?.some((s) => s.day === day && s.time) || !!data.time,
+      ),
+    { message: "Укажите время для каждого выбранного дня", path: ["daySlots"] },
+  );
 
 export const makeupSchema = z.object({
   attendanceId: z.uuid({ message: "Некорректная запись посещаемости" }),
@@ -173,6 +206,7 @@ export type GroupValues = z.infer<typeof groupSchema>;
 export type UpdateGroupValues = z.infer<typeof updateGroupSchema>;
 export type StudentValues = z.infer<typeof studentSchema>;
 export type LessonValues = z.infer<typeof lessonSchema>;
+export type DaySlot = z.infer<typeof daySlotSchema>;
 export type MakeupValues = z.infer<typeof makeupSchema>;
 export type ExamGoalValues = z.infer<typeof examGoalSchema>;
 export type ExamResultValues = z.infer<typeof examResultSchema>;

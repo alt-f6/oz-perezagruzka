@@ -8,6 +8,7 @@ import type { z } from "zod";
 import { ConfirmDialog } from "@/crm/components/ConfirmDialog";
 import { Modal } from "@/crm/components/Modal";
 import { useToast } from "@/crm/components/ToastProvider";
+import { todayKey } from "@/crm/lib/calendarGrid";
 import {
   examGoalSchema,
   examResultSchema,
@@ -37,7 +38,7 @@ export function ExamTrackerSection({
   });
   const resultForm = useForm<z.input<typeof examResultSchema>, unknown, ExamResultValues>({
     resolver: zodResolver(examResultSchema),
-    defaultValues: { maxScore: 100, testedAt: new Date().toISOString().split("T")[0] },
+    defaultValues: { maxScore: 100, testedAt: todayKey() },
   });
 
   const onSubmitGoal = async (values: ExamGoalValues) => {

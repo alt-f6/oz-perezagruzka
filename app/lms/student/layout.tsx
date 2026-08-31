@@ -14,7 +14,10 @@ export default async function StudentLayout({ children }: { children: React.Reac
     <div className="min-h-screen">
       <TopNav
         title={ROLE_LABELS[user.role]}
-        items={[{ href: "/student/lessons", label: "Уроки" }]}
+        items={[
+          { href: "/student/lessons", label: "Уроки" },
+          { href: "/student/tutor", label: "ИИ-репетитор" },
+        ]}
         role={user.role}
       />
       <main>{children}</main>

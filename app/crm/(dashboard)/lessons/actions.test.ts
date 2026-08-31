@@ -49,6 +49,89 @@ describe("createLesson", () => {
     });
   });
 
+  it("persists the exact local calendar day (no UTC 31st→30th shift)", async () => {
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
+    dbMock.classSession.createMany.mockResolvedValue({ count: 1 });
+
+    await createLesson({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2026-08-31",
+      time: "09:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+    });
+
+    const { scheduledAt } = dbMock.classSession.createMany.mock.calls[0][0].data[0];
+    expect(scheduledAt.getFullYear()).toBe(2026);
+    expect(scheduledAt.getMonth()).toBe(7); // August
+    expect(scheduledAt.getDate()).toBe(31); // not 30
+    expect(scheduledAt.getHours()).toBe(9);
+  });
+
+  it("applies independent per-day time and duration overrides across a series", async () => {
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
+    dbMock.classSession.createMany.mockResolvedValue({ count: 2 });
+
+    // 2026-09-07 is a Monday. Custom series on Mon (1) and Sat (6),
+    // Mon at 15:00·60min but Sat at 10:00·90min. One week window.
+    await createLesson({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2026-09-07",
+      time: "15:00",
+      durationMinutes: 60,
+      recurrence: "CUSTOM",
+      recurrenceDays: [1, 6],
+      recurrenceEndDate: "2026-09-13",
+      daySlots: [
+        { day: 1, time: "15:00", durationMinutes: 60 },
+        { day: 6, time: "10:00", durationMinutes: 90 },
+      ],
+    });
+
+    const rows = dbMock.classSession.createMany.mock.calls[0][0].data as {
+      scheduledAt: Date;
+      durationMinutes: number;
+    }[];
+    const byDay = rows.map((r) => ({
+      weekday: r.scheduledAt.getDay(),
+      hours: r.scheduledAt.getHours(),
+      durationMinutes: r.durationMinutes,
+    }));
+
+    expect(byDay).toContainEqual({ weekday: 1, hours: 15, durationMinutes: 60 });
+    expect(byDay).toContainEqual({ weekday: 6, hours: 10, durationMinutes: 90 });
+  });
+
+  it("falls back to the default time/duration for days without an override", async () => {
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
+    dbMock.classSession.createMany.mockResolvedValue({ count: 2 });
+
+    await createLesson({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2026-09-07", // Monday
+      time: "18:00",
+      durationMinutes: 45,
+      recurrence: "CUSTOM",
+      recurrenceDays: [1, 3], // Mon + Wed
+      recurrenceEndDate: "2026-09-13",
+      daySlots: [{ day: 3, time: "12:00", durationMinutes: 120 }], // only Wed overridden
+    });
+
+    const rows = dbMock.classSession.createMany.mock.calls[0][0].data as {
+      scheduledAt: Date;
+      durationMinutes: number;
+    }[];
+    const mon = rows.find((r) => r.scheduledAt.getDay() === 1)!;
+    const wed = rows.find((r) => r.scheduledAt.getDay() === 3)!;
+
+    expect(mon.scheduledAt.getHours()).toBe(18);
+    expect(mon.durationMinutes).toBe(45);
+    expect(wed.scheduledAt.getHours()).toBe(12);
+    expect(wed.durationMinutes).toBe(120);
+  });
+
   it("rejects scheduling for a group with no assigned teacher", async () => {
     dbMock.group.findUnique.mockResolvedValue({ teacherId: null });
 

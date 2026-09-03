@@ -8,8 +8,12 @@ import { LessonFormFields } from "./LessonFormFields";
 
 function Harness({
   groups = [{ id: "g1", name: "Группа 1" }],
+  teachers = [{ id: "t1", fullName: "Преподаватель 1" }],
+  students = [{ id: "s1", fullName: "Назар" }],
 }: {
   groups?: { id: string; name: string; teacherId?: string | null }[];
+  teachers?: { id: string; fullName: string }[];
+  students?: { id: string; fullName: string }[];
 } = {}) {
   const {
     register,
@@ -19,6 +23,7 @@ function Harness({
   } = useForm<LessonValues>({
     resolver: zodResolver(lessonSchema),
     defaultValues: {
+      type: "GROUP",
       recurrence: "NONE",
       recurrenceDays: [],
       durationMinutes: 60,
@@ -34,6 +39,8 @@ function Harness({
       setValue={setValue}
       errors={errors}
       groups={groups}
+      teachers={teachers}
+      students={students}
       isSubmitting={false}
     />
   );
@@ -77,5 +84,25 @@ describe("LessonFormFields", () => {
     expect(withTeacher).not.toBeDisabled();
     expect(withoutTeacher).toBeDisabled();
     expect(withoutTeacher.textContent).toContain("нет преподавателя");
+  });
+
+  it("swaps the group picker for student + teacher pickers in individual mode", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    // Group mode by default: the group label is shown, no student picker.
+    expect(screen.getByText("Группа")).toBeInTheDocument();
+    expect(screen.queryByText("Ученик")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Индивидуальное занятие" }));
+
+    // Individual mode: group picker gone, student + teacher pickers present.
+    expect(screen.queryByText("Группа")).not.toBeInTheDocument();
+    expect(screen.getByText("Ученик")).toBeInTheDocument();
+    expect(screen.getByText("Преподаватель")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Назар" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Преподаватель 1" }),
+    ).toBeInTheDocument();
   });
 });

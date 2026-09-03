@@ -188,6 +188,7 @@ model Student {
   user           User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   parents        ParentStudent[]
   groups         GroupStudent[]
+  classSessions  ClassSession[] // individual (1-on-1) lessons scheduled directly for this student
   attendance     Attendance[]
   transactions   Transaction[]
   freezes        Freeze[]
@@ -269,15 +270,26 @@ model GroupStudent {
 // colliding with the LMS course-content `Lesson` model unified below.
 model ClassSession {
   id                String    @id @default(uuid())
-  groupId           String
+  // Session format: "GROUP" (linked to a Group roster) or "INDIVIDUAL" (linked
+  // to a single Student directly, no dummy group required).
+  type              String    @default("GROUP")
+  // Optional for INDIVIDUAL sessions, which reference `studentId` instead.
+  // Every GROUP session still carries a groupId, preserving existing rows.
+  groupId           String?
+  // Set only for INDIVIDUAL sessions: the single student the 1-on-1 lesson is for.
+  studentId         String?
   teacherId         String
   scheduledAt       DateTime
   durationMinutes   Int       @default(60)
+  // Per-lesson charge for INDIVIDUAL sessions (GROUP sessions bill
+  // group.pricePerLesson). Nullable; unset individual lessons bill 0.
+  pricePerLesson    Decimal?  @db.Decimal(10, 2)
   status            String    @default("scheduled")
   reminderSentAt    DateTime? // set by the lesson-reminders cron so a session is only reminded once
   recurrenceGroupId String? // shared by every occurrence created together from a recurring-lesson batch
 
-  group        Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group        Group?        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student      Student?      @relation(fields: [studentId], references: [id], onDelete: Restrict)
   teacher      User          @relation("ClassSessionTeacher", fields: [teacherId], references: [id])
   attendance   Attendance[]
   transactions Transaction[]
@@ -285,6 +297,8 @@ model ClassSession {
   makeupTargetFor MakeupLesson[] @relation("TargetClassSession")
 
   @@index([groupId])
+  // Covers the student's personal schedule/history lookup for individual lessons.
+  @@index([studentId])
   // Covers computeTeacherSalary's per-teacher [scheduledAt range] filter.
   @@index([teacherId, scheduledAt])
   // Covers the lesson-reminders cron's [scheduledAt range] + reminderSentAt:null scan.

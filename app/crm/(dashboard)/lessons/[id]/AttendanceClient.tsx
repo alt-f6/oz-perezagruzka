@@ -119,15 +119,22 @@ export function AttendanceClient({
       </NextLink>
 
       <div>
-        <h1 className="page-title">{lesson.group.name}</h1>
+        <h1 className="page-title">
+          {lesson.group?.name ??
+            lesson.student?.fullName ??
+            "Индивидуальное занятие"}
+        </h1>
         <p className="page-subtitle">
+          {lesson.group ? "Групповое занятие · " : "Индивидуальное занятие · "}
           {dateFormatter.format(new Date(lesson.scheduledAt))}
         </p>
       </div>
 
       {students.length === 0 ? (
         <div className="empty-state bg-white">
-          В этой группе пока нет студентов.
+          {lesson.group
+            ? "В этой группе пока нет студентов."
+            : "К этому занятию не привязан ученик."}
         </div>
       ) : (
         <div className="table-wrap">

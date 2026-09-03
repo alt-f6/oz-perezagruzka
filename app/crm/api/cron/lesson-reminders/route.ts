@@ -49,6 +49,18 @@ function fetchReminderBatch(now: Date, windowEnd: Date, cursor?: string) {
           },
         },
       },
+      // INDIVIDUAL sessions have no group; the single student is joined directly.
+      student: {
+        select: {
+          fullName: true,
+          deletedAt: true,
+          parents: {
+            select: {
+              parent: { select: { telegramChatId: true, user: { select: { email: true } } } },
+            },
+          },
+        },
+      },
     },
     orderBy: { id: "asc" },
     take: BATCH_SIZE,
@@ -102,7 +114,16 @@ export const GET = withApiErrors(async (req: NextRequest) => {
   for (const session of sessions) {
     let hadFailure = false;
 
-    for (const { student } of session.group.students) {
+    // Unified roster: a GROUP session's group members, or the single student of
+    // an INDIVIDUAL session. The reminder shows the group name or a 1-on-1 label.
+    const roster = session.group
+      ? session.group.students.map((gs) => gs.student)
+      : session.student
+        ? [session.student]
+        : [];
+    const lessonName = session.group?.name ?? "Индивидуальное занятие";
+
+    for (const student of roster) {
       if (student.deletedAt) continue;
       for (const { parent } of student.parents) {
         try {
@@ -112,7 +133,7 @@ export const GET = withApiErrors(async (req: NextRequest) => {
               email: parent.user?.email,
               fullName: student.fullName,
             },
-            { groupName: session.group.name, scheduledAt: session.scheduledAt },
+            { groupName: lessonName, scheduledAt: session.scheduledAt },
           );
           notifications += 1;
         } catch (err) {

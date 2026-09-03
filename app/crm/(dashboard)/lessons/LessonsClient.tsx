@@ -22,15 +22,25 @@ type CancelCandidate =
   | { kind: "series"; recurrenceGroupId: string }
   | { kind: "selection"; sessionIds: string[] };
 
+// Group lessons show the group name; individual lessons fall back to the
+// student's name (or a neutral label) now that a session may have no group.
+function sessionLabel(lesson: ClassSessionWithGroup): string {
+  return lesson.group?.name ?? lesson.student?.fullName ?? "Индивидуальное занятие";
+}
+
 export function LessonsClient({
   initialLessons,
   initialNextCursor,
   groups,
+  teachers = [],
+  students = [],
   userRole,
 }: {
   initialLessons: ClassSessionWithGroup[];
   initialNextCursor: string | null;
   groups: Group[];
+  teachers?: { id: string; fullName: string }[];
+  students?: { id: string; fullName: string }[];
   userRole?: string;
 }) {
   const isTeacher = userRole === "TEACHER";
@@ -70,7 +80,15 @@ export function LessonsClient({
     formState: { errors, isSubmitting },
   } = useForm<LessonValues>({
     resolver: zodResolver(lessonSchema),
-    defaultValues: { recurrence: "NONE", recurrenceDays: [], durationMinutes: 60 },
+    defaultValues: {
+      type: "GROUP",
+      groupId: "",
+      studentId: "",
+      teacherId: "",
+      recurrence: "NONE",
+      recurrenceDays: [],
+      durationMinutes: 60,
+    },
   });
 
   const onSubmit = async (values: LessonValues) => {
@@ -223,7 +241,7 @@ export function LessonsClient({
                       type="checkbox"
                       checked={selectedIds.includes(lesson.id)}
                       onChange={() => toggleSelected(lesson.id)}
-                      aria-label={`Выбрать занятие ${lesson.group.name}`}
+                      aria-label={`Выбрать занятие ${sessionLabel(lesson)}`}
                     />
                   )}
                   <div className="icon-tile h-11 w-11 bg-slate-100 text-slate-600">
@@ -231,7 +249,7 @@ export function LessonsClient({
                   </div>
                   <div className="min-w-0">
                     <p className="truncate font-semibold tracking-tight text-slate-900">
-                      {lesson.group.name}
+                      {sessionLabel(lesson)}
                       {isCancelled && (
                         <span className="badge-neutral ml-2 align-middle">Отменено</span>
                       )}
@@ -319,6 +337,8 @@ export function LessonsClient({
             setValue={setValue}
             errors={errors}
             groups={groups}
+            teachers={teachers}
+            students={students}
             isSubmitting={isSubmitting}
           />
           <button

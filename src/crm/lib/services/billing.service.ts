@@ -1,4 +1,4 @@
-import type { AttendanceStatus } from "@prisma/client";
+import { Prisma, type AttendanceStatus } from "@prisma/client";
 import { randomUUID } from "crypto";
 import { prisma } from "@/crm/lib/prisma";
 import { getNotificationProvider } from "@/crm/lib/services/notification.service";
@@ -22,7 +22,12 @@ export class BillingService {
           include: { group: true },
         });
 
-        const currentPrice = classSession.group.pricePerLesson;
+        // GROUP sessions bill the group's price; INDIVIDUAL (1-on-1) sessions
+        // have no group and bill their own per-lesson price (0 when unset).
+        const currentPrice =
+          classSession.group?.pricePerLesson ??
+          classSession.pricePerLesson ??
+          new Prisma.Decimal(0);
 
         const isBillableStatus = status === "PRESENT" || status === "ABSENT";
 

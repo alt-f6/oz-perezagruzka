@@ -19,6 +19,7 @@ function Harness({ defaults }: { defaults?: Partial<LessonValues> }) {
   } = useForm<LessonValues>({
     resolver: zodResolver(lessonSchema),
     defaultValues: {
+      type: "GROUP",
       groupId: GROUP.id,
       date: "2026-09-07", // Monday
       time: "15:00",
@@ -39,6 +40,8 @@ function Harness({ defaults }: { defaults?: Partial<LessonValues> }) {
       trigger={trigger}
       errors={errors}
       groups={[GROUP]}
+      teachers={[{ id: "t1", fullName: "Преподаватель 1" }]}
+      students={[{ id: "s1", fullName: "Назар" }]}
       isSubmitting={isSubmitting}
       onSubmit={handleSubmit(vi.fn())}
     />

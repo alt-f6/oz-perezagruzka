@@ -26,11 +26,21 @@ export default async function LessonDetailPage({
     where: { id },
     select: {
       id: true,
+      type: true,
       groupId: true,
+      studentId: true,
       teacherId: true,
       scheduledAt: true,
       status: true,
       group: { select: { id: true, name: true, teacherId: true } },
+      student: {
+        select: {
+          id: true,
+          fullName: true,
+          phone: true,
+          transactions: { select: { amount: true } },
+        },
+      },
     },
   });
 
@@ -43,19 +53,23 @@ export default async function LessonDetailPage({
   }
 
   const [groupStudents, attendance, makeupOptions] = await Promise.all([
-    db.groupStudent.findMany({
-      where: { groupId: lesson.groupId },
-      select: {
-        student: {
+    // INDIVIDUAL sessions have no group roster; the single student is joined
+    // directly on the session and merged in below.
+    lesson.groupId
+      ? db.groupStudent.findMany({
+          where: { groupId: lesson.groupId },
           select: {
-            id: true,
-            fullName: true,
-            phone: true,
-            transactions: { select: { amount: true } },
+            student: {
+              select: {
+                id: true,
+                fullName: true,
+                phone: true,
+                transactions: { select: { amount: true } },
+              },
+            },
           },
-        },
-      },
-    }),
+        })
+      : Promise.resolve([]),
     db.attendance.findMany({
       where: { classSessionId: id },
       select: {
@@ -96,18 +110,22 @@ export default async function LessonDetailPage({
     }),
   ]);
 
-  const students = groupStudents
-    .map((row) => row.student)
-    .filter(Boolean)
-    .map(
-      (s) =>
-        ({
-          ...s,
-          transactions: s.transactions.map((t) => ({
-            amount: Number(t.amount),
-          })),
-        }) as unknown as StudentWithTransactions,
-    );
+  const rosterStudents =
+    groupStudents.length > 0
+      ? groupStudents.map((row) => row.student).filter(Boolean)
+      : lesson.student
+        ? [lesson.student]
+        : [];
+
+  const students = rosterStudents.map(
+    (s) =>
+      ({
+        ...s,
+        transactions: s.transactions.map((t) => ({
+          amount: Number(t.amount),
+        })),
+      }) as unknown as StudentWithTransactions,
+  );
 
   const attendanceWithMakeup = attendance.map(({ makeupProvided, ...rest }) => ({
     ...rest,

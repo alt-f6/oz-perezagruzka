@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import type { FieldErrors, UseFormRegister, UseFormSetValue, UseFormWatch } from "react-hook-form";
 
 import { toDateKey, todayKey } from "@/crm/lib/calendarGrid";
@@ -41,6 +42,8 @@ export function LessonFormFields({
   setValue,
   errors,
   groups,
+  teachers,
+  students,
   isSubmitting,
 }: {
   register: UseFormRegister<LessonValues>;
@@ -48,13 +51,37 @@ export function LessonFormFields({
   setValue: UseFormSetValue<LessonValues>;
   errors: FieldErrors<LessonValues>;
   groups: { id: string; name: string; teacherId?: string | null }[];
+  teachers: { id: string; fullName: string }[];
+  students: { id: string; fullName: string }[];
   isSubmitting: boolean;
 }) {
+  const lessonType = watch("type") ?? "GROUP";
   const recurrence = watch("recurrence");
   const selectedDays = watch("recurrenceDays") ?? [];
   const date = watch("date");
   const time = watch("time");
   const durationMinutes = watch("durationMinutes") ?? 60;
+
+  // Client-side filter for the (potentially long) individual-lesson student list.
+  const [studentQuery, setStudentQuery] = useState("");
+  const filteredStudents = useMemo(() => {
+    const q = studentQuery.trim().toLowerCase();
+    if (!q) return students;
+    return students.filter((s) => s.fullName.toLowerCase().includes(q));
+  }, [students, studentQuery]);
+
+  // Switching format clears the other branch's selection so a stale groupId /
+  // studentId can't leak into the submitted payload.
+  const setLessonType = (next: "GROUP" | "INDIVIDUAL") => {
+    if (next === lessonType) return;
+    setValue("type", next, { shouldValidate: false });
+    if (next === "GROUP") {
+      setValue("studentId", "", { shouldValidate: false });
+      setValue("teacherId", "", { shouldValidate: false });
+    } else {
+      setValue("groupId", "", { shouldValidate: false });
+    }
+  };
 
   const toggleDay = (day: number) => {
     const next = selectedDays.includes(day)
@@ -77,30 +104,122 @@ export function LessonFormFields({
   return (
     <>
       <div>
-        <label className="label">Группа</label>
-        <select disabled={isSubmitting} {...register("groupId")} className="input">
-          <option value="">Выберите группу...</option>
-          {groups.map((group) => {
-            const hasTeacher = Boolean(group.teacherId);
+        <label className="label">Формат занятия</label>
+        <div className="flex gap-2" role="group" aria-label="Формат занятия">
+          {(
+            [
+              { value: "GROUP", label: "Групповое занятие" },
+              { value: "INDIVIDUAL", label: "Индивидуальное занятие" },
+            ] as const
+          ).map((opt) => {
+            const active = lessonType === opt.value;
             return (
-              <option
-                key={group.id}
-                value={group.id}
-                disabled={!hasTeacher}
-                title={
-                  hasTeacher
-                    ? undefined
-                    : "Сначала назначьте преподавателя этой группе"
-                }
+              <button
+                key={opt.value}
+                type="button"
+                disabled={isSubmitting}
+                aria-pressed={active}
+                onClick={() => setLessonType(opt.value)}
+                className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors duration-150 ${
+                  active
+                    ? "bg-accent text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
               >
-                {group.name}
-                {hasTeacher ? "" : " (нет преподавателя)"}
-              </option>
+                {opt.label}
+              </button>
             );
           })}
-        </select>
-        {errors.groupId && <p className="field-error">{errors.groupId.message}</p>}
+        </div>
       </div>
+
+      {/* Keep `type` in the form payload without an extra visible control. */}
+      <input type="hidden" {...register("type")} />
+
+      {lessonType === "GROUP" ? (
+        <div>
+          <label className="label">Группа</label>
+          <select disabled={isSubmitting} {...register("groupId")} className="input">
+            <option value="">Выберите группу...</option>
+            {groups.map((group) => {
+              const hasTeacher = Boolean(group.teacherId);
+              return (
+                <option
+                  key={group.id}
+                  value={group.id}
+                  disabled={!hasTeacher}
+                  title={
+                    hasTeacher
+                      ? undefined
+                      : "Сначала назначьте преподавателя этой группе"
+                  }
+                >
+                  {group.name}
+                  {hasTeacher ? "" : " (нет преподавателя)"}
+                </option>
+              );
+            })}
+          </select>
+          {errors.groupId && <p className="field-error">{errors.groupId.message}</p>}
+        </div>
+      ) : (
+        <>
+          <div>
+            <label className="label">Ученик</label>
+            <input
+              type="search"
+              placeholder="Поиск ученика..."
+              value={studentQuery}
+              disabled={isSubmitting}
+              onChange={(e) => setStudentQuery(e.target.value)}
+              className="input mb-2"
+              aria-label="Поиск ученика"
+            />
+            <select disabled={isSubmitting} {...register("studentId")} className="input">
+              <option value="">Выберите ученика...</option>
+              {filteredStudents.map((student) => (
+                <option key={student.id} value={student.id}>
+                  {student.fullName}
+                </option>
+              ))}
+            </select>
+            {errors.studentId && (
+              <p className="field-error">{errors.studentId.message}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="label">Преподаватель</label>
+            <select disabled={isSubmitting} {...register("teacherId")} className="input">
+              <option value="">Выберите преподавателя...</option>
+              {teachers.map((teacher) => (
+                <option key={teacher.id} value={teacher.id}>
+                  {teacher.fullName}
+                </option>
+              ))}
+            </select>
+            {errors.teacherId && (
+              <p className="field-error">{errors.teacherId.message}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="label">Стоимость занятия, ₽ (необязательно)</label>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="0"
+              disabled={isSubmitting}
+              {...register("pricePerLesson")}
+              className="input"
+            />
+            {errors.pricePerLesson && (
+              <p className="field-error">{errors.pricePerLesson.message}</p>
+            )}
+          </div>
+        </>
+      )}
 
       <div>
         <label className="label">Дата</label>

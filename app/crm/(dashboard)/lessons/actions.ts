@@ -166,17 +166,67 @@ export async function createLesson(
     return { error: "Некорректные данные занятия" };
   }
 
-  const group = await db.group.findUnique({
-    where: { id: parsed.data.groupId },
-    select: { teacherId: true },
-  });
-  if (!group) {
-    return { error: "Группа не найдена" };
+  // Resolve the effective teacher plus the group/student wiring the session
+  // rows will carry, branching on the chosen lesson format. GROUP sessions
+  // derive their teacher from the group; INDIVIDUAL sessions are wired to a
+  // single student + directly-assigned teacher, with no dummy group.
+  let teacherId: string;
+  let sessionLink: {
+    type: "GROUP" | "INDIVIDUAL";
+    groupId: string | null;
+    studentId: string | null;
+    pricePerLesson: number | null;
+  };
+
+  if (parsed.data.type === "INDIVIDUAL") {
+    const studentId = parsed.data.studentId as string;
+    const chosenTeacherId = parsed.data.teacherId as string;
+
+    const [student, teacher] = await Promise.all([
+      db.student.findFirst({
+        where: { id: studentId, deletedAt: null },
+        select: { id: true },
+      }),
+      db.user.findFirst({
+        where: { id: chosenTeacherId, role: "TEACHER" },
+        select: { id: true },
+      }),
+    ]);
+    if (!student) {
+      return { error: "Ученик не найден" };
+    }
+    if (!teacher) {
+      return { error: "Преподаватель не найден" };
+    }
+
+    teacherId = chosenTeacherId;
+    sessionLink = {
+      type: "INDIVIDUAL",
+      groupId: null,
+      studentId,
+      pricePerLesson: parsed.data.pricePerLesson
+        ? Number(parsed.data.pricePerLesson)
+        : null,
+    };
+  } else {
+    const group = await db.group.findUnique({
+      where: { id: parsed.data.groupId as string },
+      select: { teacherId: true },
+    });
+    if (!group) {
+      return { error: "Группа не найдена" };
+    }
+    if (!group.teacherId) {
+      return { error: "Сначала назначьте преподавателя группе" };
+    }
+    teacherId = group.teacherId;
+    sessionLink = {
+      type: "GROUP",
+      groupId: parsed.data.groupId as string,
+      studentId: null,
+      pricePerLesson: null,
+    };
   }
-  if (!group.teacherId) {
-    return { error: "Сначала назначьте преподавателя группе" };
-  }
-  const teacherId = group.teacherId;
 
   const occurrences = expandOccurrences(parsed.data);
   if (occurrences.length === 0) {
@@ -202,7 +252,10 @@ export async function createLesson(
   try {
     await db.classSession.createMany({
       data: occurrences.map(({ scheduledAt, durationMinutes }) => ({
-        groupId: parsed.data.groupId,
+        type: sessionLink.type,
+        groupId: sessionLink.groupId,
+        studentId: sessionLink.studentId,
+        pricePerLesson: sessionLink.pricePerLesson,
         teacherId,
         scheduledAt,
         durationMinutes,

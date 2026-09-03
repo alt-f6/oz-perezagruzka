@@ -3,9 +3,12 @@ import { formatMoscowTime, moscowDateKey } from "@/shared/lib/timezone";
 
 const dbMock = vi.hoisted(() => ({
   group: { findUnique: vi.fn() },
+  student: { findFirst: vi.fn() },
+  user: { findFirst: vi.fn() },
   classSession: {
     createMany: vi.fn(),
     findUnique: vi.fn(),
+    findFirst: vi.fn(),
     update: vi.fn(),
     findMany: vi.fn(),
     updateMany: vi.fn(),
@@ -166,6 +169,61 @@ describe("createLesson", () => {
       groupId: "11111111-1111-4111-8111-111111111111",
       date: "2026-09-01",
       time: "15:30", // overlaps 15:00–16:00
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+    });
+
+    expect(result?.error).toBeTruthy();
+    expect(dbMock.classSession.createMany).not.toHaveBeenCalled();
+  });
+
+  it("schedules an individual lesson without a group, using the chosen teacher and session price", async () => {
+    dbMock.student.findFirst.mockResolvedValue({ id: "22222222-2222-4222-8222-222222222222" });
+    dbMock.user.findFirst.mockResolvedValue({ id: "33333333-3333-4333-8333-333333333333" });
+    dbMock.classSession.createMany.mockResolvedValue({ count: 1 });
+
+    const result = await createLesson({
+      type: "INDIVIDUAL",
+      studentId: "22222222-2222-4222-8222-222222222222",
+      teacherId: "33333333-3333-4333-8333-333333333333",
+      pricePerLesson: "1500",
+      date: "2026-09-01",
+      time: "15:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+    });
+
+    expect(result?.error).toBeUndefined();
+    // No group lookup for an individual lesson.
+    expect(dbMock.group.findUnique).not.toHaveBeenCalled();
+    expect(dbMock.classSession.createMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          type: "INDIVIDUAL",
+          groupId: null,
+          studentId: "22222222-2222-4222-8222-222222222222",
+          teacherId: "33333333-3333-4333-8333-333333333333",
+          pricePerLesson: 1500,
+          durationMinutes: 60,
+        }),
+      ],
+    });
+  });
+
+  it("rejects an individual lesson whose student does not exist", async () => {
+    dbMock.student.findFirst.mockResolvedValue(null);
+    dbMock.user.findFirst.mockResolvedValue({ id: "33333333-3333-4333-8333-333333333333" });
+
+    const result = await createLesson({
+      type: "INDIVIDUAL",
+      studentId: "22222222-2222-4222-8222-222222222222",
+      teacherId: "33333333-3333-4333-8333-333333333333",
+      date: "2026-09-01",
+      time: "15:00",
       durationMinutes: 60,
       recurrence: "NONE",
       recurrenceDays: [],

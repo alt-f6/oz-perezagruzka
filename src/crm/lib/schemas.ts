@@ -169,9 +169,37 @@ function recurrenceTargetDays(
   return [];
 }
 
+// Lesson format: a GROUP session is scheduled against an existing Group roster;
+// an INDIVIDUAL (1-on-1) session is scheduled directly for a single student and
+// teacher, with no dummy group required.
+export const lessonTypeSchema = z.enum(["GROUP", "INDIVIDUAL"]);
+
 export const lessonSchema = z
   .object({
-    groupId: z.uuid({ message: "Выберите группу" }),
+    // Optional (not `.default`) so the zod input and output types stay aligned
+    // for react-hook-form; an absent type means GROUP, preserving the behavior
+    // of every existing caller and FormData that omits it.
+    type: lessonTypeSchema.optional(),
+    // Required for GROUP sessions (validated below); ignored for INDIVIDUAL.
+    groupId: z.uuid().optional().or(z.literal("")),
+    // Required for INDIVIDUAL sessions (validated below); ignored for GROUP.
+    studentId: z.uuid().optional().or(z.literal("")),
+    teacherId: z.uuid().optional().or(z.literal("")),
+    // Optional per-lesson charge for INDIVIDUAL sessions. Kept as a string (the
+    // raw HTML number-input value) so the zod input and output types stay equal
+    // for react-hook-form; the action coerces it to a number. "" means "unset".
+    pricePerLesson: z
+      .string()
+      .optional()
+      .or(z.literal(""))
+      .refine(
+        (v) => {
+          if (!v) return true;
+          const n = Number(v);
+          return Number.isFinite(n) && n >= 0 && n <= 1_000_000;
+        },
+        { message: "Некорректная цена (0–1 000 000)" },
+      ),
     date: z.string().min(1, { message: "Укажите дату" }),
     time: z.string().min(1, { message: "Укажите время" }),
     durationMinutes: lessonDurationSchema,
@@ -181,6 +209,20 @@ export const lessonSchema = z
     recurrenceEndDate: z.string().optional().or(z.literal("")),
     // Optional per-weekday time/duration overrides for multi-day series.
     daySlots: z.array(daySlotSchema).optional(),
+  })
+  // An absent `type` is treated as GROUP, so GROUP validation fires unless the
+  // caller explicitly chose INDIVIDUAL.
+  .refine((data) => data.type === "INDIVIDUAL" || !!data.groupId, {
+    message: "Выберите группу",
+    path: ["groupId"],
+  })
+  .refine((data) => data.type !== "INDIVIDUAL" || !!data.studentId, {
+    message: "Выберите ученика",
+    path: ["studentId"],
+  })
+  .refine((data) => data.type !== "INDIVIDUAL" || !!data.teacherId, {
+    message: "Выберите преподавателя",
+    path: ["teacherId"],
   })
   .refine(
     (data) => data.recurrence !== "CUSTOM" || (data.recurrenceDays && data.recurrenceDays.length > 0),
@@ -282,6 +324,7 @@ export type UpdateGroupValues = z.infer<typeof updateGroupSchema>;
 export type StudentValues = z.infer<typeof studentSchema>;
 export type StudentUpdateValues = z.infer<typeof studentUpdateSchema>;
 export type ExamType = z.infer<typeof examTypeSchema>;
+export type LessonType = z.infer<typeof lessonTypeSchema>;
 export type LessonValues = z.infer<typeof lessonSchema>;
 export type DaySlot = z.infer<typeof daySlotSchema>;
 export type MakeupValues = z.infer<typeof makeupSchema>;

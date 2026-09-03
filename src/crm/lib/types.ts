@@ -67,18 +67,26 @@ export const CLASS_SESSION_STATUS = {
   CANCELLED: "cancelled",
 } as const satisfies Record<string, ClassSessionStatus>;
 
+export type LessonType = "GROUP" | "INDIVIDUAL";
+
 export interface ClassSession {
   id: string;
-  groupId: string;
+  type?: LessonType;
+  // Null for INDIVIDUAL (1-on-1) sessions, which link a studentId directly.
+  groupId: string | null;
+  studentId?: string | null;
   teacherId: string;
   scheduledAt: string;
   status: string;
   durationMinutes: number;
+  pricePerLesson?: number | null;
   recurrenceGroupId?: string | null;
 }
 
 export interface ClassSessionWithGroup extends ClassSession {
-  group: Group;
+  // Null for INDIVIDUAL sessions; `student` carries the roster instead.
+  group: Group | null;
+  student?: { id: string; fullName: string; phone?: string | null } | null;
 }
 
 export interface AttendanceRecord {

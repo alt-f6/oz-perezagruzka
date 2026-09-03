@@ -29,12 +29,15 @@ const PIXELS_PER_HOUR = 64;
 
 export interface ScheduleLesson {
   id: string;
+  type?: "GROUP" | "INDIVIDUAL";
   scheduledAt: string;
-  groupId: string;
+  groupId: string | null;
+  studentId?: string | null;
   teacherId: string;
   status: string;
   durationMinutes: number;
   group?: { id: string; name: string } | null;
+  student?: { id: string; fullName: string } | null;
 }
 
 export interface ScheduleGroup {
@@ -48,23 +51,34 @@ export interface ScheduleTeacher {
   fullName: string;
 }
 
+export interface ScheduleStudent {
+  id: string;
+  fullName: string;
+}
+
 type ViewMode = "day" | "week" | "month";
 
 const WEEKDAY_LABELS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"];
 
-function getGroupName(lesson: ScheduleLesson): string {
-  return lesson.group?.name ?? "Без группы";
+// Group lessons show the group name; individual lessons show the student's name
+// (with a "1-на-1" hint) instead of the removed "Без группы" placeholder.
+function getSessionLabel(lesson: ScheduleLesson): string {
+  if (lesson.group?.name) return lesson.group.name;
+  if (lesson.student?.fullName) return `${lesson.student.fullName} · 1-на-1`;
+  return "Индивидуальное занятие";
 }
 
 export function ScheduleClient({
   lessons,
   groups,
   teachers,
+  students = [],
   userRole,
 }: {
   lessons: ScheduleLesson[];
   groups: ScheduleGroup[];
   teachers: ScheduleTeacher[];
+  students?: ScheduleStudent[];
   userRole?: string;
 }) {
   const isTeacher = userRole === "TEACHER";
@@ -87,6 +101,10 @@ export function ScheduleClient({
   } = useForm<LessonValues>({
     resolver: zodResolver(lessonSchema),
     defaultValues: {
+      type: "GROUP",
+      groupId: "",
+      studentId: "",
+      teacherId: "",
       recurrence: "NONE",
       recurrenceDays: [],
       durationMinutes: 60,
@@ -317,7 +335,7 @@ export function ScheduleClient({
                         : "border-accent/60 bg-accent/[0.08] text-slate-900 hover:bg-accent/15"
                     }`}
                   >
-                    <p className="truncate font-semibold">{getGroupName(lesson)}</p>
+                    <p className="truncate font-semibold">{getSessionLabel(lesson)}</p>
                     <p className="truncate text-[11px] text-slate-500">
                       {formatTimeRange({
                         scheduledAt: lesson.scheduledAt,
@@ -373,7 +391,7 @@ export function ScheduleClient({
                             scheduledAt: lesson.scheduledAt,
                             durationMinutes: lesson.durationMinutes,
                           })}{" "}
-                          · {getGroupName(lesson)}
+                          · {getSessionLabel(lesson)}
                         </Link>
                       );
                     })
@@ -452,6 +470,8 @@ export function ScheduleClient({
             trigger={trigger}
             errors={errors}
             groups={groups}
+            teachers={teachers}
+            students={students}
             isSubmitting={isSubmitting}
             onSubmit={handleSubmit(onSubmit)}
           />

@@ -18,8 +18,9 @@ const TOTAL_STEPS = 2;
 
 // Fields owned by step 1. Validated before advancing so the user can't skip
 // ahead over a missing group/date/time or an unfinished recurrence config.
-const STEP_ONE_FIELDS: (keyof LessonValues)[] = [
-  "groupId",
+// The group vs student/teacher fields depend on the chosen lesson format, so
+// the exact set is resolved per-format in `stepOneFields`.
+const STEP_ONE_COMMON_FIELDS: (keyof LessonValues)[] = [
   "date",
   "time",
   "durationMinutes",
@@ -27,6 +28,12 @@ const STEP_ONE_FIELDS: (keyof LessonValues)[] = [
   "recurrenceDays",
   "recurrenceEndDate",
 ];
+
+function stepOneFields(type: LessonValues["type"]): (keyof LessonValues)[] {
+  return type === "INDIVIDUAL"
+    ? ["type", "studentId", "teacherId", ...STEP_ONE_COMMON_FIELDS]
+    : ["type", "groupId", ...STEP_ONE_COMMON_FIELDS];
+}
 
 const STEP_TITLES = ["Основное", "Время"];
 
@@ -48,6 +55,8 @@ export function LessonWizard({
   trigger,
   errors,
   groups,
+  teachers,
+  students,
   isSubmitting,
   onSubmit,
 }: {
@@ -57,13 +66,16 @@ export function LessonWizard({
   trigger: UseFormTrigger<LessonValues>;
   errors: FieldErrors<LessonValues>;
   groups: { id: string; name: string; teacherId?: string | null }[];
+  teachers: { id: string; fullName: string }[];
+  students: { id: string; fullName: string }[];
   isSubmitting: boolean;
   onSubmit: FormEventHandler<HTMLFormElement>;
 }) {
   const [step, setStep] = useState(1);
+  const lessonType = watch("type") ?? "GROUP";
 
   const goNext = async () => {
-    const valid = await trigger(STEP_ONE_FIELDS);
+    const valid = await trigger(stepOneFields(lessonType));
     if (valid) setStep((s) => Math.min(TOTAL_STEPS, s + 1));
   };
 
@@ -112,6 +124,8 @@ export function LessonWizard({
           setValue={setValue}
           errors={errors}
           groups={groups}
+          teachers={teachers}
+          students={students}
           isSubmitting={isSubmitting}
         />
       ) : (

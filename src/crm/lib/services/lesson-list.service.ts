@@ -22,12 +22,15 @@ export async function listLessons(
     ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
     select: {
       id: true,
+      type: true,
       groupId: true,
+      studentId: true,
       scheduledAt: true,
       status: true,
       durationMinutes: true,
       recurrenceGroupId: true,
       group: { select: { id: true, name: true, teacherId: true } },
+      student: { select: { id: true, fullName: true } },
     },
   });
 

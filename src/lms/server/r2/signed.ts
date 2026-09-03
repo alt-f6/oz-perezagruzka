@@ -7,7 +7,15 @@ function readPositiveInt(raw: string | undefined, fallback: number) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-const R2_UPLOAD_TTL_SECONDS = readPositiveInt(process.env.R2_UPLOAD_TTL_SECONDS, 120);
+// Upload (PUT) URL lifetime. Must comfortably exceed the time it takes to
+// upload the LARGEST allowed asset (LESSON_ASSET_MAX_SIZE_BYTES, 25 MB) on a
+// slow connection — otherwise the presigned URL expires mid-upload, R2 returns
+// 403, and the client tears the just-created asset back down (the "PDF shows
+// progress then disappears" bug). 900s tolerates ~230 kbps sustained for a
+// 25 MB file, covering realistic mobile/home uplinks with wide margin. A prior
+// TTL-split regression dropped this to 120s (~1.75 Mbps required), which large
+// scanned PDFs routinely could not meet.
+const R2_UPLOAD_TTL_SECONDS = readPositiveInt(process.env.R2_UPLOAD_TTL_SECONDS, 900);
 const R2_VIEW_TTL_SECONDS = readPositiveInt(process.env.R2_VIEW_TTL_SECONDS, 7200);
 
 export async function signPutObject(key: string, contentType: string) {

@@ -7,6 +7,7 @@ import { parseDateKey } from "@/crm/lib/calendarGrid";
 import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import { BillingService } from "@/crm/lib/services/billing.service";
+import { zonedWallClockToUtc, formatMoscowDate, formatMoscowTime } from "@/shared/lib/timezone";
 import type { ActionResult } from "@/crm/lib/types";
 
 const MAX_RECURRING_SESSIONS = 200;
@@ -31,11 +32,23 @@ function resolveSlot(
   return { time: values.time, durationMinutes: values.durationMinutes };
 }
 
+/**
+ * Combines a calendar day (whose LOCAL fields carry the intended date, as
+ * produced by parseDateKey + the recurrence cursor) with an `HH:MM` wall-clock,
+ * interpreting the result as Europe/Moscow and returning the matching UTC
+ * instant. Using the explicit business timezone here — instead of the ambient
+ * `setHours` — is what makes the persisted instant render back as the exact
+ * wall-clock the operator picked, on any server/browser timezone (TIME-01/02).
+ */
 function atTime(day: Date, time: string): Date {
   const [hours, minutes] = time.split(":").map(Number);
-  const d = new Date(day);
-  d.setHours(hours, minutes, 0, 0);
-  return d;
+  return zonedWallClockToUtc(
+    day.getFullYear(),
+    day.getMonth() + 1,
+    day.getDate(),
+    hours,
+    minutes,
+  );
 }
 
 /**
@@ -87,6 +100,62 @@ function expandOccurrences(values: LessonValues): Occurrence[] {
   return occurrences;
 }
 
+// Longest bookable lesson (see lessonDurationOptions). Used only to widen the
+// DB scan window so an existing lesson that starts before the earliest new
+// occurrence can still be considered for overlap.
+const MAX_LESSON_DURATION_MS = 120 * 60_000;
+
+function intervalsOverlap(
+  aStart: number,
+  aEnd: number,
+  bStart: number,
+  bEnd: number,
+): boolean {
+  return aStart < bEnd && bStart < aEnd;
+}
+
+/**
+ * Returns the first existing scheduled ClassSession for `teacherId` that
+ * overlaps any of the requested occurrences, or null when the teacher is free.
+ * Scans only still-"scheduled" sessions in the occurrences' time window; the
+ * window is padded by the max lesson length so an existing session starting
+ * just before the first occurrence is still caught.
+ */
+async function findTeacherScheduleConflict(
+  teacherId: string,
+  occurrences: Occurrence[],
+): Promise<{ scheduledAt: Date } | null> {
+  const starts = occurrences.map((o) => o.scheduledAt.getTime());
+  const ends = occurrences.map(
+    (o) => o.scheduledAt.getTime() + o.durationMinutes * 60_000,
+  );
+  const windowStart = new Date(Math.min(...starts) - MAX_LESSON_DURATION_MS);
+  const windowEnd = new Date(Math.max(...ends));
+
+  const existing = await db.classSession.findMany({
+    where: {
+      teacherId,
+      status: "scheduled",
+      scheduledAt: { gte: windowStart, lt: windowEnd },
+    },
+    select: { scheduledAt: true, durationMinutes: true },
+  });
+
+  for (const occ of occurrences) {
+    const occStart = occ.scheduledAt.getTime();
+    const occEnd = occStart + occ.durationMinutes * 60_000;
+    for (const s of existing) {
+      const sStart = new Date(s.scheduledAt).getTime();
+      const sEnd = sStart + s.durationMinutes * 60_000;
+      if (intervalsOverlap(occStart, occEnd, sStart, sEnd)) {
+        return { scheduledAt: occ.scheduledAt };
+      }
+    }
+  }
+
+  return null;
+}
+
 export async function createLesson(
   values: LessonValues,
 ): Promise<ActionResult> {
@@ -112,6 +181,19 @@ export async function createLesson(
   const occurrences = expandOccurrences(parsed.data);
   if (occurrences.length === 0) {
     return { error: "Не удалось рассчитать даты занятий" };
+  }
+
+  // TIME-03: reject (never silently shift) a new lesson that overlaps an
+  // existing scheduled lesson for the same teacher. Overlap is checked on the
+  // exact [start, end) instant intervals so back-to-back lessons are allowed
+  // but any true overlap is blocked with a clear conflict message.
+  const conflict = await findTeacherScheduleConflict(teacherId, occurrences);
+  if (conflict) {
+    return {
+      error: `Преподаватель уже занят ${formatMoscowDate(conflict.scheduledAt)} в ${formatMoscowTime(
+        conflict.scheduledAt,
+      )}. Выберите другое время.`,
+    };
   }
 
   const recurrenceGroupId =

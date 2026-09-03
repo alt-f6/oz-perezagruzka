@@ -4,6 +4,7 @@ import type { FieldErrors, UseFormRegister, UseFormSetValue, UseFormWatch } from
 
 import { toDateKey, todayKey } from "@/crm/lib/calendarGrid";
 import { formatTimeRange } from "@/crm/lib/lessonTime";
+import { moscowDateTimeToUtc } from "@/shared/lib/timezone";
 import type { LessonValues } from "@/crm/lib/schemas";
 import { DatePicker } from "./DatePicker";
 import { DurationChips } from "./DurationChips";
@@ -65,7 +66,10 @@ export function LessonFormFields({
   const rangeLabel =
     date && time
       ? formatTimeRange({
-          scheduledAt: `${date}T${time}:00`,
+          // Build the same Moscow-anchored instant createLesson persists, so
+          // the preview matches the stored/rendered wall-clock exactly instead
+          // of floating on the browser timezone.
+          scheduledAt: moscowDateTimeToUtc(date, time),
           durationMinutes,
         })
       : null;

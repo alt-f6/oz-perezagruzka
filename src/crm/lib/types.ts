@@ -39,6 +39,9 @@ export interface Group {
   name: string;
   teacherId: string | null;
   pricePerLesson?: number;
+  subject?: string | null;
+  grade?: number | null;
+  examType?: string | null;
 }
 
 export interface GroupWithStudents extends Group {

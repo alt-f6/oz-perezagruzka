@@ -14,7 +14,7 @@ import { useForm } from "react-hook-form";
 import { ConfirmDialog } from "@/crm/components/ConfirmDialog";
 import { Modal } from "@/crm/components/Modal";
 import { useToast } from "@/crm/components/ToastProvider";
-import { studentSchema, type StudentValues } from "@/crm/lib/schemas";
+import { studentSchema, gradeValues, type StudentValues } from "@/crm/lib/schemas";
 import type { Group, Student } from "@/crm/lib/types";
 import { createStudent, deleteStudent, updateStudentBalance } from "./actions";
 import Link from "next/link";
@@ -98,7 +98,17 @@ export function StudentsClient({
     formState: { errors },
   } = useForm({
     resolver: zodResolver(studentSchema),
-    defaultValues: { name: "", phone: "", groupId: "" },
+    defaultValues: {
+      name: "",
+      phone: "",
+      groupId: "",
+      parentName: "",
+      parentPhone: "",
+      comment: "",
+      grade: "",
+      examType: "",
+      subject: "",
+    },
   });
 
   const onSubmit = async (data: StudentValues) => {
@@ -362,6 +372,72 @@ export function StudentsClient({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Имя родителя</label>
+              <input
+                {...register("parentName")}
+                placeholder="Мария Иванова"
+                className="input"
+              />
+            </div>
+            <div>
+              <label className="label">Телефон родителя</label>
+              <input
+                {...register("parentPhone")}
+                placeholder="+79991112233"
+                className="input"
+              />
+              {errors.parentPhone && (
+                <p className="field-error">{errors.parentPhone.message}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Класс</label>
+              <select {...register("grade")} className="input">
+                <option value="">—</option>
+                {gradeValues.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
+              </select>
+              {errors.grade && (
+                <p className="field-error">{errors.grade.message}</p>
+              )}
+            </div>
+            <div>
+              <label className="label">Экзамен</label>
+              <select {...register("examType")} className="input">
+                <option value="">—</option>
+                <option value="OGE">ОГЭ</option>
+                <option value="EGE">ЕГЭ</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="label">Предмет</label>
+            <input
+              {...register("subject")}
+              placeholder="Математика"
+              className="input"
+            />
+          </div>
+
+          <div>
+            <label className="label">Комментарий</label>
+            <textarea
+              {...register("comment")}
+              placeholder="Заметки о студенте (необязательно)"
+              className="input"
+              rows={2}
+            />
           </div>
 
           <button

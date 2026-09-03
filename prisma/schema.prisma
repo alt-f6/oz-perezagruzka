@@ -168,6 +168,20 @@ model Student {
   userId    String?
   fullName  String
   phone     String?   @unique
+  // Denormalized parent contact captured directly on the student card. Kept
+  // alongside (not in place of) the richer Parent/ParentStudent portal model:
+  // this is the quick operational contact an operator fills in on the profile,
+  // independent of whether a parent portal account has been provisioned.
+  parentName  String?
+  parentPhone String?
+  // Operational free-text notes shown on the student card ("Комментарий").
+  comment     String?
+  // Educational domain fields. Nullable for backward compatibility with rows
+  // created before these were captured. grade = school year 8..11; examType is
+  // a free string constrained to "OGE"/"EGE" at the Zod layer (studentExamTypeSchema).
+  grade       Int?
+  examType    String?
+  subject     String?
   createdAt DateTime  @default(now())
   deletedAt DateTime?
 
@@ -226,6 +240,10 @@ model Group {
   pricePerLesson Decimal   @default(0.00) @db.Decimal(10, 2)
   meetingUrl     String?
   capacity       Int       @default(10)
+  // Educational domain fields (nullable for backward compatibility).
+  subject        String?
+  grade          Int?
+  examType       String?
   createdAt      DateTime  @default(now())
   deletedAt      DateTime?
 

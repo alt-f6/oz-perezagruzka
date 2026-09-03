@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { formatMoscowTime, moscowDateKey } from "@/shared/lib/timezone";
 
 const dbMock = vi.hoisted(() => ({
   group: { findUnique: vi.fn() },
@@ -27,6 +28,8 @@ const ADMIN = { id: "user_1", email: "a@a.com", role: "ADMIN" };
 beforeEach(() => {
   vi.clearAllMocks();
   rbacMock.requireRole.mockResolvedValue(ADMIN);
+  // Default: the teacher has no existing sessions, so the conflict scan is empty.
+  dbMock.classSession.findMany.mockResolvedValue([]);
 });
 
 describe("createLesson", () => {
@@ -64,10 +67,12 @@ describe("createLesson", () => {
     });
 
     const { scheduledAt } = dbMock.classSession.createMany.mock.calls[0][0].data[0];
-    expect(scheduledAt.getFullYear()).toBe(2026);
-    expect(scheduledAt.getMonth()).toBe(7); // August
-    expect(scheduledAt.getDate()).toBe(31); // not 30
-    expect(scheduledAt.getHours()).toBe(9);
+    // Persisted as the UTC instant for 09:00 Moscow on 2026-08-31 (06:00Z);
+    // the Moscow calendar day must stay the 31st (no UTC 31st→30th shift) and
+    // the wall-clock must round-trip to exactly 09:00.
+    expect(scheduledAt.toISOString()).toBe("2026-08-31T06:00:00.000Z");
+    expect(moscowDateKey(scheduledAt)).toBe("2026-08-31");
+    expect(formatMoscowTime(scheduledAt)).toBe("09:00");
   });
 
   it("applies independent per-day time and duration overrides across a series", async () => {
@@ -95,13 +100,14 @@ describe("createLesson", () => {
       durationMinutes: number;
     }[];
     const byDay = rows.map((r) => ({
-      weekday: r.scheduledAt.getDay(),
-      hours: r.scheduledAt.getHours(),
+      weekday: r.scheduledAt.getUTCDay(),
+      time: formatMoscowTime(r.scheduledAt),
       durationMinutes: r.durationMinutes,
     }));
 
-    expect(byDay).toContainEqual({ weekday: 1, hours: 15, durationMinutes: 60 });
-    expect(byDay).toContainEqual({ weekday: 6, hours: 10, durationMinutes: 90 });
+    // Mon 15:00·60min, Sat 10:00·90min — Moscow wall-clock, weekday unchanged.
+    expect(byDay).toContainEqual({ weekday: 1, time: "15:00", durationMinutes: 60 });
+    expect(byDay).toContainEqual({ weekday: 6, time: "10:00", durationMinutes: 90 });
   });
 
   it("falls back to the default time/duration for days without an override", async () => {
@@ -123,12 +129,12 @@ describe("createLesson", () => {
       scheduledAt: Date;
       durationMinutes: number;
     }[];
-    const mon = rows.find((r) => r.scheduledAt.getDay() === 1)!;
-    const wed = rows.find((r) => r.scheduledAt.getDay() === 3)!;
+    const mon = rows.find((r) => r.scheduledAt.getUTCDay() === 1)!;
+    const wed = rows.find((r) => r.scheduledAt.getUTCDay() === 3)!;
 
-    expect(mon.scheduledAt.getHours()).toBe(18);
+    expect(formatMoscowTime(mon.scheduledAt)).toBe("18:00");
     expect(mon.durationMinutes).toBe(45);
-    expect(wed.scheduledAt.getHours()).toBe(12);
+    expect(formatMoscowTime(wed.scheduledAt)).toBe("12:00");
     expect(wed.durationMinutes).toBe(120);
   });
 
@@ -147,6 +153,49 @@ describe("createLesson", () => {
 
     expect(result?.error).toBeTruthy();
     expect(dbMock.classSession.createMany).not.toHaveBeenCalled();
+  });
+
+  it("blocks a lesson that overlaps an existing scheduled lesson for the teacher (TIME-03)", async () => {
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
+    // Existing 60-min lesson at 15:00 Moscow (12:00Z) on 2026-09-01.
+    dbMock.classSession.findMany.mockResolvedValue([
+      { scheduledAt: new Date("2026-09-01T12:00:00.000Z"), durationMinutes: 60 },
+    ]);
+
+    const result = await createLesson({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2026-09-01",
+      time: "15:30", // overlaps 15:00–16:00
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+    });
+
+    expect(result?.error).toBeTruthy();
+    expect(dbMock.classSession.createMany).not.toHaveBeenCalled();
+  });
+
+  it("allows a back-to-back lesson that only touches the boundary", async () => {
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
+    dbMock.classSession.createMany.mockResolvedValue({ count: 1 });
+    // Existing 15:00–16:00 Moscow lesson; new one starts exactly at 16:00.
+    dbMock.classSession.findMany.mockResolvedValue([
+      { scheduledAt: new Date("2026-09-01T12:00:00.000Z"), durationMinutes: 60 },
+    ]);
+
+    const result = await createLesson({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2026-09-01",
+      time: "16:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+    });
+
+    expect(result?.error).toBeUndefined();
+    expect(dbMock.classSession.createMany).toHaveBeenCalled();
   });
 });
 

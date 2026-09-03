@@ -7,7 +7,9 @@ import { ExamTrackerSection } from "./ExamTrackerSection";
 import { FreezeSection } from "./FreezeSection";
 import { PortalInviteSection } from "./PortalInviteSection";
 import { TelegramLinkSection } from "./TelegramLinkSection";
+import { StudentProfileSection } from "./StudentProfileSection";
 import { createStudentPaymentSession } from "./payment-actions";
+import type { ExamType } from "@/crm/lib/schemas";
 
 export default async function StudentDetailPage({
   params,
@@ -27,7 +29,17 @@ export default async function StudentDetailPage({
       id: true,
       fullName: true,
       userId: true,
-      ...(isTeacher ? {} : { phone: true }),
+      ...(isTeacher
+        ? {}
+        : {
+            phone: true,
+            parentName: true,
+            parentPhone: true,
+            comment: true,
+            grade: true,
+            examType: true,
+            subject: true,
+          }),
     },
   });
 
@@ -113,6 +125,27 @@ export default async function StudentDetailPage({
           </div>
         )}
       </div>
+
+      {!isTeacher && (
+        <StudentProfileSection
+          studentId={id}
+          initial={{
+            name: student.fullName,
+            phone:
+              (student as { phone: string | null }).phone ?? "",
+            parentName:
+              (student as { parentName: string | null }).parentName ?? "",
+            parentPhone:
+              (student as { parentPhone: string | null }).parentPhone ?? "",
+            comment: (student as { comment: string | null }).comment ?? "",
+            grade: (student as { grade: number | null }).grade ?? null,
+            examType:
+              ((student as { examType: string | null }).examType as ExamType | null) ??
+              null,
+            subject: (student as { subject: string | null }).subject ?? "",
+          }}
+        />
+      )}
 
       <PortalInviteSection
         studentId={id}

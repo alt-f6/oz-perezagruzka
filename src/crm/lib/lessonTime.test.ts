@@ -20,12 +20,15 @@ describe("getSessionEndsAt", () => {
 });
 
 describe("formatTimeRange", () => {
-  it("formats a start-end range with the duration in minutes", () => {
+  // Inputs are UTC instants; the range renders in Europe/Moscow (UTC+3), so a
+  // 15:00Z instant is the 18:00 Moscow wall-clock. This is deterministic
+  // regardless of the machine's ambient timezone.
+  it("formats a start-end range with the duration in minutes (Moscow wall-clock)", () => {
     const text = formatTimeRange({
       scheduledAt: new Date("2026-08-23T15:00:00.000Z"),
       durationMinutes: 60,
     });
-    expect(text).toBe("15:00–16:00 (60 мин)");
+    expect(text).toBe("18:00–19:00 (60 мин)");
   });
 
   it("handles a 30-minute session", () => {
@@ -33,6 +36,6 @@ describe("formatTimeRange", () => {
       scheduledAt: new Date("2026-08-23T09:15:00.000Z"),
       durationMinutes: 30,
     });
-    expect(text).toBe("09:15–09:45 (30 мин)");
+    expect(text).toBe("12:15–12:45 (30 мин)");
   });
 });

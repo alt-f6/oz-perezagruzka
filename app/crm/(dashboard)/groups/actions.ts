@@ -5,7 +5,6 @@ import {
   createGroupSchema,
   updateGroupSchema,
   type GroupValues,
-  type UpdateGroupValues,
 } from "@/crm/lib/schemas";
 import { requireRole } from "@/shared/lib/rbac";
 import { db } from "@/shared/lib/db";
@@ -50,7 +49,13 @@ export async function getTeachers() {
 }
 
 export async function createGroup(
-  values: GroupValues & { teacherId?: string; price?: number },
+  values: GroupValues & {
+    teacherId?: string;
+    price?: number;
+    subject?: string;
+    grade?: string | number;
+    examType?: string;
+  },
 ): Promise<ActionResult> {
   const sessionUser = await requireRole(["ADMIN", "MANAGER"]);
 
@@ -67,6 +72,9 @@ export async function createGroup(
         name: parsed.data.name,
         teacherId: finalTeacherId,
         pricePerLesson: parsed.data.price ?? 0,
+        subject: parsed.data.subject || null,
+        grade: parsed.data.grade ?? null,
+        examType: parsed.data.examType ?? null,
       },
     });
   } catch (error) {
@@ -82,9 +90,26 @@ export async function deleteGroup(groupId: string): Promise<ActionResult> {
   await requireRole(["ADMIN"]);
 
   try {
-    await db.group.update({
-      where: { id: groupId },
-      data: { deletedAt: new Date() },
+    // Atomic: soft-delete the group AND cancel its future scheduled lessons in
+    // one transaction so no orphaned sessions linger in the Lessons/Schedule
+    // views (DATA-02). Past/attended sessions are left untouched so billing and
+    // salary history stay intact; the group is soft-deleted (deletedAt) to keep
+    // its historical records, so the schema-level onDelete cascade never fires
+    // and we must transition the future sessions to a terminal state ourselves.
+    await db.$transaction(async (tx) => {
+      await tx.classSession.updateMany({
+        where: {
+          groupId,
+          status: "scheduled",
+          scheduledAt: { gt: new Date() },
+        },
+        data: { status: "cancelled" },
+      });
+
+      await tx.group.update({
+        where: { id: groupId },
+        data: { deletedAt: new Date() },
+      });
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Неизвестная ошибка";
@@ -94,6 +119,7 @@ export async function deleteGroup(groupId: string): Promise<ActionResult> {
   revalidatePath("/groups");
   revalidatePath("/students");
   revalidatePath("/lessons");
+  revalidatePath("/schedule");
   return {};
 }
 
@@ -120,7 +146,14 @@ export async function assignTeacherToGroup(
 
 export async function updateGroup(
   groupId: string,
-  values: UpdateGroupValues,
+  values: {
+    name: string;
+    teacherId: string | null;
+    price: number;
+    subject?: string;
+    grade?: string | number;
+    examType?: string;
+  },
 ): Promise<ActionResult> {
   await requireRole(["ADMIN", "MANAGER"]);
 
@@ -137,6 +170,9 @@ export async function updateGroup(
         name: parsed.data.name,
         teacherId: validTeacherId,
         pricePerLesson: parsed.data.price,
+        subject: parsed.data.subject || null,
+        grade: parsed.data.grade ?? null,
+        examType: parsed.data.examType ?? null,
       },
     });
   } catch (error) {

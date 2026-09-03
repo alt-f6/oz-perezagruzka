@@ -129,6 +129,34 @@ export function formatMoscowDate(instant: Date | string): string {
   return moscowDateFormatter.format(new Date(instant));
 }
 
+/**
+ * The Moscow wall-clock parts of an instant, TZ-invariantly.
+ *
+ * `weekdayMon0` is the day of week with Monday=0 .. Sunday=6 (the convention
+ * the availability grid and week keys use), NOT JS's Sunday=0 `getDay()`. It is
+ * derived from the Moscow calendar-day key parsed at UTC midnight, so it never
+ * drifts with the server/browser timezone.
+ */
+export function moscowWallClock(instant: Date | string): {
+  dateKey: string;
+  hour: number;
+  minute: number;
+  weekdayMon0: number;
+} {
+  const d = new Date(instant);
+  const dateKey = moscowDateKey(d);
+  const [hh, mm] = formatMoscowTime(d).split(":").map(Number);
+  // getUTCDay() on the pure date key (UTC midnight) is TZ-invariant; remap
+  // Sunday=0..Saturday=6 to Monday=0..Sunday=6.
+  const jsDay = new Date(`${dateKey}T00:00:00.000Z`).getUTCDay();
+  return {
+    dateKey,
+    hour: hh,
+    minute: mm,
+    weekdayMon0: (jsDay + 6) % 7,
+  };
+}
+
 /** `YYYY-MM-DD` Moscow calendar-day key of `instant` (stable across views). */
 export function moscowDateKey(instant: Date | string): string {
   const parts = new Intl.DateTimeFormat("en-CA", {

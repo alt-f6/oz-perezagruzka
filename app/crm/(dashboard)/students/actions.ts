@@ -2,10 +2,21 @@
 
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
-import { studentSchema, balanceAdjustmentSchema, type StudentValues } from "@/crm/lib/schemas";
+import {
+  studentSchema,
+  studentUpdateSchema,
+  balanceAdjustmentSchema,
+  type StudentValues,
+  type StudentUpdateValues,
+} from "@/crm/lib/schemas";
 import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import type { ActionResult } from "@/crm/lib/types";
+
+// Maps an optional form string to a persisted value: "" / undefined → null.
+function orNull(v: string | undefined | null): string | null {
+  return v ? v : null;
+}
 
 export async function createStudent(
   values: StudentValues,
@@ -31,7 +42,16 @@ export async function createStudent(
       }
 
       const student = await tx.student.create({
-        data: { fullName: parsed.data.name, phone: parsed.data.phone || null },
+        data: {
+          fullName: parsed.data.name,
+          phone: parsed.data.phone || null,
+          parentName: orNull(parsed.data.parentName),
+          parentPhone: parsed.data.parentPhone || null,
+          comment: orNull(parsed.data.comment),
+          grade: parsed.data.grade ?? null,
+          examType: parsed.data.examType ?? null,
+          subject: orNull(parsed.data.subject),
+        },
         select: { id: true },
       });
 
@@ -55,6 +75,69 @@ export async function createStudent(
 
   revalidatePath("/students");
   revalidatePath("/groups");
+  return {};
+}
+
+/**
+ * Persists edits to a student's profile card: name, phone, parent contact,
+ * educational domain fields, and comment (DATA-01/DATA-03). Parent name/phone
+ * are stored directly on the Student row so a save round-trips reliably and
+ * reloads populated. Phone uniqueness is re-checked to surface a clear error
+ * instead of a raw constraint violation.
+ */
+export async function updateStudent(
+  studentId: string,
+  values: StudentUpdateValues,
+): Promise<ActionResult> {
+  await requireRole(["ADMIN", "MANAGER"]);
+
+  const parsed = studentUpdateSchema.safeParse(values);
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? "Некорректные данные студента",
+    };
+  }
+
+  try {
+    const duplicatePhoneError = await db.$transaction(async (tx) => {
+      if (parsed.data.phone) {
+        const existing = await tx.student.findUnique({
+          where: { phone: parsed.data.phone },
+          select: { id: true },
+        });
+        if (existing && existing.id !== studentId) {
+          return "Студент с таким номером телефона уже существует.";
+        }
+      }
+
+      await tx.student.update({
+        where: { id: studentId },
+        data: {
+          fullName: parsed.data.name,
+          phone: parsed.data.phone || null,
+          parentName: orNull(parsed.data.parentName),
+          parentPhone: parsed.data.parentPhone || null,
+          comment: orNull(parsed.data.comment),
+          grade: parsed.data.grade ?? null,
+          examType: parsed.data.examType ?? null,
+          subject: orNull(parsed.data.subject),
+        },
+      });
+
+      return null;
+    });
+
+    if (duplicatePhoneError) {
+      return { error: duplicatePhoneError };
+    }
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Ошибка сохранения студента",
+    };
+  }
+
+  revalidatePath("/students");
+  revalidatePath(`/students/${studentId}`);
   return {};
 }
 

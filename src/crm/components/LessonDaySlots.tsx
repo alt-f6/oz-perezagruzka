@@ -3,6 +3,7 @@
 import type { FieldErrors, UseFormSetValue, UseFormWatch } from "react-hook-form";
 
 import { formatTimeRange } from "@/crm/lib/lessonTime";
+import { moscowDateTimeToUtc } from "@/shared/lib/timezone";
 import { lessonDurationOptions, type DaySlot, type LessonValues } from "@/crm/lib/schemas";
 import { DurationChips } from "./DurationChips";
 import { TimeSlotPicker } from "./TimeSlotPicker";
@@ -79,7 +80,10 @@ export function LessonDaySlots({
 
   const rangeLabel = (time: string, duration: number): string | null =>
     date && time
-      ? formatTimeRange({ scheduledAt: `${date}T${time}:00`, durationMinutes: duration })
+      ? formatTimeRange({
+          scheduledAt: moscowDateTimeToUtc(date, time),
+          durationMinutes: duration,
+        })
       : null;
 
   if (targetDays.length === 0) {

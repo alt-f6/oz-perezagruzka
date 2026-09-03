@@ -15,9 +15,13 @@ const { ScheduleClient } = await import("./ScheduleClient");
 const groups = [{ id: "g1", name: "Группа 1" }];
 const teachers = [{ id: "t1", fullName: "Иван Иванов" }];
 
+// Returns the UTC instant whose Europe/Moscow (UTC+3) wall-clock is hour:minute
+// today — i.e. what the CRM actually persists for a Moscow-selected time. The
+// schedule renders times in Moscow, so this keeps the fixture's intended
+// wall-clock (e.g. 15:00) matching the rendered label regardless of TZ.
 function todayAt(hour: number, minute: number): string {
   const d = new Date();
-  d.setHours(hour, minute, 0, 0);
+  d.setUTCHours(hour - 3, minute, 0, 0);
   return d.toISOString();
 }
 

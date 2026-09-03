@@ -39,7 +39,8 @@ describe("LessonsClient", () => {
   it("shows the start-end time range instead of just the start time", () => {
     render(
       <LessonsClient
-        initialLessons={[makeLesson({ scheduledAt: "2026-09-01T15:00:00.000Z", durationMinutes: 90 })]}
+        // 12:00Z = 15:00 Europe/Moscow, the wall-clock the schedule renders.
+        initialLessons={[makeLesson({ scheduledAt: "2026-09-01T12:00:00.000Z", durationMinutes: 90 })]}
         initialNextCursor={null}
         groups={groups}
       />,

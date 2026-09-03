@@ -17,7 +17,7 @@ import { useForm } from "react-hook-form";
 import { ConfirmDialog } from "@/crm/components/ConfirmDialog";
 import { Modal } from "@/crm/components/Modal";
 import { useToast } from "@/crm/components/ToastProvider";
-import { groupSchema, type GroupValues } from "@/crm/lib/schemas";
+import { groupSchema, gradeValues, type GroupValues } from "@/crm/lib/schemas";
 import type { GroupWithDetails, User } from "@/crm/lib/types";
 import {
   assignStudentToGroup,
@@ -112,6 +112,9 @@ export function GroupsClient({
         ...data,
         teacherId,
         price,
+        subject: (formData.get("subject") as string) || "",
+        grade: (formData.get("grade") as string) || "",
+        examType: (formData.get("examType") as string) || "",
       });
 
       if (result?.error) {
@@ -227,7 +230,14 @@ export function GroupsClient({
   };
 
   const handleEditGroup = async (
-    data: { name: string; teacherId: string; price: string },
+    data: {
+      name: string;
+      teacherId: string;
+      price: string;
+      subject: string;
+      grade: string;
+      examType: string;
+    },
   ) => {
     if (!editGroup) return;
     setIsSavingEdit(true);
@@ -236,6 +246,9 @@ export function GroupsClient({
         name: data.name,
         teacherId: data.teacherId || null,
         price: Number(data.price),
+        subject: data.subject,
+        grade: data.grade,
+        examType: data.examType,
       });
       if (result?.error) {
         showToast(result.error, "error");
@@ -450,6 +463,39 @@ export function GroupsClient({
               </select>
             </div>
 
+            <div>
+              <label className="label">Предмет</label>
+              <input
+                type="text"
+                name="subject"
+                placeholder="Математика"
+                disabled={isSubmitting}
+                className="input"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Класс</label>
+                <select name="grade" disabled={isSubmitting} className="input">
+                  <option value="">—</option>
+                  {gradeValues.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">Экзамен</label>
+                <select name="examType" disabled={isSubmitting} className="input">
+                  <option value="">—</option>
+                  <option value="OGE">ОГЭ</option>
+                  <option value="EGE">ЕГЭ</option>
+                </select>
+              </div>
+            </div>
+
             <button
               type="submit"
               disabled={isSubmitting}
@@ -553,6 +599,9 @@ export function GroupsClient({
                 name: String(formData.get("name") || ""),
                 teacherId: String(formData.get("teacherId") || ""),
                 price: String(formData.get("price") || "0"),
+                subject: String(formData.get("subject") || ""),
+                grade: String(formData.get("grade") || ""),
+                examType: String(formData.get("examType") || ""),
               });
             }}
             className="space-y-4"
@@ -594,6 +643,50 @@ export function GroupsClient({
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className="label">Предмет</label>
+              <input
+                type="text"
+                name="subject"
+                defaultValue={editGroup?.subject ?? ""}
+                placeholder="Математика"
+                disabled={isSavingEdit}
+                className="input"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="label">Класс</label>
+                <select
+                  name="grade"
+                  defaultValue={editGroup?.grade != null ? String(editGroup.grade) : ""}
+                  disabled={isSavingEdit}
+                  className="input"
+                >
+                  <option value="">—</option>
+                  {gradeValues.map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">Экзамен</label>
+                <select
+                  name="examType"
+                  defaultValue={editGroup?.examType ?? ""}
+                  disabled={isSavingEdit}
+                  className="input"
+                >
+                  <option value="">—</option>
+                  <option value="OGE">ОГЭ</option>
+                  <option value="EGE">ЕГЭ</option>
+                </select>
+              </div>
             </div>
 
             <button

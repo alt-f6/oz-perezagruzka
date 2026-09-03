@@ -209,6 +209,10 @@ export const lessonSchema = z
     recurrenceEndDate: z.string().optional().or(z.literal("")),
     // Optional per-weekday time/duration overrides for multi-day series.
     daySlots: z.array(daySlotSchema).optional(),
+    // Set true only after the operator explicitly confirmed creating a lesson
+    // in an hour the chosen teacher has NOT marked as working. Absent/false =>
+    // createLesson surfaces the availability warning instead of persisting.
+    acknowledgeUnavailable: z.boolean().optional(),
   })
   // An absent `type` is treated as GROUP, so GROUP validation fires unless the
   // caller explicitly chose INDIVIDUAL.
@@ -241,6 +245,39 @@ export const lessonSchema = z
       ),
     { message: "Укажите время для каждого выбранного дня", path: ["daySlots"] },
   );
+
+// Teacher weekly availability payload. `weekStart` is a Monday `YYYY-MM-DD`
+// week key (validated against the Monday convention in the server action, not
+// here, since callers pass a raw key). `slots` is the 105-char '0'/'1' bitmask
+// enforced identically by the DB CHECK constraint. See src/crm/lib/availability.ts.
+export const availabilitySlotsSchema = z
+  .string()
+  .regex(/^[01]{105}$/, { message: "Некорректная сетка доступности" });
+
+export const saveAvailabilitySchema = z.object({
+  teacherId: z.uuid({ message: "Некорректный преподаватель" }),
+  weekStart: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Некорректная неделя" }),
+  slots: availabilitySlotsSchema,
+  // Set true only after the user explicitly acknowledged that unmarking these
+  // slots removes availability under already-scheduled lessons (collision guard).
+  acknowledgeBookedConflicts: z.boolean().optional(),
+});
+
+export const copyAvailabilitySchema = z.object({
+  teacherId: z.uuid({ message: "Некорректный преподаватель" }),
+  fromWeekStart: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Некорректная неделя" }),
+  toWeekStart: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Некорректная неделя" }),
+  acknowledgeBookedConflicts: z.boolean().optional(),
+});
+
+export type SaveAvailabilityValues = z.infer<typeof saveAvailabilitySchema>;
+export type CopyAvailabilityValues = z.infer<typeof copyAvailabilitySchema>;
 
 export const makeupSchema = z.object({
   attendanceId: z.uuid({ message: "Некорректная запись посещаемости" }),

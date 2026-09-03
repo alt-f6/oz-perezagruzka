@@ -3,102 +3,31 @@
 import { revalidatePath } from "next/cache";
 import type { AttendanceStatus } from "@prisma/client";
 import { lessonSchema, makeupSchema, type LessonValues } from "@/crm/lib/schemas";
-import { parseDateKey } from "@/crm/lib/calendarGrid";
 import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import { BillingService } from "@/crm/lib/services/billing.service";
-import { zonedWallClockToUtc, formatMoscowDate, formatMoscowTime } from "@/shared/lib/timezone";
+import { formatMoscowDate, formatMoscowTime } from "@/shared/lib/timezone";
 import type { ActionResult } from "@/crm/lib/types";
-
-const MAX_RECURRING_SESSIONS = 200;
-
-interface Occurrence {
-  scheduledAt: Date;
-  durationMinutes: number;
-}
+import {
+  expandOccurrences,
+  type Occurrence,
+} from "@/crm/lib/lessonOccurrences";
+import { collectUnavailableOccurrences } from "@/crm/lib/services/availability.service";
 
 /**
- * Resolves the start time + duration for a given weekday: its own per-day slot
- * override when present, otherwise the top-level default.
+ * A lesson-creation request that lands (partly) outside the teacher's declared
+ * working hours. createLesson returns this instead of persisting when the
+ * operator hasn't yet acknowledged it, so an ADMIN/MANAGER can override — but
+ * never silently.
  */
-function resolveSlot(
-  values: LessonValues,
-  weekday: number,
-): { time: string; durationMinutes: number } {
-  const slot = values.daySlots?.find((s) => s.day === weekday);
-  if (slot) {
-    return { time: slot.time, durationMinutes: slot.durationMinutes };
-  }
-  return { time: values.time, durationMinutes: values.durationMinutes };
+export interface LessonAvailabilityWarning {
+  teacherId: string;
+  occurrences: { scheduledAt: string; label: string }[];
 }
 
-/**
- * Combines a calendar day (whose LOCAL fields carry the intended date, as
- * produced by parseDateKey + the recurrence cursor) with an `HH:MM` wall-clock,
- * interpreting the result as Europe/Moscow and returning the matching UTC
- * instant. Using the explicit business timezone here — instead of the ambient
- * `setHours` — is what makes the persisted instant render back as the exact
- * wall-clock the operator picked, on any server/browser timezone (TIME-01/02).
- */
-function atTime(day: Date, time: string): Date {
-  const [hours, minutes] = time.split(":").map(Number);
-  return zonedWallClockToUtc(
-    day.getFullYear(),
-    day.getMonth() + 1,
-    day.getDate(),
-    hours,
-    minutes,
-  );
-}
-
-/**
- * Expands a recurring-lesson request into every occurrence, honoring per-day
- * time/duration overrides, capped at MAX_RECURRING_SESSIONS as a backstop
- * (schema already caps the end date to ~3 months out, but a daily WEEKDAYS
- * pattern over that range is still bounded well under this).
- *
- * Dates are parsed with parseDateKey (local calendar fields), never
- * `new Date("YYYY-MM-DD")` which parses as UTC midnight and would shift the day
- * for non-UTC server timezones.
- */
-function expandOccurrences(values: LessonValues): Occurrence[] {
-  // Local-midnight anchor for the chosen start date.
-  const start = parseDateKey(values.date);
-
-  if (values.recurrence === "NONE") {
-    return [
-      {
-        scheduledAt: atTime(start, values.time),
-        durationMinutes: values.durationMinutes,
-      },
-    ];
-  }
-
-  const endDate = parseDateKey(values.recurrenceEndDate as string);
-  endDate.setHours(23, 59, 59, 999);
-
-  const allowedDays =
-    values.recurrence === "WEEKDAYS"
-      ? new Set([1, 2, 3, 4, 5])
-      : values.recurrence === "WEEKLY"
-        ? new Set([start.getDay()])
-        : new Set(values.recurrenceDays ?? []);
-
-  const occurrences: Occurrence[] = [];
-  const cursor = new Date(start);
-  while (cursor <= endDate && occurrences.length < MAX_RECURRING_SESSIONS) {
-    if (allowedDays.has(cursor.getDay())) {
-      const { time, durationMinutes } = resolveSlot(values, cursor.getDay());
-      occurrences.push({
-        scheduledAt: atTime(cursor, time),
-        durationMinutes,
-      });
-    }
-    cursor.setDate(cursor.getDate() + 1);
-  }
-
-  return occurrences;
-}
+export type CreateLessonResult =
+  | { error: string }
+  | { error?: undefined; availabilityWarning?: LessonAvailabilityWarning };
 
 // Longest bookable lesson (see lessonDurationOptions). Used only to widen the
 // DB scan window so an existing lesson that starts before the earliest new
@@ -158,7 +87,7 @@ async function findTeacherScheduleConflict(
 
 export async function createLesson(
   values: LessonValues,
-): Promise<ActionResult> {
+): Promise<CreateLessonResult> {
   await requireRole(["ADMIN", "MANAGER"]);
 
   const parsed = lessonSchema.safeParse(values);
@@ -244,6 +173,27 @@ export async function createLesson(
         conflict.scheduledAt,
       )}. Выберите другое время.`,
     };
+  }
+
+  // Availability guard (soft): surface any occurrence that falls in an hour the
+  // teacher has NOT marked as working. ADMIN/MANAGER may override by re-submitting
+  // with acknowledgeUnavailable, but the create never proceeds silently.
+  if (!parsed.data.acknowledgeUnavailable) {
+    const unavailable = await collectUnavailableOccurrences(
+      teacherId,
+      occurrences,
+    );
+    if (unavailable.length > 0) {
+      return {
+        availabilityWarning: {
+          teacherId,
+          occurrences: unavailable.map((o) => ({
+            scheduledAt: o.scheduledAt.toISOString(),
+            label: `${formatMoscowDate(o.scheduledAt)} в ${formatMoscowTime(o.scheduledAt)}`,
+          })),
+        },
+      };
+    }
   }
 
   const recurrenceGroupId =

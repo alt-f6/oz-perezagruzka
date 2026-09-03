@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Calendar as CalendarIcon,
+  CalendarClock,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -11,6 +12,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { LessonWizard } from "@/crm/components/LessonWizard";
+import { ConfirmDialog } from "@/crm/components/ConfirmDialog";
 import { Modal } from "@/crm/components/Modal";
 import { useToast } from "@/crm/components/ToastProvider";
 import { assignOverlapColumns } from "@/crm/lib/calendarLayout";
@@ -89,6 +91,14 @@ export function ScheduleClient({
   const [teacherFilter, setTeacherFilter] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
+  // Set when createLesson reports the chosen time is outside the teacher's
+  // declared working hours; drives the override-confirmation dialog so the
+  // lesson is never created silently against unavailability.
+  const [availabilityWarning, setAvailabilityWarning] = useState<{
+    occurrences: { scheduledAt: string; label: string }[];
+    values: LessonValues;
+  } | null>(null);
+  const [overriding, setOverriding] = useState(false);
 
   const {
     register,
@@ -112,20 +122,52 @@ export function ScheduleClient({
     },
   });
 
+  // Returns true when the lesson was actually created. `acknowledge` re-submits
+  // past the teacher-availability warning after the operator confirmed it.
+  const submitCreate = async (
+    values: LessonValues,
+    acknowledge: boolean,
+  ): Promise<boolean> => {
+    const result = await createLesson(
+      acknowledge ? { ...values, acknowledgeUnavailable: true } : values,
+    );
+    if (result?.error) {
+      showToast(result.error, "error");
+      return false;
+    }
+    if ("availabilityWarning" in result && result.availabilityWarning) {
+      setAvailabilityWarning({
+        occurrences: result.availabilityWarning.occurrences,
+        values,
+      });
+      return false;
+    }
+    showToast(
+      values.recurrence === "NONE" ? "Занятие создано" : "Занятия созданы",
+    );
+    reset();
+    setIsModalOpen(false);
+    return true;
+  };
+
   const onSubmit = async (values: LessonValues) => {
     try {
-      const result = await createLesson(values);
-      if (result?.error) {
-        showToast(result.error, "error");
-        return;
-      }
-      showToast(
-        values.recurrence === "NONE" ? "Занятие создано" : "Занятия созданы",
-      );
-      reset();
-      setIsModalOpen(false);
+      await submitCreate(values, false);
     } catch {
       showToast("Не удалось создать занятие", "error");
+    }
+  };
+
+  const confirmOverride = async () => {
+    if (!availabilityWarning) return;
+    setOverriding(true);
+    try {
+      const created = await submitCreate(availabilityWarning.values, true);
+      if (created) setAvailabilityWarning(null);
+    } catch {
+      showToast("Не удалось создать занятие", "error");
+    } finally {
+      setOverriding(false);
     }
   };
 
@@ -194,16 +236,22 @@ export function ScheduleClient({
           </p>
         </div>
 
-        {!isTeacher && (
-          <button
-            type="button"
-            onClick={() => setIsModalOpen(true)}
-            className="btn-primary"
-          >
-            <Plus size={16} />
-            Новое занятие
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <Link href="/schedule/availability" className="btn-secondary">
+            <CalendarClock size={16} />
+            {isTeacher ? "Моя доступность" : "Доступность"}
+          </Link>
+          {!isTeacher && (
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="btn-primary"
+            >
+              <Plus size={16} />
+              Новое занятие
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -477,6 +525,27 @@ export function ScheduleClient({
           />
         </Modal>
       )}
+
+      <ConfirmDialog
+        open={availabilityWarning !== null}
+        danger
+        title="Преподаватель не отметил это время рабочим"
+        confirmLabel="Всё равно создать"
+        busy={overriding}
+        message={
+          <span>
+            Внимание: преподаватель не отметил этот слот как рабочий:
+            <br />
+            {(availabilityWarning?.occurrences ?? []).map((o) => (
+              <span key={o.scheduledAt} className="mt-1 block font-medium text-slate-800">
+                • {o.label}
+              </span>
+            ))}
+          </span>
+        }
+        onConfirm={confirmOverride}
+        onClose={() => setAvailabilityWarning(null)}
+      />
     </div>
   );
 }

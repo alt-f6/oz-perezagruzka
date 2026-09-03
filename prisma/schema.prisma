@@ -98,6 +98,7 @@ model User {
   classSessions ClassSession[]  @relation("ClassSessionTeacher")
   rates         TeacherRate[]
   payouts       TeacherPayout[]
+  availability  TeacherAvailability[]
   invites       Invite[]        @relation("InviteInviter")
   parentProfile Parent?         @relation("ParentUser")
 
@@ -416,6 +417,34 @@ model TeacherPayout {
   // paying the same teacher twice for the same period.
   @@unique([teacherId, periodFrom, periodTo])
   @@index([teacherId])
+}
+
+// A teacher's published weekly working availability (свободные окна). One row
+// per (teacher, week) keeps the table compact — an unbounded per-slot table
+// would balloon to 105 rows/teacher/week. The 105 hourly slots (7 days ×
+// 15 hours, 07:00–22:00 MSK) are packed into a fixed-length `slots` bitmask:
+// character N is '1' when the teacher marked that slot as working, '0'
+// otherwise. Slot index = dayIndex(Mon=0..Sun=6) × 15 + (hour − 7). See
+// src/crm/lib/availability.ts for the single source of truth on encoding.
+//
+// `weekStart` is the Monday of the week at UTC-midnight (a plain calendar
+// `@db.Date`), used as a stable week key that never drifts across server/
+// browser timezones. A DB CHECK constraint (added in the migration) enforces
+// that `slots` is exactly 105 characters of '0'/'1', mirroring the Zod layer.
+model TeacherAvailability {
+  id        String   @id @default(uuid())
+  teacherId String
+  weekStart DateTime @db.Date
+  slots     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacher User @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  // One availability record per teacher per week; the upsert path keys on this.
+  @@unique([teacherId, weekStart])
+  // Covers the admin/scheduling "teacher's availability across a week range" scan.
+  @@index([teacherId, weekStart])
 }
 
 model StudentExamGoal {

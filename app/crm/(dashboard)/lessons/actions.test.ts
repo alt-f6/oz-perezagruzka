@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { formatMoscowTime, moscowDateKey } from "@/shared/lib/timezone";
+import {
+  EMPTY_WEEK_SLOTS,
+  weekKeyToDate,
+  withSlot,
+} from "@/crm/lib/availability";
 
 const dbMock = vi.hoisted(() => ({
   group: { findUnique: vi.fn() },
@@ -13,6 +18,7 @@ const dbMock = vi.hoisted(() => ({
     findMany: vi.fn(),
     updateMany: vi.fn(),
   },
+  teacherAvailability: { findMany: vi.fn() },
   $transaction: vi.fn(),
 }));
 
@@ -33,6 +39,9 @@ beforeEach(() => {
   rbacMock.requireRole.mockResolvedValue(ADMIN);
   // Default: the teacher has no existing sessions, so the conflict scan is empty.
   dbMock.classSession.findMany.mockResolvedValue([]);
+  // Default: no published availability grid → availability guard is a no-op
+  // (opt-in), preserving pre-availability createLesson behavior.
+  dbMock.teacherAvailability.findMany.mockResolvedValue([]);
 });
 
 describe("createLesson", () => {
@@ -212,6 +221,74 @@ describe("createLesson", () => {
         }),
       ],
     });
+  });
+
+  it("warns (does not create) when the chosen time is outside a published availability grid", async () => {
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
+    // Teacher published an all-empty grid for the lesson's week (2026-09-01 is a
+    // Tuesday → week Monday 2026-08-31), so 15:00 is not marked working.
+    dbMock.teacherAvailability.findMany.mockResolvedValue([
+      { weekStart: weekKeyToDate("2026-08-31"), slots: EMPTY_WEEK_SLOTS },
+    ]);
+
+    const result = await createLesson({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2026-09-01",
+      time: "15:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+    });
+
+    expect("availabilityWarning" in result && result.availabilityWarning).toBeTruthy();
+    expect(dbMock.classSession.createMany).not.toHaveBeenCalled();
+  });
+
+  it("creates over an availability warning once acknowledgeUnavailable is set", async () => {
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
+    dbMock.classSession.createMany.mockResolvedValue({ count: 1 });
+    dbMock.teacherAvailability.findMany.mockResolvedValue([
+      { weekStart: weekKeyToDate("2026-08-31"), slots: EMPTY_WEEK_SLOTS },
+    ]);
+
+    const result = await createLesson({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2026-09-01",
+      time: "15:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+      acknowledgeUnavailable: true,
+    });
+
+    expect(result?.error).toBeUndefined();
+    expect(dbMock.classSession.createMany).toHaveBeenCalledOnce();
+  });
+
+  it("does not warn when the published grid marks the chosen time as working", async () => {
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
+    dbMock.classSession.createMany.mockResolvedValue({ count: 1 });
+    // Mark Tuesday (day index 1) 15:00 as working for the 2026-08-31 week.
+    const grid = withSlot(EMPTY_WEEK_SLOTS, 1, 15, true);
+    dbMock.teacherAvailability.findMany.mockResolvedValue([
+      { weekStart: weekKeyToDate("2026-08-31"), slots: grid },
+    ]);
+
+    const result = await createLesson({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2026-09-01",
+      time: "15:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+    });
+
+    expect(result?.error).toBeUndefined();
+    expect("availabilityWarning" in result && result.availabilityWarning).toBeFalsy();
+    expect(dbMock.classSession.createMany).toHaveBeenCalledOnce();
   });
 
   it("rejects an individual lesson whose student does not exist", async () => {

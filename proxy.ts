@@ -81,7 +81,13 @@ function isPublicPath(app: "crm" | "lms", pathname: string) {
 
 function rewriteToApp(request: NextRequest, app: AppKind, response: NextResponse) {
   const url = request.nextUrl.clone();
-  url.pathname = `/${app}${request.nextUrl.pathname}`;
+  const { pathname } = request.nextUrl;
+  // Guard against double-prefixing a path that already targets this app's
+  // namespace (e.g. a component hardcoding `/lms/foo` instead of `/foo`) --
+  // without this, such a path becomes `/lms/lms/foo` and 404s instead of
+  // resolving. A bare `/${app}` or `/${app}/...` request has nowhere else to
+  // resolve to, so passing it through unprefixed is always correct.
+  url.pathname = pathname === `/${app}` || pathname.startsWith(`/${app}/`) ? pathname : `/${app}${pathname}`;
   const rewritten = NextResponse.rewrite(url);
   response.cookies.getAll().forEach((cookie) => rewritten.cookies.set(cookie));
   return rewritten;

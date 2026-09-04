@@ -1,19 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Download, ExternalLink, Loader2 } from "lucide-react";
+import { Loader2, RotateCw } from "lucide-react";
 
 import { cn } from "@/shared/lib/utils";
 
-// The pdf.js sandbox is a static asset under `public/lms/`, which Next.js
-// serves at `/lms/pdf-sandbox.html` (there is no basePath/rewrite). A bare
-// `/pdf-sandbox.html` 404s, the iframe never wires up its message listener,
-// and the viewer renders blank — the regression this path fixes.
-const PDF_SANDBOX_SRC = "/lms/pdf-sandbox.html";
+// Unprefixed: the proxy rewrite for the `lms.` host adds the `/lms` segment
+// exactly once (same as `/pdf.worker.min.mjs`). A hardcoded `/lms/...` path
+// here would get double-prefixed by that rewrite and 404.
+const PDF_SANDBOX_SRC = "/pdf-sandbox.html";
 
-// If the embedded renderer hasn't painted a page within this window (sandbox
-// 404, blocked script, CSP, etc.), we surface the fallback actions prominently
-// instead of leaving the user staring at an empty frame.
+// If the embedded renderer hasn't painted a page within this window (blocked
+// script, CSP, corrupt asset, etc.), we surface a retry action instead of
+// leaving the user staring at an empty frame.
 const RENDER_WATCHDOG_MS = 6000;
 
 type Props = {
@@ -38,16 +37,18 @@ export function PdfViewer({
   const [err, setErr] = useState<string | null>(null);
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   // Flips true once the sandbox reports its first painted page; drives the
-  // watchdog that reveals the fallback banner when embedded rendering fails.
+  // watchdog that reveals the retry action when embedded rendering fails.
   const [rendered, setRendered] = useState(false);
   const [renderFailed, setRenderFailed] = useState(false);
+  const [sandboxReady, setSandboxReady] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const onPageChangeRef = useRef(onPageChange);
   useEffect(() => {
     onPageChangeRef.current = onPageChange;
   });
 
-  const wm = useMemo(() => String(watermark || "").slice(0, 80), [watermark]);
+  const wm = useMemo(() => String(watermark || "").slice(0, 120), [watermark]);
 
   useEffect(() => {
     const el = iframeRef.current;
@@ -87,33 +88,20 @@ export function PdfViewer({
     return () => {
       alive = false;
     };
-  }, [assetId]);
+  }, [assetId, retryKey]);
 
-  useEffect(() => {
-    if (!signedUrl) return;
-
-    function post() {
-      const iframe = iframeRef.current;
-      if (!iframe) return;
-
-      try {
-        iframe.contentWindow?.postMessage(
-          { type: "PDF_LOAD", signedUrl, watermark: wm, scale, initialPage },
-          "*"
-        );
-      } catch {}
-    }
-
-    const t = setTimeout(post, 80);
-    return () => clearTimeout(t);
-    // initialPage is only meant to apply to the initial load of this asset,
-    // not every time it changes, so it's intentionally excluded below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signedUrl, wm, scale]);
-
+  // Deterministic handshake: the sandbox announces SANDBOX_READY once its
+  // PDF_LOAD listener is registered, so we only ever post PDF_LOAD after we
+  // know it'll be received -- no blind timeout, no dropped first message.
+  // The iframe itself never remounts across retries (its `src` is static),
+  // so this only needs to run once for the lifetime of the component.
   useEffect(() => {
     function onMessage(ev: MessageEvent) {
       const data = ev.data || {};
+      if (data.type === "SANDBOX_READY") {
+        setSandboxReady(true);
+        return;
+      }
       if (data.type !== "PDF_PAGE") return;
       // First painted page proves the embedded renderer is alive.
       setRendered(true);
@@ -125,9 +113,26 @@ export function PdfViewer({
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
+  useEffect(() => {
+    if (!signedUrl || !sandboxReady) return;
+
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+
+    try {
+      iframe.contentWindow?.postMessage(
+        { type: "PDF_LOAD", signedUrl, watermark: wm, scale, initialPage },
+        "*"
+      );
+    } catch {}
+    // initialPage is only meant to apply to the initial load of this asset,
+    // not every time it changes, so it's intentionally excluded below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [signedUrl, sandboxReady, wm, scale]);
+
   // Watchdog: once we've handed the sandbox a URL, give it a bounded window to
-  // paint. If nothing renders (404'd sandbox, blocked CDN worker, CSP), reveal
-  // the fallback actions so the user is never stranded on a blank frame.
+  // paint. If nothing renders (blocked worker, CSP, corrupt file), reveal the
+  // retry action so the user is never stranded on a blank frame.
   useEffect(() => {
     if (!signedUrl || rendered) return;
     const t = setTimeout(() => {
@@ -136,43 +141,47 @@ export function PdfViewer({
     return () => clearTimeout(t);
   }, [signedUrl, rendered]);
 
-  const fallbackActions =
-    signedUrl != null ? (
-      <div className="flex flex-wrap items-center gap-2">
-        <a
-          href={signedUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-muted"
-        >
-          <ExternalLink className="size-4" aria-hidden="true" />
-          Открыть в новой вкладке
-        </a>
-        <a
-          href={signedUrl}
-          download
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-muted"
-        >
-          <Download className="size-4" aria-hidden="true" />
-          Скачать PDF
-        </a>
-      </div>
-    ) : null;
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      const key = e.key.toLowerCase();
+      if (key === "p" || key === "s") {
+        e.preventDefault();
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const retryAction = (
+    <button
+      type="button"
+      onClick={() => setRetryKey((k) => k + 1)}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-muted"
+    >
+      <RotateCw className="size-4" aria-hidden="true" />
+      Обновить
+    </button>
+  );
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("space-y-2 print:hidden", className)}>
       <div
-        className="relative overflow-hidden rounded-2xl border border-border bg-black/20"
+        className="relative overflow-hidden rounded-2xl border border-border bg-black/20 select-none"
         style={{ height }}
         onContextMenu={(e) => e.preventDefault()}
+        onCopy={(e) => e.preventDefault()}
+        onDragStart={(e) => e.preventDefault()}
       >
         {err ? (
           <div
             role="alert"
             className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center text-sm text-destructive-foreground"
           >
-            <p>Не удалось загрузить PDF: {err}</p>
-            {fallbackActions}
+            <p>Не удалось загрузить документ. Попробуйте обновить.</p>
+            {retryAction}
           </div>
         ) : null}
 
@@ -188,7 +197,7 @@ export function PdfViewer({
             <p className="text-muted-foreground">
               Встроенный просмотрщик не смог отобразить документ.
             </p>
-            {fallbackActions}
+            {retryAction}
           </div>
         ) : null}
 
@@ -199,12 +208,6 @@ export function PdfViewer({
           title="PDF"
         />
       </div>
-
-      {/* Always-available escape hatch: even when the embedded renderer works,
-          browsers/policies can still block it, so the direct actions stay put. */}
-      {!err && signedUrl ? (
-        <div className="flex items-center justify-end">{fallbackActions}</div>
-      ) : null}
     </div>
   );
 }

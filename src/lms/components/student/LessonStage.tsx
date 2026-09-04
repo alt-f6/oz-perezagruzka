@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { FileText, Video } from "lucide-react";
 
 import { cn } from "@/shared/lib/utils";
@@ -19,12 +19,13 @@ type StageAsset =
 type Props = {
   lessonId: string;
   studentId: string;
+  studentEmail: string | null;
   media: MediaRow[];
   pdfs: PdfRow[];
   initialPosition: number;
 };
 
-export function LessonStage({ lessonId, studentId, media, pdfs, initialPosition }: Props) {
+export function LessonStage({ lessonId, studentId, studentEmail, media, pdfs, initialPosition }: Props) {
   const assets: StageAsset[] = [
     ...media.map((m) => ({
       kind: "video" as const,
@@ -37,6 +38,14 @@ export function LessonStage({ lessonId, studentId, media, pdfs, initialPosition 
   ];
 
   const [activeIndex, setActiveIndex] = useState(0);
+
+  // Computed once per mount so it reflects when this viewing session started,
+  // not a live-ticking clock (which would just be visual noise on rerenders).
+  const accessLabel = useMemo(
+    () => new Date().toLocaleString("ru-RU", { dateStyle: "short", timeStyle: "short" }),
+    []
+  );
+  const watermarkText = `${studentEmail || `ID:${studentId}`} · Перезагрузка · ${accessLabel}`;
 
   if (assets.length === 0) {
     return (
@@ -105,7 +114,7 @@ export function LessonStage({ lessonId, studentId, media, pdfs, initialPosition 
             ) : (
               <PdfViewer
                 assetId={active.id}
-                watermark={`user:${studentId} · lesson:${lessonId}`}
+                watermark={watermarkText}
                 initialPage={activeIndex === 0 && initialPosition > 1 ? initialPosition : undefined}
                 onPageChange={(page) => {
                   void syncPlaybackPosition(lessonId, page);

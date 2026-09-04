@@ -1,3 +1,11 @@
+<!--
+  pdf.js core + worker are vendored locally (not loaded from a CDN) so the
+  viewer keeps working behind school firewalls/CSPs that block third-party
+  scripts. `pdf.min.mjs` / `pdf.worker.min.mjs` in this directory are copied
+  verbatim from `node_modules/pdfjs-dist/build/`; re-copy both files whenever
+  the `pdfjs-dist` dependency in package.json is bumped, since the worker and
+  core builds must always be from the exact same version.
+-->
 <!doctype html>
 <html>
   <head>
@@ -7,27 +15,22 @@
     <title>PDF</title>
     <style>
       html, body { margin: 0; padding: 0; background: transparent; height: 100%; }
-      #root { height: 100%; overflow: auto; padding: 10px; }
+      #root { height: 100%; overflow: auto; padding: 10px; user-select: none; }
       .page { margin: 0 0 12px 0; }
       canvas { width: 100%; height: auto; display: block; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: #fff; }
       #wm {
         pointer-events: none;
         position: fixed;
         inset: 0;
-        opacity: 0.16;
-        transform: rotate(-18deg);
-        display: grid;
-        place-items: center;
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
-        font-size: 22px;
-        font-weight: 700;
-        letter-spacing: 1px;
-        color: rgba(255,255,255,0.75);
-        text-shadow: 0 1px 0 rgba(0,0,0,0.6);
         user-select: none;
+        background-repeat: repeat;
+        z-index: 5;
       }
       #err { padding: 12px; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; font-size: 13px; color: rgba(255,255,255,0.9); }
       #busy { padding: 12px; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; font-size: 13px; color: rgba(255,255,255,0.7); }
+      @media print {
+        html, body { display: none !important; }
+      }
     </style>
   </head>
   <body>
@@ -60,10 +63,35 @@
 
       async function ensurePdfJs() {
         if (pdfjs) return pdfjs;
-        pdfjs = await import("https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.530/build/pdf.min.mjs");
-        pdfjs.GlobalWorkerOptions.workerSrc =
-          "https://cdn.jsdelivr.net/npm/pdfjs-dist@5.4.530/build/pdf.worker.min.mjs";
+        // Relative to this document's own (unprefixed) URL -- resolves
+        // through the same static-asset proxy rewrite as this HTML file.
+        pdfjs = await import("./pdf.min.mjs");
+        pdfjs.GlobalWorkerOptions.workerSrc = "./pdf.worker.min.mjs";
         return pdfjs;
+      }
+
+      function escapeXml(text) {
+        return String(text).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+      }
+
+      // Renders the watermark text into a small rotated SVG tile and repeats
+      // it as a CSS background, producing a diagonal grid that covers the
+      // whole viewport instead of a single easy-to-crop-out watermark.
+      function applyWatermark(text) {
+        const label = String(text || "").trim();
+        if (!label) {
+          wm.style.backgroundImage = "none";
+          return;
+        }
+        const w = 360;
+        const h = 190;
+        const svg =
+          `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">` +
+          `<text x="${w / 2}" y="${h / 2}" transform="rotate(-24 ${w / 2} ${h / 2})" ` +
+          `text-anchor="middle" dominant-baseline="middle" ` +
+          `font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial" font-size="13" font-weight="700" ` +
+          `fill="rgba(255,255,255,0.5)">${escapeXml(label)}</text></svg>`;
+        wm.style.backgroundImage = `url("data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}")`;
       }
 
       let pageObserver = null;
@@ -151,7 +179,7 @@
 
         try {
           const { signedUrl, watermark, scale, initialPage } = data;
-          wm.textContent = watermark || "";
+          applyWatermark(watermark);
           await renderPdf(
             signedUrl,
             typeof scale === "number" ? scale : 1.35,
@@ -161,6 +189,13 @@
           setErr(String(e?.message || e));
         }
       });
+
+      // Announce readiness only once the PDF_LOAD listener above is actually
+      // registered, so the parent never sends PDF_LOAD into a sandbox that
+      // isn't listening yet.
+      try {
+        window.parent.postMessage({ type: "SANDBOX_READY" }, "*");
+      } catch {}
     </script>
   </body>
 </html>

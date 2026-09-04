@@ -95,6 +95,7 @@ export default async function StudentLessonPage({ params }: Props) {
     <Suspense fallback={<LessonViewerSkeleton />}>
       <LessonTheaterViewer
         studentId={user.id}
+        studentEmail={user.email}
         lesson={lesson}
         media={media.map((m) => ({
           id: m.id,

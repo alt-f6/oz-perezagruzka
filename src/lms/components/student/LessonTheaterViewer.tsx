@@ -23,6 +23,7 @@ type PracticeLink = { url: string; label: string | null };
 
 type Props = {
   studentId: string;
+  studentEmail: string | null;
   lesson: { id: string; title: string; description: string; content: string; order: number };
   media: MediaRow[];
   pdfs: PdfRow[];
@@ -35,6 +36,7 @@ type Props = {
 
 export function LessonTheaterViewer({
   studentId,
+  studentEmail,
   lesson,
   media,
   pdfs,
@@ -173,6 +175,7 @@ export function LessonTheaterViewer({
         <LessonStage
           lessonId={lesson.id}
           studentId={studentId}
+          studentEmail={studentEmail}
           media={media}
           pdfs={pdfs}
           initialPosition={initialPosition}

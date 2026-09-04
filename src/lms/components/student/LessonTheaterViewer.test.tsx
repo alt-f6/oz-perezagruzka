@@ -26,6 +26,7 @@ describe("LessonTheaterViewer — practice link", () => {
     render(
       <LessonTheaterViewer
         studentId="student_1"
+        studentEmail="student1@example.com"
         lesson={baseLesson}
         media={[]}
         pdfs={[]}
@@ -46,6 +47,7 @@ describe("LessonTheaterViewer — practice link", () => {
     render(
       <LessonTheaterViewer
         studentId="student_1"
+        studentEmail="student1@example.com"
         lesson={baseLesson}
         media={[]}
         pdfs={[]}
@@ -63,6 +65,7 @@ describe("LessonTheaterViewer — practice link", () => {
     render(
       <LessonTheaterViewer
         studentId="student_1"
+        studentEmail="student1@example.com"
         lesson={baseLesson}
         media={[]}
         pdfs={[]}

@@ -68,6 +68,23 @@ describe("proxy fail-closed routing", () => {
     expect(authMocks.getSessionUserFromRequest).not.toHaveBeenCalled();
   });
 
+  it("rewrites the unprefixed pdf-sandbox.html request to the /lms-namespaced static asset exactly once", async () => {
+    const res = await proxy(makeRequest("lms.example.com", "/pdf-sandbox.html"));
+
+    expect(authMocks.getSessionUserFromRequest).not.toHaveBeenCalled();
+    const rewrite = res.headers.get("x-middleware-rewrite");
+    expect(rewrite).not.toBeNull();
+    expect(new URL(rewrite as string).pathname).toBe("/lms/pdf-sandbox.html");
+  });
+
+  it("does not double-prefix a path that already targets the app's own namespace", async () => {
+    const res = await proxy(makeRequest("lms.example.com", "/lms/pdf-sandbox.html"));
+
+    const rewrite = res.headers.get("x-middleware-rewrite");
+    expect(rewrite).not.toBeNull();
+    expect(new URL(rewrite as string).pathname).toBe("/lms/pdf-sandbox.html");
+  });
+
   it("keeps the LMS login page public", async () => {
     const res = await proxy(makeRequest("lms.example.com", "/login"));
 

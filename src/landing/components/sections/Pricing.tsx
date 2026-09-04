@@ -65,7 +65,7 @@ export default function Pricing() {
           <div
             role="radiogroup"
             aria-label="Количество предметов"
-            className="mt-10 flex items-center justify-center gap-2 rounded-2xl border border-ink-200 bg-ink-50 p-1.5"
+            className="mx-auto mt-10 flex max-w-4xl items-center justify-center gap-3 rounded-3xl border border-slate-200 bg-slate-100/90 p-3 shadow-lg sm:p-4"
           >
             {tiers.map((tier) => {
               const selected = tier.subjects === selectedSubjects;
@@ -76,19 +76,15 @@ export default function Pricing() {
                   role="radio"
                   aria-checked={selected}
                   onClick={() => setSelectedSubjects(tier.subjects)}
-                  className={`relative flex flex-1 flex-col items-center gap-1 rounded-xl px-3 py-3 text-sm font-bold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${
+                  className={`relative flex min-h-[72px] flex-1 flex-col items-center justify-center gap-1.5 rounded-2xl px-3 py-3 text-xl font-black transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:min-h-[84px] sm:text-2xl ${
                     selected
-                      ? "bg-brand-600 text-white shadow-sm shadow-brand-900/20"
+                      ? "bg-[#0055FF] text-white shadow-sm shadow-brand-900/20"
                       : "text-ink-600 hover:text-ink-900"
                   }`}
                 >
                   {tier.isBestValue && (
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${
-                        selected ? "bg-white/20 text-white" : "bg-accent-400 text-ink-900"
-                      }`}
-                    >
-                      Лучший выбор
+                    <span className="rounded-full bg-[#AAEE00] px-3.5 py-1 text-xs font-black text-ink-900 shadow-sm sm:text-sm">
+                      ЛУЧШИЙ ВЫБОР
                     </span>
                   )}
                   <span>{tier.label}</span>

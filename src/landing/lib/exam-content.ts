@@ -106,13 +106,13 @@ export interface PricingTierContent {
 
 export const PRICING_TIERS: Record<ExamType, PricingTierContent[]> = {
   oge: [
-    { subjects: 1, label: "1 предмет", price: "8 000 ₽", pricePerSubject: "8 000 ₽ за предмет", isBestValue: true },
-    { subjects: 2, label: "2 предмета", price: "13 000 ₽", pricePerSubject: "6 500 ₽ за предмет", isBestValue: true },
+    { subjects: 1, label: "1 предмет", price: "8 000 ₽", pricePerSubject: "8 000 ₽ за предмет" },
+    { subjects: 2, label: "2 предмета", price: "13 000 ₽", pricePerSubject: "6 500 ₽ за предмет" },
     { subjects: 3, label: "3 предмета", price: "15 000 ₽", pricePerSubject: "5 000 ₽ — самая низкая цена за предмет", isBestValue: true },
   ],
   ege: [
-    { subjects: 1, label: "1 предмет", price: "13 000 ₽", pricePerSubject: "13 000 ₽ за предмет", isBestValue: true },
-    { subjects: 2, label: "2 предмета", price: "18 000 ₽", pricePerSubject: "9 000 ₽ за предмет", isBestValue: true },
+    { subjects: 1, label: "1 предмет", price: "13 000 ₽", pricePerSubject: "13 000 ₽ за предмет" },
+    { subjects: 2, label: "2 предмета", price: "18 000 ₽", pricePerSubject: "9 000 ₽ за предмет" },
     { subjects: 3, label: "3 предмета", price: "20 000 ₽", pricePerSubject: "6 667 ₽ — самая низкая цена за предмет", isBestValue: true },
   ],
 };

@@ -5,7 +5,7 @@ import AdminAssignmentsClient from "./ui";
 export default async function AdminAssignmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ studentId?: string }>;
+  searchParams: Promise<{ studentId?: string; lessonId?: string }>;
 }) {
   await requireRoleForPage(["ADMIN"], {
     adminBypass: true,
@@ -15,6 +15,7 @@ export default async function AdminAssignmentsPage({
 
   const sp = await searchParams;
   const initialStudentId = sp?.studentId ? sp.studentId : null;
+  const initialLessonId = sp?.lessonId ? sp.lessonId : null;
 
-  return <AdminAssignmentsClient initialStudentId={initialStudentId} />;
+  return <AdminAssignmentsClient initialStudentId={initialStudentId} initialLessonId={initialLessonId} />;
 }

@@ -619,19 +619,21 @@ model Module {
 
 // Course-content lesson (unit of learning material), distinct from crm's ClassSession.
 model Lesson {
-  id               String   @id @default(uuid())
-  moduleId         String
-  title            String
-  description      String   @default("")
-  content          String   @default("")
-  isPublished      Boolean  @default(false)
-  order            Int      @default(0)
-  videoUrl         String?
-  videoProvider    String?
-  videoEmbedUrl    String?
-  videoDurationSec Int?
-  videoPosterUrl   String?
-  createdAt        DateTime @default(now())
+  id                String   @id @default(uuid())
+  moduleId          String
+  title             String
+  description       String   @default("")
+  content           String   @default("")
+  isPublished       Boolean  @default(false)
+  order             Int      @default(0)
+  videoUrl          String?
+  videoProvider     String?
+  videoEmbedUrl     String?
+  videoDurationSec  Int?
+  videoPosterUrl    String?
+  practiceLinkUrl   String?
+  practiceLinkLabel String?
+  createdAt         DateTime @default(now())
 
   module      Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   assets      LessonAsset[]

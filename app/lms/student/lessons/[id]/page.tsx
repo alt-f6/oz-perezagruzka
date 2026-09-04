@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import Link from "next/link";
+import { notFound } from "next/navigation";
 
 import { requireRoleForPage } from "@/shared/lib/rbac";
 import { requireAuth } from "@/lms/server/auth/require-auth";
@@ -13,23 +13,6 @@ import { StudentLessonMessages } from "./StudentLessonMessages";
 
 type Props = { params: Promise<{ id: string }> };
 
-function NoticePage({ title, message }: { title: string; message: string }) {
-  return (
-    <main className="mx-auto max-w-xl px-6 py-16">
-      <Link
-        href="/student/lessons"
-        className="mb-4 inline-block text-sm font-semibold text-muted-foreground hover:text-foreground"
-      >
-        ← Назад к урокам
-      </Link>
-      <div className="rounded-2xl border border-border bg-card/60 p-5">
-        <p className="font-bold">{title}</p>
-        <p className="mt-1 text-sm text-muted-foreground">{message}</p>
-      </div>
-    </main>
-  );
-}
-
 export default async function StudentLessonPage({ params }: Props) {
   await requireRoleForPage(["STUDENT"], {
     adminBypass: true,
@@ -42,25 +25,37 @@ export default async function StudentLessonPage({ params }: Props) {
   const lessonId = id;
 
   if (!lessonId) {
-    return <NoticePage title="Некорректный ID урока" message="Проверьте ссылку и попробуйте снова." />;
+    notFound();
   }
 
   const allowed = await canViewLesson({ userId: user.id, role: user.role, lessonId });
 
+  // 404 (not 403) for unassigned students: a bare "forbidden" would confirm
+  // the lesson exists, leaking its presence to a student who isn't supposed
+  // to know about it. Same not-found.tsx handles both cases indistinguishably.
   if (!allowed) {
-    return <NoticePage title="У вас нет доступа к этому уроку" message="Обратитесь к куратору, если это ошибка." />;
+    notFound();
   }
 
   const lessonRow = await db.lesson.findUnique({
     where: { id: lessonId, isPublished: true },
-    select: { id: true, title: true, description: true, content: true, order: true },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      content: true,
+      order: true,
+      practiceLinkUrl: true,
+      practiceLinkLabel: true,
+    },
   });
 
   if (!lessonRow) {
-    return <NoticePage title="Урок не найден или скрыт" message="Возможно, урок был снят с публикации." />;
+    notFound();
   }
 
   const lesson = lessonRow;
+  const practiceLink = lesson.practiceLinkUrl ? { url: lesson.practiceLinkUrl, label: lesson.practiceLinkLabel } : null;
 
   const media = await db.lessonMedia.findMany({
     where: { lessonId, isPublic: true },
@@ -109,6 +104,7 @@ export default async function StudentLessonPage({ params }: Props) {
           order: m.order,
         }))}
         pdfs={pdfs.map((p) => ({ id: p.id, title: p.title, order: p.order }))}
+        practiceLink={practiceLink}
         curriculum={curriculum}
         initialCompleted={Boolean(progress?.completedAt)}
         initialPosition={Number(progress?.lastPositionSeconds ?? 0)}

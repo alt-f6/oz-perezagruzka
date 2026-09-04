@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Maximize2, Menu, Minimize2 } from "lucide-react";
+import { ExternalLink, Maximize2, Menu, Minimize2 } from "lucide-react";
 
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/components/ui/button";
@@ -19,12 +19,14 @@ import { LessonCompletionToggle } from "@/lms/components/student/LessonCompletio
 
 type MediaRow = { id: string; title: string | null; embed_url: string; provider: string; order: number };
 type PdfRow = { id: string; title: string | null; order: number };
+type PracticeLink = { url: string; label: string | null };
 
 type Props = {
   studentId: string;
   lesson: { id: string; title: string; description: string; content: string; order: number };
   media: MediaRow[];
   pdfs: PdfRow[];
+  practiceLink: PracticeLink | null;
   curriculum: CurriculumLesson[];
   initialCompleted: boolean;
   initialPosition: number;
@@ -36,6 +38,7 @@ export function LessonTheaterViewer({
   lesson,
   media,
   pdfs,
+  practiceLink,
   curriculum,
   initialCompleted,
   initialPosition,
@@ -152,6 +155,18 @@ export function LessonTheaterViewer({
           <h1 className="text-2xl font-black tracking-tight lg:text-3xl">{lesson.title}</h1>
           {lesson.description ? (
             <p className="mt-1.5 text-sm text-muted-foreground">{lesson.description}</p>
+          ) : null}
+
+          {practiceLink ? (
+            <a
+              href={practiceLink.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-sm transition hover:opacity-90"
+            >
+              <ExternalLink className="size-4" />
+              {practiceLink.label || "Открыть практику"}
+            </a>
           ) : null}
         </div>
 

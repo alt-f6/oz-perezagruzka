@@ -59,3 +59,28 @@ export async function setAssignmentsForStudent(studentId: string, lessonIds: str
       : []),
   ]);
 }
+
+export async function listAssignedStudentIdsForLesson(lessonId: string) {
+  const rows = await db.assignment.findMany({
+    where: { lessonId },
+    select: { studentId: true },
+    orderBy: { studentId: "asc" },
+  });
+  return rows.map((r) => r.studentId);
+}
+
+export async function setAssignmentsForLesson(lessonId: string, studentIds: string[]) {
+  const ids = Array.from(new Set(studentIds));
+
+  await db.$transaction([
+    db.assignment.deleteMany({ where: { lessonId } }),
+    ...(ids.length > 0
+      ? [
+          db.assignment.createMany({
+            data: ids.map((studentId) => ({ studentId, lessonId })),
+            skipDuplicates: true,
+          }),
+        ]
+      : []),
+  ]);
+}

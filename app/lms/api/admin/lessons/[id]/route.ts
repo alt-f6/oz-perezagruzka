@@ -22,7 +22,14 @@ function toLessonJson(lesson: Lesson) {
     content: lesson.content,
     order: lesson.order,
     is_published: lesson.isPublished,
+    practice_link_url: lesson.practiceLinkUrl,
+    practice_link_label: lesson.practiceLinkLabel,
   };
+}
+
+function normalizePracticeLink(value: unknown): string | null {
+  const trimmed = String(value ?? "").trim();
+  return trimmed ? trimmed : null;
 }
 
 export const GET = withApiErrors(async (_: NextRequest, ctx: Ctx) => {
@@ -55,13 +62,32 @@ export const PATCH = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
   const content = String(body.content ?? "");
   const order = Number(body.order ?? 0);
   const is_published = Boolean(body.is_published);
+  const practiceLinkUrl = normalizePracticeLink(body.practice_link_url);
+  const practiceLinkLabel = normalizePracticeLink(body.practice_link_label);
 
   if (!title) return NextResponse.json({ ok: false, error: "title_required" }, { status: 400 });
+
+  if (practiceLinkUrl) {
+    try {
+      const parsed = new URL(practiceLinkUrl);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error("bad protocol");
+    } catch {
+      return NextResponse.json({ ok: false, error: "invalid_practice_link_url" }, { status: 400 });
+    }
+  }
 
   try {
     const lesson = await db.lesson.update({
       where: { id: lessonId },
-      data: { title, description, content, order, isPublished: is_published },
+      data: {
+        title,
+        description,
+        content,
+        order,
+        isPublished: is_published,
+        practiceLinkUrl,
+        practiceLinkLabel: practiceLinkUrl ? practiceLinkLabel : null,
+      },
     });
 
     return NextResponse.json({ ok: true, lesson: toLessonJson(lesson) });

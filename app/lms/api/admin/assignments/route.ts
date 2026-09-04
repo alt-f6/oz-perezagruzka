@@ -5,9 +5,11 @@ import {
   listStudents,
   listLessons,
   listAssignmentsForStudent,
+  listAssignedStudentIdsForLesson,
   grantLesson,
   revokeLesson,
   setAssignmentsForStudent,
+  setAssignmentsForLesson,
 } from "@/lms/server/repos/assignments.repo";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 
@@ -33,17 +35,23 @@ export const GET = withApiErrors(async (req: NextRequest) => {
 
   const url = new URL(req.url);
   const studentId = url.searchParams.get("studentId");
+  const lessonId = url.searchParams.get("lessonId");
 
   const students = await listStudents();
   const lessons = await listLessons();
 
+  if (lessonId) {
+    const assignedStudentIds = await listAssignedStudentIdsForLesson(lessonId);
+    return NextResponse.json({ ok: true, students, lessons, assignedLessonIds: [], assignedStudentIds });
+  }
+
   if (!studentId) {
-    return NextResponse.json({ ok: true, students, lessons, assignedLessonIds: [] });
+    return NextResponse.json({ ok: true, students, lessons, assignedLessonIds: [], assignedStudentIds: [] });
   }
 
   const assignedLessonIds = await listAssignmentsForStudent(studentId);
 
-  return NextResponse.json({ ok: true, students, lessons, assignedLessonIds });
+  return NextResponse.json({ ok: true, students, lessons, assignedLessonIds, assignedStudentIds: [] });
 });
 
 export const POST = withApiErrors(async (req: NextRequest) => {
@@ -55,6 +63,25 @@ export const POST = withApiErrors(async (req: NextRequest) => {
 
   const body: Record<string, unknown> = await req.json().catch(() => ({}));
   const action = String(body.action ?? "");
+
+  if (action === "setForLesson") {
+    const lessonId = String(body.lessonId ?? "");
+    const studentIdsRaw = body.studentIds;
+
+    if (!lessonId) {
+      return NextResponse.json({ ok: false, error: "lessonId required" }, { status: 400 });
+    }
+
+    if (!Array.isArray(studentIdsRaw)) {
+      return NextResponse.json({ ok: false, error: "studentIds must be array" }, { status: 400 });
+    }
+
+    const studentIds = studentIdsRaw.map((x: unknown) => String(x)).filter((x: string) => x.length > 0);
+
+    await setAssignmentsForLesson(lessonId, studentIds);
+    return NextResponse.json({ ok: true });
+  }
+
   const studentId = String(body.studentId ?? "");
 
   if (!studentId) {
@@ -93,7 +120,7 @@ export const POST = withApiErrors(async (req: NextRequest) => {
   }
 
   return NextResponse.json(
-    { ok: false, error: "action must be grant, revoke, or set" },
+    { ok: false, error: "action must be grant, revoke, set, or setForLesson" },
     { status: 400 }
   );
 });

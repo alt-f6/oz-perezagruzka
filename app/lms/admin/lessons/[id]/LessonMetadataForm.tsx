@@ -14,6 +14,8 @@ export type Lesson = {
   content: string;
   is_published: boolean;
   order: number;
+  practice_link_url: string | null;
+  practice_link_label: string | null;
 };
 
 type Props = {
@@ -83,6 +85,31 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
             <Label htmlFor="lesson-published" className="cursor-pointer normal-case tracking-normal text-foreground">
               Published
             </Label>
+          </div>
+
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label htmlFor="lesson-practice-link-url">Practice / workshop link</Label>
+            <Input
+              id="lesson-practice-link-url"
+              type="url"
+              placeholder="https://miro.com/app/board/..."
+              value={lesson.practice_link_url ?? ""}
+              onChange={(e) => onChange({ ...lesson, practice_link_url: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Separate from video links — for Miro boards, Google Docs, simulators, or external tests.
+            </p>
+          </div>
+
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label htmlFor="lesson-practice-link-label">Practice link label (optional)</Label>
+            <Input
+              id="lesson-practice-link-label"
+              placeholder="Open interactive practice"
+              value={lesson.practice_link_label ?? ""}
+              onChange={(e) => onChange({ ...lesson, practice_link_label: e.target.value })}
+              disabled={!lesson.practice_link_url}
+            />
           </div>
         </div>
 

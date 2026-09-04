@@ -8,6 +8,7 @@ import { updateStudent } from "../actions";
 export interface StudentProfileInitial {
   name: string;
   phone: string;
+  email: string;
   parentName: string;
   parentPhone: string;
   comment: string;
@@ -36,6 +37,7 @@ export function StudentProfileSection({
   const [form, setForm] = useState({
     name: initial.name,
     phone: initial.phone,
+    email: initial.email,
     parentName: initial.parentName,
     parentPhone: initial.parentPhone,
     comment: initial.comment,
@@ -57,6 +59,7 @@ export function StudentProfileSection({
       const res = await updateStudent(studentId, {
         name: form.name,
         phone: form.phone,
+        email: form.email,
         parentName: form.parentName,
         parentPhone: form.parentPhone,
         comment: form.comment,
@@ -95,6 +98,19 @@ export function StudentProfileSection({
               value={form.phone}
               onChange={set("phone")}
               placeholder="+79991112233"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <div>
+            <label className="label">Email</label>
+            <input
+              className="input"
+              type="email"
+              value={form.email}
+              onChange={set("email")}
+              placeholder="student@example.com"
             />
           </div>
         </div>

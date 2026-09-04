@@ -1,64 +1,34 @@
-import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
-import {
-  ScheduleClient,
-  type ScheduleGroup,
-  type ScheduleLesson,
-  type ScheduleStudent,
-  type ScheduleTeacher,
-} from "./ScheduleClient";
+import { ScheduleClient } from "./ScheduleClient";
+import { loadScheduleData } from "./schedule-data";
 
 export default async function SchedulePage() {
   const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
-  const isTeacher = sessionUser.role === "TEACHER";
 
-  const [lessons, groups, teachers, students] = await Promise.all([
-    db.classSession.findMany({
-      where: isTeacher ? { teacherId: sessionUser.id } : undefined,
-      orderBy: { scheduledAt: "asc" },
-      take: 1000,
-      select: {
-        id: true,
-        type: true,
-        scheduledAt: true,
-        groupId: true,
-        studentId: true,
-        teacherId: true,
-        status: true,
-        durationMinutes: true,
-        group: { select: { id: true, name: true } },
-        student: { select: { id: true, fullName: true } },
-      },
-    }),
-    db.group.findMany({
-      where: isTeacher ? { teacherId: sessionUser.id } : undefined,
-      orderBy: { name: "asc" },
-      select: { id: true, name: true, teacherId: true },
-    }),
-    db.user.findMany({
-      where: isTeacher
-        ? { role: "TEACHER", id: sessionUser.id }
-        : { role: "TEACHER" },
-      orderBy: { fullName: "asc" },
-      select: { id: true, fullName: true },
-    }),
-    // Students power the individual-lesson picker. Teachers can't create
-    // lessons, so the list is only needed for ADMIN/MANAGER.
-    isTeacher
-      ? Promise.resolve([])
-      : db.student.findMany({
-          where: { deletedAt: null },
-          orderBy: { fullName: "asc" },
-          select: { id: true, fullName: true },
-        }),
-  ]);
+  // Data-layer failures resolve to a local error state here (never a throw),
+  // so a calendar loading problem renders inline and can never be mistaken for
+  // an auth failure or kick the authenticated user to login.
+  const result = await loadScheduleData(sessionUser);
+
+  if (!result.ok) {
+    return (
+      <ScheduleClient
+        lessons={[]}
+        groups={[]}
+        teachers={[]}
+        students={[]}
+        userRole={sessionUser.role}
+        loadError={result.error}
+      />
+    );
+  }
 
   return (
     <ScheduleClient
-      lessons={lessons as unknown as ScheduleLesson[]}
-      groups={groups as ScheduleGroup[]}
-      teachers={teachers as ScheduleTeacher[]}
-      students={students as ScheduleStudent[]}
+      lessons={result.data.lessons}
+      groups={result.data.groups}
+      teachers={result.data.teachers}
+      students={result.data.students}
       userRole={sessionUser.role}
     />
   );

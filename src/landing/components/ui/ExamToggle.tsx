@@ -27,11 +27,11 @@ export default function ExamToggle() {
   };
 
   return (
-    <div className="relative z-20 mx-auto max-w-6xl px-4 pt-5 pb-2 sm:px-6">
+    <div className="relative z-20 mx-auto max-w-6xl px-4 sm:px-6">
       <div
         role="radiogroup"
         aria-label="Класс и экзамен"
-        className="mx-auto flex max-w-2xl items-center justify-center rounded-2xl border border-brand-200/80 bg-white/90 p-1.5 shadow-sm backdrop-blur-md"
+        className="mx-auto my-4 flex max-w-md items-center rounded-2xl border border-slate-200/90 bg-slate-100/95 p-1.5 shadow-inner backdrop-blur-xl sm:my-6 sm:max-w-lg"
       >
         {OPTIONS.map((option) => {
           const selected = exam === option.value;
@@ -42,26 +42,24 @@ export default function ExamToggle() {
               role="radio"
               aria-checked={selected}
               onClick={() => handleSelect(option.value)}
-              className={`relative flex min-h-[70px] flex-1 items-center justify-center rounded-xl px-4 text-lg font-bold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:min-h-[90px] sm:text-2xl ${
-                selected ? "text-white" : "text-ink-600 hover:bg-slate-100/50 hover:text-ink-900"
+              className={`relative z-10 flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-xl text-sm font-black transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:min-h-[58px] sm:text-base ${
+                selected ? "text-white" : "text-slate-600 hover:bg-white/60 hover:text-ink-900"
               }`}
             >
               {selected && (
                 <motion.div
-                  layoutId="activeExamToggleTab"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                  className="absolute inset-0 rounded-xl bg-[#0055FF] shadow-md shadow-brand-600/25"
+                  layoutId="activeExamTab"
+                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                  className="absolute inset-0 -z-10 rounded-xl border border-white/15 bg-[#0055FF] shadow-md shadow-[#0055FF]/30"
                 />
               )}
-              <span className="relative z-10 flex items-center justify-center gap-2 sm:gap-2.5">
-                <span className="text-xs font-semibold tracking-wide opacity-85 sm:text-sm">
-                  {option.grade}
-                </span>
-                <span className="h-1 w-1 rounded-full bg-current opacity-40" aria-hidden="true" />
-                <span className="font-extrabold tracking-tight sm:text-2xl">
-                  {option.title}
-                </span>
-              </span>
+              {selected && (
+                <span
+                  aria-hidden="true"
+                  className="h-1.5 w-1.5 rounded-full bg-[#AAEE00] shadow-[0_0_8px_#AAEE00]"
+                />
+              )}
+              <span>{option.grade} · {option.title}</span>
             </button>
           );
         })}

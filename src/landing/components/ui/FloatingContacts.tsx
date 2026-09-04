@@ -4,10 +4,10 @@
 // it replaces). z-40 keeps both below the cookie banner's z-50.
 //
 // bottom-64 (256px) on mobile clears ConsentBanner.tsx's real worst-case
-// footprint — see that file's own sizing comment for the full budget. The
-// second button stacks +72px above the first (56px button + 16px gap):
-// bottom-[18.5rem] (296px) / sm:bottom-24 (96px) once the banner switches to
-// its shorter flex-row layout at sm: and above.
+// footprint — see that file's own sizing comment for the full budget. Buttons
+// are 80px (h-20 w-20); the second stacks +96px above the first (80px
+// button + 16px gap): bottom-[22rem] (352px) / sm:bottom-[7.5rem] (120px)
+// once the banner switches to its shorter flex-row layout at sm: and above.
 const PHONE_NUMBER = "+79527025050";
 const MAX_URL = process.env.NEXT_PUBLIC_MAX_URL || "https://max.ru";
 
@@ -18,9 +18,10 @@ export default function FloatingContacts() {
         href={`tel:${PHONE_NUMBER}`}
         aria-label="Позвонить"
         title="Позвонить"
-        className="group fixed bottom-64 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#0055FF] text-white shadow-xl shadow-ink-900/20 transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#0055FF] sm:bottom-6"
+        className="group fixed bottom-64 right-4 z-40 flex h-20 w-20 items-center justify-center rounded-full bg-[#0055FF] text-white shadow-xl shadow-ink-900/20 transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#0055FF] sm:bottom-6"
       >
-        <PhoneIcon className="h-7 w-7" />
+        <span className="pointer-events-none absolute inset-0 rounded-full bg-[#0055FF]/50 opacity-0 group-hover:animate-ping group-hover:opacity-100" />
+        <PhoneIcon className="relative h-9 w-9" />
         <span className="pointer-events-none absolute right-full mr-3 whitespace-nowrap rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
           Позвонить
         </span>
@@ -31,12 +32,15 @@ export default function FloatingContacts() {
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Написать в MAX"
-        title="Написать в MAX"
-        className="group fixed bottom-[18.5rem] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#AAEE00] text-[#111111] shadow-xl shadow-ink-900/20 transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#AAEE00] sm:bottom-24"
+        title="Чат в MAX"
+        className="group fixed bottom-[22rem] right-4 z-40 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[#5B42F3] to-[#0055FF] text-white shadow-xl shadow-ink-900/20 transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#5B42F3] sm:bottom-[7.5rem]"
       >
-        <MaxIcon className="h-7 w-7" />
+        <span className="flex flex-col items-center leading-none">
+          <MaxIcon className="h-6 w-6" />
+          <span className="mt-0.5 text-[10px] font-black tracking-wide">MAX</span>
+        </span>
         <span className="pointer-events-none absolute right-full mr-3 whitespace-nowrap rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
-          MAX
+          Чат в MAX
         </span>
       </a>
     </>

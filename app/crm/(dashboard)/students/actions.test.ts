@@ -13,9 +13,11 @@ const { createStudent, updateStudent } = await import("./actions");
 interface TxMock {
   student: {
     findUnique: ReturnType<typeof vi.fn>;
+    findFirst: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
+  user: { findUnique: ReturnType<typeof vi.fn> };
   groupStudent: { create: ReturnType<typeof vi.fn> };
 }
 
@@ -23,9 +25,13 @@ function makeTx(existingStudent: { id: string } | null = null): TxMock {
   return {
     student: {
       findUnique: vi.fn().mockResolvedValue(existingStudent),
+      // Email-collision pre-check: no other student owns the email by default.
+      findFirst: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockResolvedValue({ id: "student_new" }),
       update: vi.fn().mockResolvedValue({ id: "student_1" }),
     },
+    // Email-collision pre-check against existing accounts: none by default.
+    user: { findUnique: vi.fn().mockResolvedValue(null) },
     groupStudent: { create: vi.fn().mockResolvedValue({}) },
   };
 }
@@ -65,6 +71,7 @@ describe("createStudent", () => {
       data: {
         fullName: "Иван Иванов",
         phone: "+79991234567",
+        email: null,
         parentName: null,
         parentPhone: null,
         comment: null,
@@ -97,6 +104,7 @@ describe("createStudent", () => {
       data: {
         fullName: "Иван Иванов",
         phone: null,
+        email: null,
         parentName: "Мария Иванова",
         parentPhone: "+79990001122",
         comment: "Готовится к ОГЭ",
@@ -157,6 +165,7 @@ describe("updateStudent", () => {
       data: {
         fullName: "Иван Иванов",
         phone: "+79991234567",
+        email: null,
         parentName: "Мария Иванова",
         parentPhone: "+79990001122",
         comment: "Перевёлся из другой школы",
@@ -211,6 +220,7 @@ describe("updateStudent", () => {
       data: {
         fullName: "Иван Иванов",
         phone: null,
+        email: null,
         parentName: null,
         parentPhone: null,
         comment: null,
@@ -227,5 +237,53 @@ describe("updateStudent", () => {
     await expect(
       updateStudent("student_1", { name: "Иван Иванов", phone: "" }),
     ).rejects.toThrow("forbidden");
+  });
+
+  it("persists a normalized email onto the student record", async () => {
+    const tx = makeTx({ id: "student_1" });
+    runWithTx(tx);
+
+    const result = await updateStudent("student_1", {
+      name: "Иван Иванов",
+      phone: "",
+      email: "Student@Example.COM",
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(tx.student.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ email: "student@example.com" }),
+      }),
+    );
+  });
+
+  it("gracefully rejects an email already used by another student (no raw constraint error)", async () => {
+    const tx = makeTx({ id: "student_1" });
+    tx.student.findFirst.mockResolvedValue({ id: "other_student" });
+    runWithTx(tx);
+
+    const result = await updateStudent("student_1", {
+      name: "Иван Иванов",
+      phone: "",
+      email: "dup@example.com",
+    });
+
+    expect(result.error).toMatch(/уже используется другим учеником/);
+    expect(tx.student.update).not.toHaveBeenCalled();
+  });
+
+  it("gracefully rejects an email already bound to another account", async () => {
+    const tx = makeTx({ id: "student_1" });
+    tx.user.findUnique.mockResolvedValue({ id: "someone_elses_user" });
+    runWithTx(tx);
+
+    const result = await updateStudent("student_1", {
+      name: "Иван Иванов",
+      phone: "",
+      email: "taken@example.com",
+    });
+
+    expect(result.error).toMatch(/занят другим аккаунтом/);
+    expect(tx.student.update).not.toHaveBeenCalled();
   });
 });

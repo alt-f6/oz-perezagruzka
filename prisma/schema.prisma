@@ -169,6 +169,13 @@ model Student {
   userId    String?
   fullName  String
   phone     String?   @unique
+  // Operator-entered contact email for the student, editable on the profile
+  // card and used to seed the LMS invite. Deliberately NOT a DB unique
+  // constraint: uniqueness is validated gracefully in the app layer (against
+  // other students and existing User accounts) so a collision surfaces as a
+  // friendly message instead of a raw P2002. The authoritative login-identity
+  // uniqueness still lives on User.email / Invite.email.
+  email     String?
   // Denormalized parent contact captured directly on the student card. Kept
   // alongside (not in place of) the richer Parent/ParentStudent portal model:
   // this is the quick operational contact an operator fills in on the profile,

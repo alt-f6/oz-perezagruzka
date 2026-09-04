@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { russianPhoneSchema, russianPhoneOptionalSchema } from "@/shared/validation/phone";
+import { optionalEmailSchema } from "@/shared/validation/email";
 
 // ─────────────────────────────────────────────────────────────
 // Educational domain enums (shared by Student and Group)
@@ -112,6 +113,7 @@ const optionalText = z.string().trim().optional().or(z.literal(""));
 
 // Fields shared by the student create/update forms and the student card.
 const studentDomainFields = {
+  email: optionalEmailSchema,
   parentName: optionalText,
   parentPhone: russianPhoneOptionalSchema,
   comment: optionalText,

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/shared/lib/db";
+import { buildAbsoluteUrl } from "@/shared/lib/url";
 import { requireRole } from "@/shared/lib/rbac";
 import { assertStudentVisibleToTeacher } from "@/crm/lib/access";
 import { PaymentModal } from "@/crm/components/PaymentModal";
@@ -33,6 +34,7 @@ export default async function StudentDetailPage({
         ? {}
         : {
             phone: true,
+            email: true,
             parentName: true,
             parentPhone: true,
             comment: true,
@@ -78,6 +80,29 @@ export default async function StudentDetailPage({
   ]);
 
   const parents = parentLinks.map((row) => row.parent).filter(Boolean);
+
+  // Access-management state for the LMS panel: the registered account's email
+  // (if any) and the current pending student invite (for its live link +
+  // expiry). Only loaded for staff who can act on it (not TEACHER).
+  const [account, activeInvite] = isTeacher
+    ? [null, null]
+    : await Promise.all([
+        student.userId
+          ? db.user.findUnique({
+              where: { id: student.userId },
+              select: { email: true },
+            })
+          : Promise.resolve(null),
+        db.invite.findFirst({
+          where: { studentId: id, role: "STUDENT", acceptedAt: null },
+          orderBy: { createdAt: "desc" },
+          select: { token: true, expiresAt: true },
+        }),
+      ]);
+
+  const inviteLink = activeInvite
+    ? await buildAbsoluteUrl("crm", `/register?token=${activeInvite.token}`)
+    : null;
 
   const mappedExamResults = examResults.map((r) => ({
     ...r,
@@ -133,6 +158,7 @@ export default async function StudentDetailPage({
             name: student.fullName,
             phone:
               (student as { phone: string | null }).phone ?? "",
+            email: (student as { email: string | null }).email ?? "",
             parentName:
               (student as { parentName: string | null }).parentName ?? "",
             parentPhone:
@@ -150,6 +176,10 @@ export default async function StudentDetailPage({
       <PortalInviteSection
         studentId={id}
         studentHasAccount={Boolean(student.userId)}
+        accountEmail={account?.email ?? null}
+        studentEmail={(student as { email: string | null }).email ?? null}
+        inviteLink={inviteLink}
+        inviteExpiresAt={activeInvite?.expiresAt.toISOString() ?? null}
       />
 
       <TelegramLinkSection studentId={id} parents={parents} />

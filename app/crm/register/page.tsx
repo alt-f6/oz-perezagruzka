@@ -26,6 +26,9 @@ export default function RegisterPage({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Set when the invite has already been activated: instead of a dead-end
+  // error, the user is offered a direct path to log in.
+  const [loginPath, setLoginPath] = useState<string | null>(null);
 
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
@@ -43,6 +46,9 @@ export default function RegisterPage({
 
       if (!res.ok || !data?.ok) {
         setErrorMessage(data?.error || "Недействительное или уже использованное приглашение");
+        if (data?.alreadyAccepted && typeof data.loginPath === "string") {
+          setLoginPath(data.loginPath);
+        }
       } else {
         setInvite(data.invite);
       }
@@ -69,6 +75,12 @@ export default function RegisterPage({
 
       if (!res.ok || !data?.ok) {
         setErrorMessage(data?.error || "Не удалось зарегистрировать пользователя");
+        // If the invite was consumed between load and submit (double-submit,
+        // reused link), offer the login hand-off rather than a dead end.
+        if (data?.alreadyAccepted && typeof data.loginPath === "string") {
+          setInvite(null);
+          setLoginPath(data.loginPath);
+        }
         return;
       }
 
@@ -97,13 +109,24 @@ export default function RegisterPage({
   }
 
   if (errorMessage && !invite) {
+    const isAlreadyAccepted = Boolean(loginPath);
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="w-full max-w-md p-6 bg-white rounded-xl shadow-md text-center">
-          <h2 className="text-xl font-bold text-red-600 mb-2">
-            Ошибка доступа
+          <h2
+            className={`text-xl font-bold mb-2 ${isAlreadyAccepted ? "text-slate-800" : "text-red-600"}`}
+          >
+            {isAlreadyAccepted ? "Аккаунт уже активирован" : "Ошибка доступа"}
           </h2>
           <p className="text-gray-600 mb-4">{errorMessage}</p>
+          {loginPath && (
+            <a
+              href={loginPath}
+              className="inline-block w-full py-2 px-4 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 transition"
+            >
+              Войти в личный кабинет
+            </a>
+          )}
         </div>
       </div>
     );

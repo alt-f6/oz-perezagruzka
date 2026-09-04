@@ -1,9 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Download, ExternalLink, Loader2 } from "lucide-react";
 
 import { cn } from "@/shared/lib/utils";
+
+// The pdf.js sandbox is a static asset under `public/lms/`, which Next.js
+// serves at `/lms/pdf-sandbox.html` (there is no basePath/rewrite). A bare
+// `/pdf-sandbox.html` 404s, the iframe never wires up its message listener,
+// and the viewer renders blank — the regression this path fixes.
+const PDF_SANDBOX_SRC = "/lms/pdf-sandbox.html";
+
+// If the embedded renderer hasn't painted a page within this window (sandbox
+// 404, blocked script, CSP, etc.), we surface the fallback actions prominently
+// instead of leaving the user staring at an empty frame.
+const RENDER_WATCHDOG_MS = 6000;
 
 type Props = {
   assetId: string;
@@ -26,6 +37,10 @@ export function PdfViewer({
 }: Props) {
   const [err, setErr] = useState<string | null>(null);
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  // Flips true once the sandbox reports its first painted page; drives the
+  // watchdog that reveals the fallback banner when embedded rendering fails.
+  const [rendered, setRendered] = useState(false);
+  const [renderFailed, setRenderFailed] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const onPageChangeRef = useRef(onPageChange);
   useEffect(() => {
@@ -46,6 +61,8 @@ export function PdfViewer({
     async function load() {
       setErr(null);
       setSignedUrl(null);
+      setRendered(false);
+      setRenderFailed(false);
 
       try {
         const r = await fetch(`/api/student/pdf-url?assetId=${assetId}`, {
@@ -98,6 +115,9 @@ export function PdfViewer({
     function onMessage(ev: MessageEvent) {
       const data = ev.data || {};
       if (data.type !== "PDF_PAGE") return;
+      // First painted page proves the embedded renderer is alive.
+      setRendered(true);
+      setRenderFailed(false);
       onPageChangeRef.current?.(Number(data.page));
     }
 
@@ -105,37 +125,86 @@ export function PdfViewer({
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
-  return (
-    <div
-      className={cn(
-        "relative overflow-hidden rounded-2xl border border-border bg-black/20",
-        className
-      )}
-      style={{ height }}
-      onContextMenu={(e) => e.preventDefault()}
-    >
-      {err ? (
-        <p
-          role="alert"
-          className="absolute inset-0 flex items-center justify-center p-4 text-center text-sm text-destructive-foreground"
+  // Watchdog: once we've handed the sandbox a URL, give it a bounded window to
+  // paint. If nothing renders (404'd sandbox, blocked CDN worker, CSP), reveal
+  // the fallback actions so the user is never stranded on a blank frame.
+  useEffect(() => {
+    if (!signedUrl || rendered) return;
+    const t = setTimeout(() => {
+      if (!rendered) setRenderFailed(true);
+    }, RENDER_WATCHDOG_MS);
+    return () => clearTimeout(t);
+  }, [signedUrl, rendered]);
+
+  const fallbackActions =
+    signedUrl != null ? (
+      <div className="flex flex-wrap items-center gap-2">
+        <a
+          href={signedUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-muted"
         >
-          {err}
-        </p>
-      ) : null}
+          <ExternalLink className="size-4" aria-hidden="true" />
+          Открыть в новой вкладке
+        </a>
+        <a
+          href={signedUrl}
+          download
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium text-foreground transition hover:bg-muted"
+        >
+          <Download className="size-4" aria-hidden="true" />
+          Скачать PDF
+        </a>
+      </div>
+    ) : null;
 
-      {!err && !signedUrl ? (
-        <div className="absolute inset-0 flex items-center justify-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-          Загрузка PDF…
-        </div>
-      ) : null}
+  return (
+    <div className={cn("space-y-2", className)}>
+      <div
+        className="relative overflow-hidden rounded-2xl border border-border bg-black/20"
+        style={{ height }}
+        onContextMenu={(e) => e.preventDefault()}
+      >
+        {err ? (
+          <div
+            role="alert"
+            className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center text-sm text-destructive-foreground"
+          >
+            <p>Не удалось загрузить PDF: {err}</p>
+            {fallbackActions}
+          </div>
+        ) : null}
 
-      <iframe
-        ref={iframeRef}
-        src="/pdf-sandbox.html"
-        className={cn("h-full w-full border-0 bg-transparent", signedUrl ? "block" : "hidden")}
-        title="PDF"
-      />
+        {!err && !signedUrl ? (
+          <div className="absolute inset-0 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+            Загрузка PDF…
+          </div>
+        ) : null}
+
+        {!err && renderFailed && !rendered ? (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-background/95 p-4 text-center text-sm">
+            <p className="text-muted-foreground">
+              Встроенный просмотрщик не смог отобразить документ.
+            </p>
+            {fallbackActions}
+          </div>
+        ) : null}
+
+        <iframe
+          ref={iframeRef}
+          src={PDF_SANDBOX_SRC}
+          className={cn("h-full w-full border-0 bg-transparent", signedUrl && !err ? "block" : "hidden")}
+          title="PDF"
+        />
+      </div>
+
+      {/* Always-available escape hatch: even when the embedded renderer works,
+          browsers/policies can still block it, so the direct actions stay put. */}
+      {!err && signedUrl ? (
+        <div className="flex items-center justify-end">{fallbackActions}</div>
+      ) : null}
     </div>
   );
 }

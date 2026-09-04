@@ -18,6 +18,42 @@ function orNull(v: string | undefined | null): string | null {
   return v ? v : null;
 }
 
+// Prisma transaction client shape (the callback arg of db.$transaction).
+type Tx = Parameters<Parameters<typeof db.$transaction>[0]>[0];
+
+/**
+ * Gracefully validates that `email` isn't already claimed — by another
+ * (non-deleted) student, or by a User account that isn't this student's own.
+ * Returns a friendly message to surface, or null when the email is free.
+ * Deliberately a pre-check (not a DB unique constraint) so a collision never
+ * escapes as a raw P2002. `email` is assumed already normalized (lowercased).
+ */
+async function emailCollisionError(
+  tx: Tx,
+  email: string,
+  opts: { studentId?: string; ownUserId?: string | null },
+): Promise<string | null> {
+  const otherStudent = await tx.student.findFirst({
+    where: {
+      email,
+      deletedAt: null,
+      ...(opts.studentId ? { NOT: { id: opts.studentId } } : {}),
+    },
+    select: { id: true },
+  });
+  if (otherStudent) return "Этот email уже используется другим учеником.";
+
+  const userWithEmail = await tx.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
+  if (userWithEmail && userWithEmail.id !== opts.ownUserId) {
+    return "Этот email уже занят другим аккаунтом.";
+  }
+
+  return null;
+}
+
 export async function createStudent(
   values: StudentValues,
 ): Promise<ActionResult> {
@@ -41,10 +77,16 @@ export async function createStudent(
         }
       }
 
+      if (parsed.data.email) {
+        const emailError = await emailCollisionError(tx, parsed.data.email, {});
+        if (emailError) return emailError;
+      }
+
       const student = await tx.student.create({
         data: {
           fullName: parsed.data.name,
           phone: parsed.data.phone || null,
+          email: parsed.data.email ?? null,
           parentName: orNull(parsed.data.parentName),
           parentPhone: parsed.data.parentPhone || null,
           comment: orNull(parsed.data.comment),
@@ -110,11 +152,24 @@ export async function updateStudent(
         }
       }
 
+      if (parsed.data.email) {
+        const current = await tx.student.findUnique({
+          where: { id: studentId },
+          select: { userId: true },
+        });
+        const emailError = await emailCollisionError(tx, parsed.data.email, {
+          studentId,
+          ownUserId: current?.userId ?? null,
+        });
+        if (emailError) return emailError;
+      }
+
       await tx.student.update({
         where: { id: studentId },
         data: {
           fullName: parsed.data.name,
           phone: parsed.data.phone || null,
+          email: parsed.data.email ?? null,
           parentName: orNull(parsed.data.parentName),
           parentPhone: parsed.data.parentPhone || null,
           comment: orNull(parsed.data.comment),

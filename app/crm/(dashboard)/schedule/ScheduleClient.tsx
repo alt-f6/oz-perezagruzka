@@ -76,12 +76,16 @@ export function ScheduleClient({
   teachers,
   students = [],
   userRole,
+  loadError = null,
 }: {
   lessons: ScheduleLesson[];
   groups: ScheduleGroup[];
   teachers: ScheduleTeacher[];
   students?: ScheduleStudent[];
   userRole?: string;
+  // Set when the server-side data load failed. Renders a local, non-fatal
+  // error state — the session is untouched and never redirected to login.
+  loadError?: string | null;
 }) {
   const isTeacher = userRole === "TEACHER";
   const showToast = useToast();
@@ -253,6 +257,22 @@ export function ScheduleClient({
           )}
         </div>
       </div>
+
+      {loadError && (
+        <div
+          role="alert"
+          className="flex flex-col gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="btn-secondary shrink-0 self-start sm:self-auto"
+          >
+            Обновить
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">

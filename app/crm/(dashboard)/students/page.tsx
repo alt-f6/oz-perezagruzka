@@ -1,20 +1,15 @@
-import { redirect } from "next/navigation";
 import { db } from "@/shared/lib/db";
-import { CRM_ROLES, getSessionUser } from "@/shared/lib/auth";
+import { CRM_ROLES } from "@/shared/lib/auth";
+import { requireRoleForPage } from "@/shared/lib/rbac";
 import type { Group } from "@/crm/lib/types";
 import { listStudents } from "@/crm/lib/services/student-list.service";
 import { StudentsClient } from "./StudentsClient";
 
 export default async function StudentsPage() {
-  const sessionUser = await getSessionUser();
-
-  if (!sessionUser) {
-    redirect("/admin/login");
-  }
-
-  if (!CRM_ROLES.includes(sessionUser.role)) {
-    redirect("/");
-  }
+  const sessionUser = await requireRoleForPage(CRM_ROLES, {
+    loginPath: "/admin/login",
+    forbiddenPath: () => "/access-denied",
+  });
 
   const isTeacher = sessionUser.role === "TEACHER";
 

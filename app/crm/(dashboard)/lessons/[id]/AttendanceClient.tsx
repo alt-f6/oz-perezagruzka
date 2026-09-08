@@ -13,12 +13,8 @@ import {
   type MakeupLessonOption,
   type Student,
 } from "@/crm/lib/types";
+import { formatMoscowDate, formatMoscowTime } from "@/shared/lib/timezone";
 import { assignMakeupLesson, setAttendance } from "../actions";
-
-const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
-  dateStyle: "long",
-  timeStyle: "short",
-});
 
 const ATTENDANCE_STATUSES: { value: AttendanceStatus; label: string }[] = [
   { value: "PRESENT", label: "Был" },
@@ -134,7 +130,8 @@ export function AttendanceClient({
         </h1>
         <p className="page-subtitle">
           {lesson.group ? "Групповое занятие · " : "Индивидуальное занятие · "}
-          {dateFormatter.format(new Date(lesson.scheduledAt))}
+          {formatMoscowDate(lesson.scheduledAt)} в{" "}
+          {formatMoscowTime(lesson.scheduledAt)}
         </p>
         <span className="badge-info mt-1 gap-1 px-1.5 py-0 text-[11px]">
           <GraduationCap size={12} className="shrink-0" />
@@ -273,9 +270,9 @@ export function AttendanceClient({
                                 <span className="text-xs font-medium text-slate-900">
                                   {targetGroup?.name ?? "Группа"}
                                   {makeupRecord.targetClassSession &&
-                                    ` · ${new Date(
+                                    ` · ${formatMoscowDate(
                                       makeupRecord.targetClassSession.scheduledAt,
-                                    ).toLocaleDateString("ru-RU")}`}
+                                    )}`}
                                 </span>
                               );
                             }
@@ -300,9 +297,7 @@ export function AttendanceClient({
                                     return (
                                       <option key={option.id} value={option.id}>
                                         {group?.name ?? "Группа"} ·{" "}
-                                        {new Date(
-                                          option.scheduledAt,
-                                        ).toLocaleDateString("ru-RU")}
+                                        {formatMoscowDate(option.scheduledAt)}
                                       </option>
                                     );
                                   })}

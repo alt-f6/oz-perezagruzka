@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { db } from "@/shared/lib/db";
 import { buildAbsoluteUrl } from "@/shared/lib/url";
-import { requireRole } from "@/shared/lib/rbac";
+import { requireRoleForPage } from "@/shared/lib/rbac";
 import { assertStudentVisibleToTeacher } from "@/crm/lib/access";
 import { PaymentModal } from "@/crm/components/PaymentModal";
 import { ExamTrackerSection } from "./ExamTrackerSection";
@@ -17,7 +17,10 @@ export default async function StudentDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
+  const sessionUser = await requireRoleForPage(["ADMIN", "MANAGER", "TEACHER"], {
+    loginPath: "/admin/login",
+    forbiddenPath: () => "/access-denied",
+  });
   const isTeacher = sessionUser.role === "TEACHER";
 
   const { id } = await params;

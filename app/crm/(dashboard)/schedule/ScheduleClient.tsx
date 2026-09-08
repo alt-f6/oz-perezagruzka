@@ -29,6 +29,13 @@ import { lessonSchema, type LessonValues } from "@/crm/lib/schemas";
 import { createLesson } from "../lessons/actions";
 
 const PIXELS_PER_HOUR = 64;
+// Floor so short lessons (durationMinutes is user-set, not fixed at 60) still
+// have room to render title+time on one compact line plus the teacher badge
+// on a second, without clipping. A 30-min lesson would otherwise be only
+// 32px tall — not enough for two lines at these font sizes. This is a small,
+// bounded visual approximation: very short lessons render slightly taller
+// than their exact time-proportional height.
+const MIN_SESSION_BLOCK_HEIGHT = 40;
 
 export interface ScheduleLesson {
   id: string;
@@ -393,7 +400,10 @@ export function ScheduleClient({
               {assignOverlapColumns(dayLessons).map(({ session: lesson, column, columnCount }) => {
                 const start = new Date(lesson.scheduledAt);
                 const top = ((start.getHours() * 60 + start.getMinutes()) / 60) * PIXELS_PER_HOUR;
-                const height = (lesson.durationMinutes / 60) * PIXELS_PER_HOUR;
+                const height = Math.max(
+                  (lesson.durationMinutes / 60) * PIXELS_PER_HOUR,
+                  MIN_SESSION_BLOCK_HEIGHT,
+                );
                 const widthPct = 100 / columnCount;
                 const isCancelled = lesson.status === "cancelled";
                 return (
@@ -413,17 +423,19 @@ export function ScheduleClient({
                         : "border-accent/60 bg-accent/[0.08] text-slate-900 hover:bg-accent/15"
                     }`}
                   >
-                    <p className="truncate font-semibold">{getSessionLabel(lesson)}</p>
-                    <p className="truncate text-[11px] text-slate-500">
-                      {formatTimeRange({
-                        scheduledAt: lesson.scheduledAt,
-                        durationMinutes: lesson.durationMinutes,
-                      })}
+                    <p className="truncate font-semibold">
+                      {getSessionLabel(lesson)}
+                      <span className="ml-1 truncate text-[11px] font-normal text-slate-500">
+                        {formatTimeRange({
+                          scheduledAt: lesson.scheduledAt,
+                          durationMinutes: lesson.durationMinutes,
+                        })}
+                      </span>
                     </p>
-                    <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] font-medium text-blue-700">
+                    <span className="badge-info mt-0.5 w-full gap-1 truncate px-1.5 py-0 text-[11px]">
                       <GraduationCap size={12} className="shrink-0" />
                       {getTeacherLabel(lesson)}
-                    </p>
+                    </span>
                   </Link>
                 );
               })}
@@ -477,10 +489,10 @@ export function ScheduleClient({
                             })}{" "}
                             · {getSessionLabel(lesson)}
                           </p>
-                          <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] font-medium text-blue-700">
+                          <span className="badge-info mt-0.5 w-full gap-1 truncate px-1.5 py-0 text-[11px]">
                             <GraduationCap size={12} className="shrink-0" />
                             {getTeacherLabel(lesson)}
-                          </p>
+                          </span>
                         </Link>
                       );
                     })

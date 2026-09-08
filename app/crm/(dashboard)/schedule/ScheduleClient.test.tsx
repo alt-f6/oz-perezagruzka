@@ -151,6 +151,27 @@ describe("ScheduleClient", () => {
     expect(within(card).getByText("Иван Иванов")).toBeInTheDocument();
   });
 
+  it("keeps a short-duration day-view block tall enough to fit the teacher badge without clipping", () => {
+    const lesson = makeLesson({
+      id: "s1",
+      teacherId: "t1",
+      teacher: { fullName: "Иван Иванов" },
+      durationMinutes: 30,
+    });
+    render(<ScheduleClient lessons={[lesson]} groups={groups} teachers={teachers} />);
+
+    const block = screen.getByTestId("session-block-s1");
+    // A 30-min lesson is time-proportionally only 32px tall (30/60 * 64px) —
+    // not enough room for a title+time line plus the teacher badge line at
+    // readable sizes. The block enforces a minimum height so the badge is
+    // never squeezed out by overflow-hidden clipping.
+    const height = parseFloat(block.style.height);
+    expect(height).toBeGreaterThanOrEqual(40);
+
+    const badge = within(block).getByText("Иван Иванов");
+    expect(badge).toBeVisible();
+  });
+
   it("shows a compact teacher label on month-view chips", async () => {
     const user = userEvent.setup();
     const lesson = makeLesson({

@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
 import { db } from "@/shared/lib/db";
-import { getSessionUser } from "@/shared/lib/auth";
+import { requireRoleForPage } from "@/shared/lib/rbac";
 import { type Lead } from "@/crm/lib/types";
 import { LeadsClient } from "./LeadsClient";
 import { LeadModal } from "./LeadModal";
@@ -8,15 +7,10 @@ import { LeadModal } from "./LeadModal";
 export const revalidate = 0;
 
 export default async function LeadsPage() {
-  const sessionUser = await getSessionUser();
-
-  if (!sessionUser) {
-    redirect("/admin/login");
-  }
-
-  if (sessionUser.role === "TEACHER") {
-    redirect("/");
-  }
+  await requireRoleForPage(["ADMIN", "MANAGER"], {
+    loginPath: "/admin/login",
+    forbiddenPath: () => "/access-denied",
+  });
 
   const leads = await db.lead.findMany({
     orderBy: { createdAt: "desc" },

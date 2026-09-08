@@ -1,22 +1,17 @@
-import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { Sidebar } from "@/crm/components/Sidebar";
-import { CRM_ROLES, getSessionUser } from "@/shared/lib/auth";
+import { CRM_ROLES } from "@/shared/lib/auth";
+import { requireRoleForPage } from "@/shared/lib/rbac";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: ReactNode;
 }) {
-  const user = await getSessionUser();
-
-  if (!user) {
-    redirect("/admin/login");
-  }
-
-  if (!CRM_ROLES.includes(user.role)) {
-    redirect("/");
-  }
+  const user = await requireRoleForPage(CRM_ROLES, {
+    loginPath: "/admin/login",
+    forbiddenPath: () => "/access-denied",
+  });
 
   return (
     <div className="flex h-screen w-full overflow-hidden bg-slate-50">

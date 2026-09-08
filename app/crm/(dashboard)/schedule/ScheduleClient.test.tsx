@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -109,5 +109,59 @@ describe("ScheduleClient", () => {
       />,
     );
     expect(screen.getByText("Новое занятие")).toBeInTheDocument();
+  });
+
+  it("shows the assigned teacher's name on a day-view session card", () => {
+    const lesson = makeLesson({
+      id: "s1",
+      teacherId: "t1",
+      teacher: { fullName: "Иван Иванов" },
+      group: { id: "g1", name: "Группа А" },
+    });
+    render(<ScheduleClient lessons={[lesson]} groups={groups} teachers={teachers} />);
+
+    const card = screen.getByTestId("session-block-s1");
+    expect(within(card).getByText("Иван Иванов")).toBeInTheDocument();
+  });
+
+  it("shows a 'no teacher assigned' fallback when teacher is missing", () => {
+    const lesson = makeLesson({
+      id: "s2",
+      teacherId: "t-missing",
+      teacher: null,
+      group: { id: "g1", name: "Группа А" },
+    });
+    render(<ScheduleClient lessons={[lesson]} groups={groups} teachers={teachers} />);
+
+    const card = screen.getByTestId("session-block-s2");
+    expect(within(card).getByText("Без преподавателя")).toBeInTheDocument();
+  });
+
+  it("shows the assigned teacher's name on a week-view session card", async () => {
+    const user = userEvent.setup();
+    const lesson = makeLesson({
+      id: "s1",
+      teacherId: "t1",
+      teacher: { fullName: "Иван Иванов" },
+    });
+    render(<ScheduleClient lessons={[lesson]} groups={groups} teachers={teachers} />);
+
+    await user.click(screen.getByRole("button", { name: "Неделя" }));
+    const card = screen.getByTestId("week-session-s1");
+    expect(within(card).getByText("Иван Иванов")).toBeInTheDocument();
+  });
+
+  it("shows a compact teacher label on month-view chips", async () => {
+    const user = userEvent.setup();
+    const lesson = makeLesson({
+      id: "s1",
+      teacherId: "t1",
+      teacher: { fullName: "Иван Иванов" },
+    });
+    render(<ScheduleClient lessons={[lesson]} groups={groups} teachers={teachers} />);
+
+    await user.click(screen.getByRole("button", { name: "Месяц" }));
+    const chip = screen.getByTestId("month-chip-s1");
+    expect(within(chip).getByText(/Иван Иванов/)).toBeInTheDocument();
   });
 });

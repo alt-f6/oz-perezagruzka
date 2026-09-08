@@ -6,6 +6,7 @@ import {
   CalendarClock,
   ChevronLeft,
   ChevronRight,
+  GraduationCap,
   Plus,
 } from "lucide-react";
 import Link from "next/link";
@@ -40,6 +41,7 @@ export interface ScheduleLesson {
   durationMinutes: number;
   group?: { id: string; name: string } | null;
   student?: { id: string; fullName: string } | null;
+  teacher?: { fullName: string } | null;
 }
 
 export interface ScheduleGroup {
@@ -68,6 +70,14 @@ function getSessionLabel(lesson: ScheduleLesson): string {
   if (lesson.group?.name) return lesson.group.name;
   if (lesson.student?.fullName) return `${lesson.student.fullName} · 1-на-1`;
   return "Индивидуальное занятие";
+}
+
+// Every ClassSession.teacherId is a required, non-nullable field in the
+// schema, so a missing teacher here only ever means the relation wasn't
+// loaded or the referenced user was removed — not a normal data state. The
+// fallback keeps that edge case visible instead of rendering a blank line.
+function getTeacherLabel(lesson: ScheduleLesson): string {
+  return lesson.teacher?.fullName ?? "Без преподавателя";
 }
 
 export function ScheduleClient({
@@ -410,6 +420,10 @@ export function ScheduleClient({
                         durationMinutes: lesson.durationMinutes,
                       })}
                     </p>
+                    <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] font-medium text-blue-700">
+                      <GraduationCap size={12} className="shrink-0" />
+                      {getTeacherLabel(lesson)}
+                    </p>
                   </Link>
                 );
               })}
@@ -449,17 +463,24 @@ export function ScheduleClient({
                         <Link
                           key={lesson.id}
                           href={`/lessons/${lesson.id}`}
+                          data-testid={`week-session-${lesson.id}`}
                           className={`block rounded-lg border-l-2 px-2.5 py-1.5 text-xs font-medium transition-colors ${
                             isCancelled
                               ? "border-slate-300 bg-slate-100 text-slate-400"
                               : "border-accent/60 bg-accent/[0.06] text-slate-900 hover:bg-accent/15"
                           }`}
                         >
-                          {formatTimeRange({
-                            scheduledAt: lesson.scheduledAt,
-                            durationMinutes: lesson.durationMinutes,
-                          })}{" "}
-                          · {getSessionLabel(lesson)}
+                          <p className="truncate">
+                            {formatTimeRange({
+                              scheduledAt: lesson.scheduledAt,
+                              durationMinutes: lesson.durationMinutes,
+                            })}{" "}
+                            · {getSessionLabel(lesson)}
+                          </p>
+                          <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] font-medium text-blue-700">
+                            <GraduationCap size={12} className="shrink-0" />
+                            {getTeacherLabel(lesson)}
+                          </p>
                         </Link>
                       );
                     })
@@ -501,6 +522,7 @@ export function ScheduleClient({
                   {items.slice(0, 2).map((lesson) => (
                     <p
                       key={lesson.id}
+                      data-testid={`month-chip-${lesson.id}`}
                       className={`truncate rounded px-1.5 py-0.5 text-[11px] font-medium ${
                         lesson.status === "cancelled"
                           ? "bg-slate-100 text-slate-400"
@@ -510,7 +532,8 @@ export function ScheduleClient({
                       {formatTimeRange({
                         scheduledAt: lesson.scheduledAt,
                         durationMinutes: lesson.durationMinutes,
-                      })}
+                      })}{" "}
+                      · {getTeacherLabel(lesson)}
                     </p>
                   ))}
                   {items.length > 2 && (

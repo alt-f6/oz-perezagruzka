@@ -56,6 +56,7 @@ export async function loadScheduleData(sessionUser: {
           durationMinutes: true,
           group: { select: { id: true, name: true } },
           student: { select: { id: true, fullName: true } },
+          teacher: { select: { fullName: true } },
         },
       }),
       db.group.findMany({

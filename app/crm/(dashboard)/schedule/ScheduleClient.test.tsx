@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,7 +10,7 @@ const actionsMock = vi.hoisted(() => ({
 }));
 vi.mock("../lessons/actions", () => actionsMock);
 
-const { ScheduleClient } = await import("./ScheduleClient");
+const { ScheduleClient, PIXELS_PER_HOUR } = await import("./ScheduleClient");
 
 const groups = [{ id: "g1", name: "Группа 1" }];
 const teachers = [{ id: "t1", fullName: "Иван Иванов" }];
@@ -75,6 +75,30 @@ describe("ScheduleClient", () => {
     const block = screen.getByTestId("session-block-s1");
     expect(block.style.top).not.toBe("");
     expect(block.style.height).not.toBe("");
+  });
+
+  it("positions the day-view block at the same hour its own label displays (no self-contradiction)", () => {
+    // 21:30 UTC is 00:30 Moscow (UTC+3) the NEXT calendar day. With TZ=UTC
+    // forced (vitest.config.ts), raw Date#getHours()/getDate() getters read
+    // this instant as "21:30 on the 23rd", while the Moscow-pinned label
+    // (formatTimeRange) correctly reads "00:30 on the 24th". A fix that only
+    // patches the position math (e.g. a hardcoded "+3 hours" shortcut)
+    // without properly rolling over the day would still fail this: it has to
+    // both bucket the lesson under the 24th AND position it at hour 0.
+    const lesson = makeLesson({
+      id: "s1",
+      scheduledAt: "2026-08-23T21:30:00.000Z", // 00:30 Moscow, Aug 24
+      durationMinutes: 45,
+    });
+    render(<ScheduleClient lessons={[lesson]} groups={groups} teachers={teachers} />);
+
+    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    fireEvent.change(dateInput, { target: { value: "2026-08-24" } });
+
+    const card = screen.getByTestId("session-block-s1");
+    const top = parseFloat(card.style.top);
+    expect(top).toBeCloseTo(0.5 * PIXELS_PER_HOUR, 0); // 00:30 → half an hour into the grid
+    expect(within(card).getByText(/00:30–01:15/)).toBeInTheDocument();
   });
 
   it("shows compact HH:mm–HH:mm range text in month view", async () => {

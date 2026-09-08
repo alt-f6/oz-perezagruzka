@@ -26,9 +26,10 @@ import {
 } from "@/crm/lib/calendarGrid";
 import { formatTimeRange } from "@/crm/lib/lessonTime";
 import { lessonSchema, type LessonValues } from "@/crm/lib/schemas";
+import { moscowDateKey, moscowWallClock } from "@/shared/lib/timezone";
 import { createLesson } from "../lessons/actions";
 
-const PIXELS_PER_HOUR = 64;
+export const PIXELS_PER_HOUR = 64;
 // Floor so short lessons (durationMinutes is user-set, not fixed at 60) still
 // have room to render title+time on one compact line plus the teacher badge
 // on a second, without clipping. A 30-min lesson would otherwise be only
@@ -207,7 +208,11 @@ export function ScheduleClient({
     const map = new Map<string, ScheduleLesson[]>();
     for (const lesson of filteredLessons) {
       if (!lesson.scheduledAt) continue;
-      const key = toDateKey(new Date(lesson.scheduledAt));
+      // Bucket by the Moscow calendar day (not the ambient/server-local day):
+      // a lesson at 21:30 UTC is 00:30 the next day in Moscow, and must land
+      // under that next-day column/cell, matching the Moscow-pinned label
+      // shown on the card and the day-view position math below.
+      const key = moscowDateKey(lesson.scheduledAt);
       const bucket = map.get(key) ?? [];
       bucket.push(lesson);
       map.set(key, bucket);
@@ -398,8 +403,13 @@ export function ScheduleClient({
                 </div>
               ))}
               {assignOverlapColumns(dayLessons).map(({ session: lesson, column, columnCount }) => {
-                const start = new Date(lesson.scheduledAt);
-                const top = ((start.getHours() * 60 + start.getMinutes()) / 60) * PIXELS_PER_HOUR;
+                // Pinned to Moscow wall-clock so the block's vertical position
+                // matches the Moscow-formatted time label printed inside it
+                // (formatTimeRange below) — raw Date#getHours()/getMinutes()
+                // float on the ambient/server timezone and land the block in
+                // the wrong hour row whenever that differs from Moscow.
+                const { hour, minute } = moscowWallClock(lesson.scheduledAt);
+                const top = ((hour * 60 + minute) / 60) * PIXELS_PER_HOUR;
                 const height = Math.max(
                   (lesson.durationMinutes / 60) * PIXELS_PER_HOUR,
                   MIN_SESSION_BLOCK_HEIGHT,

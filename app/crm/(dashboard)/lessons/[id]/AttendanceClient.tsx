@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, GraduationCap } from "lucide-react";
 import NextLink from "next/link";
 import { useState } from "react";
 import { useToast } from "@/crm/components/ToastProvider";
@@ -32,6 +32,14 @@ const GRADES = [0, 1, 2, 3, 4, 5];
 type StudentWithTransactions = Student & {
   transactions?: { amount: number }[];
 };
+
+// Every ClassSession.teacherId is a required, non-nullable field in the
+// schema, so a missing teacher here only ever means the relation wasn't
+// loaded or the referenced user was removed — not a normal data state. The
+// fallback keeps that edge case visible instead of rendering a blank line.
+function getTeacherLabel(lesson: ClassSessionWithGroup): string {
+  return lesson.teacher?.fullName ?? "Без преподавателя";
+}
 
 export function AttendanceClient({
   lesson,
@@ -128,6 +136,10 @@ export function AttendanceClient({
           {lesson.group ? "Групповое занятие · " : "Индивидуальное занятие · "}
           {dateFormatter.format(new Date(lesson.scheduledAt))}
         </p>
+        <span className="badge-info mt-1 gap-1 px-1.5 py-0 text-[11px]">
+          <GraduationCap size={12} className="shrink-0" />
+          {getTeacherLabel(lesson)}
+        </span>
       </div>
 
       {students.length === 0 ? (

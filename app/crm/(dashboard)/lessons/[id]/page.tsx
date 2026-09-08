@@ -35,6 +35,7 @@ export default async function LessonDetailPage({
       teacherId: true,
       scheduledAt: true,
       status: true,
+      teacher: { select: { fullName: true } },
       group: { select: { id: true, name: true, teacherId: true } },
       student: {
         select: {

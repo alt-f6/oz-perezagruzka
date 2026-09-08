@@ -1,20 +1,15 @@
-import { redirect } from "next/navigation";
-import { CRM_ROLES, getSessionUser } from "@/shared/lib/auth";
+import { CRM_ROLES } from "@/shared/lib/auth";
+import { requireRoleForPage } from "@/shared/lib/rbac";
 import { db } from "@/shared/lib/db";
 import type { GroupWithDetails, User } from "@/crm/lib/types";
 import { GroupsClient } from "./GroupsClient";
 import { getTeachers } from "./actions";
 
 export default async function GroupsPage() {
-  const sessionUser = await getSessionUser();
-
-  if (!sessionUser) {
-    redirect("/admin/login");
-  }
-
-  if (!CRM_ROLES.includes(sessionUser.role)) {
-    redirect("/");
-  }
+  const sessionUser = await requireRoleForPage(CRM_ROLES, {
+    loginPath: "/admin/login",
+    forbiddenPath: () => "/access-denied",
+  });
 
   const userRole = sessionUser.role;
   const isTeacher = userRole === "TEACHER";

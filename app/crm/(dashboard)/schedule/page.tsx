@@ -1,9 +1,12 @@
-import { requireRole } from "@/shared/lib/rbac";
+import { requireRoleForPage } from "@/shared/lib/rbac";
 import { ScheduleClient } from "./ScheduleClient";
 import { loadScheduleData } from "./schedule-data";
 
 export default async function SchedulePage() {
-  const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
+  const sessionUser = await requireRoleForPage(["ADMIN", "MANAGER", "TEACHER"], {
+    loginPath: "/admin/login",
+    forbiddenPath: () => "/access-denied",
+  });
 
   // Data-layer failures resolve to a local error state here (never a throw),
   // so a calendar loading problem renders inline and can never be mistaken for

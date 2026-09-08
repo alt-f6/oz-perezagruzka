@@ -169,6 +169,23 @@ describe("LessonsClient", () => {
     expect(screen.getByText("Без преподавателя")).toBeInTheDocument();
   });
 
+  it("renders the row date pinned to Moscow time, not the ambient/browser timezone", () => {
+    render(
+      <LessonsClient
+        // 21:30Z on the 23rd = 00:30 the next day in Europe/Moscow (UTC+3, no
+        // DST). The test env runs with TZ=UTC, so an ambient (no timeZone)
+        // formatter would render 23.08.2026 — the Moscow-pinned date must be
+        // 24.08.2026, matching the time range shown right next to it.
+        initialLessons={[makeLesson({ scheduledAt: "2026-08-23T21:30:00.000Z" })]}
+        initialNextCursor={null}
+        groups={groups}
+      />,
+    );
+
+    expect(screen.getByText(/24\.08\.2026/)).toBeInTheDocument();
+    expect(screen.queryByText(/23\.08\.2026/)).not.toBeInTheDocument();
+  });
+
   it("shows a load-more button when nextCursor is set and appends fetched lessons on click", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockResolvedValue({

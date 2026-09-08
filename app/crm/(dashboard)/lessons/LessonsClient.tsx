@@ -13,9 +13,8 @@ import { useToast } from "@/crm/components/ToastProvider";
 import { formatTimeRange } from "@/crm/lib/lessonTime";
 import { lessonSchema, type LessonValues } from "@/crm/lib/schemas";
 import type { ClassSessionWithGroup, Group } from "@/crm/lib/types";
+import { formatMoscowDate } from "@/shared/lib/timezone";
 import { bulkCancelSessions, createLesson, deleteLesson } from "./actions";
-
-const dateFormatter = new Intl.DateTimeFormat("ru-RU", { dateStyle: "long" });
 
 type CancelCandidate =
   | { kind: "single"; lessonId: string }
@@ -263,7 +262,7 @@ export function LessonsClient({
                       )}
                     </p>
                     <p className="mt-0.5 text-sm text-slate-500">
-                      {dateFormatter.format(new Date(lesson.scheduledAt))},{" "}
+                      {formatMoscowDate(lesson.scheduledAt)},{" "}
                       {formatTimeRange({
                         scheduledAt: lesson.scheduledAt,
                         durationMinutes: lesson.durationMinutes,

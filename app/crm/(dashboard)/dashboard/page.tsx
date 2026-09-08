@@ -1,5 +1,6 @@
 import { getSessionUser } from "@/shared/lib/auth";
 import { db } from "@/shared/lib/db";
+import { formatMoscowDate, formatMoscowTime } from "@/shared/lib/timezone";
 import {
   Users,
   GraduationCap,
@@ -11,6 +12,17 @@ import {
   ArrowUpRight,
 } from "lucide-react";
 import Link from "next/link";
+
+/**
+ * Formats an upcoming lesson's `scheduledAt` for the dashboard widget, pinned
+ * to the business timezone (Europe/Moscow) rather than the ambient zone of
+ * whatever Node process renders this Server Component (often UTC in a
+ * container) — see src/shared/lib/timezone.ts for why ambient formatting is
+ * wrong here.
+ */
+export function formatUpcomingLessonTime(scheduledAt: Date): string {
+  return `${formatMoscowDate(scheduledAt)}, ${formatMoscowTime(scheduledAt)}`;
+}
 
 export default async function DashboardPage() {
   const sessionUser = await getSessionUser();
@@ -225,13 +237,7 @@ export default async function DashboardPage() {
                       {lesson.group?.name || "Занятие по расписанию"}
                     </p>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      Дата:{" "}
-                      {new Date(lesson.scheduledAt).toLocaleDateString("ru-RU", {
-                        day: "numeric",
-                        month: "long",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      Дата: {formatUpcomingLessonTime(lesson.scheduledAt)}
                     </p>
                   </div>
                   <span className="badge-neutral shrink-0">Урок</span>

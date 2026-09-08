@@ -143,6 +143,32 @@ describe("LessonsClient", () => {
     expect(screen.getByText("Новое занятие")).toBeInTheDocument();
   });
 
+  it("shows the assigned teacher's name on a list row", () => {
+    render(
+      <LessonsClient
+        initialLessons={[
+          makeLesson({ id: "l1", teacher: { fullName: "Мария Петрова" } }),
+        ]}
+        initialNextCursor={null}
+        groups={groups}
+      />,
+    );
+
+    expect(screen.getByText("Мария Петрова")).toBeInTheDocument();
+  });
+
+  it("shows the fallback label when a row has no matching teacher", () => {
+    render(
+      <LessonsClient
+        initialLessons={[makeLesson({ id: "l1", teacher: null })]}
+        initialNextCursor={null}
+        groups={groups}
+      />,
+    );
+
+    expect(screen.getByText("Без преподавателя")).toBeInTheDocument();
+  });
+
   it("shows a load-more button when nextCursor is set and appends fetched lessons on click", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockResolvedValue({

@@ -87,6 +87,7 @@ export interface ClassSessionWithGroup extends ClassSession {
   // Null for INDIVIDUAL sessions; `student` carries the roster instead.
   group: Group | null;
   student?: { id: string; fullName: string; phone?: string | null } | null;
+  teacher?: { fullName: string } | null;
 }
 
 export interface AttendanceRecord {

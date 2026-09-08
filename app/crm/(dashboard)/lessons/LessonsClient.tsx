@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
-import { CalendarDays, ChevronRight, Plus, Repeat, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronRight, GraduationCap, Plus, Repeat, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -26,6 +26,14 @@ type CancelCandidate =
 // student's name (or a neutral label) now that a session may have no group.
 function sessionLabel(lesson: ClassSessionWithGroup): string {
   return lesson.group?.name ?? lesson.student?.fullName ?? "Индивидуальное занятие";
+}
+
+// Every ClassSession.teacherId is a required, non-nullable field in the
+// schema, so a missing teacher here only ever means the relation wasn't
+// loaded or the referenced user was removed — not a normal data state. The
+// fallback keeps that edge case visible instead of rendering a blank line.
+function getTeacherLabel(lesson: ClassSessionWithGroup): string {
+  return lesson.teacher?.fullName ?? "Без преподавателя";
 }
 
 export function LessonsClient({
@@ -261,6 +269,10 @@ export function LessonsClient({
                         durationMinutes: lesson.durationMinutes,
                       })}
                     </p>
+                    <span className="badge-info mt-1 gap-1 px-1.5 py-0 text-[11px]">
+                      <GraduationCap size={12} className="shrink-0" />
+                      {getTeacherLabel(lesson)}
+                    </span>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">

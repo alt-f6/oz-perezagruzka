@@ -29,6 +29,8 @@ export async function listLessons(
       status: true,
       durationMinutes: true,
       recurrenceGroupId: true,
+      teacherId: true,
+      teacher: { select: { fullName: true } },
       group: { select: { id: true, name: true, teacherId: true } },
       student: { select: { id: true, fullName: true } },
     },

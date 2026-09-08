@@ -18,6 +18,13 @@
 export const BUSINESS_TIMEZONE = "Europe/Moscow";
 
 /**
+ * Human-readable label for `BUSINESS_TIMEZONE`, for display next to times so
+ * operators outside Moscow (e.g. Khanty-Mansiysk UTC+5, Baku UTC+4) have an
+ * explicit visual confirmation of which timezone the shown times belong to.
+ */
+export const BUSINESS_TIMEZONE_LABEL = "МСК, UTC+3";
+
+/**
  * The offset (localTime − UTC), in milliseconds, that `timeZone` was at the
  * given instant. Positive east of UTC (Moscow → +3h). Computed from the
  * instant's rendered wall-clock in that zone, so it honors historical/DST

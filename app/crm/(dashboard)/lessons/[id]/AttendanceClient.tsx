@@ -3,6 +3,7 @@
 import { ArrowLeft, GraduationCap } from "lucide-react";
 import NextLink from "next/link";
 import { useState } from "react";
+import { TimezoneBadge } from "@/crm/components/TimezoneBadge";
 import { useToast } from "@/crm/components/ToastProvider";
 import {
   ATTENDANCE_STATUS_CLASSES,
@@ -133,10 +134,13 @@ export function AttendanceClient({
           {formatMoscowDate(lesson.scheduledAt)} в{" "}
           {formatMoscowTime(lesson.scheduledAt)}
         </p>
-        <span className="badge-info mt-1 gap-1 px-1.5 py-0 text-[11px]">
-          <GraduationCap size={12} className="shrink-0" />
-          {getTeacherLabel(lesson)}
-        </span>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          <span className="badge-info gap-1 px-1.5 py-0 text-[11px]">
+            <GraduationCap size={12} className="shrink-0" />
+            {getTeacherLabel(lesson)}
+          </span>
+          <TimezoneBadge />
+        </div>
       </div>
 
       {students.length === 0 ? (

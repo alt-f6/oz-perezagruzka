@@ -15,6 +15,7 @@ import { useForm } from "react-hook-form";
 import { LessonWizard } from "@/crm/components/LessonWizard";
 import { ConfirmDialog } from "@/crm/components/ConfirmDialog";
 import { Modal } from "@/crm/components/Modal";
+import { TimezoneBadge } from "@/crm/components/TimezoneBadge";
 import { useToast } from "@/crm/components/ToastProvider";
 import { assignOverlapColumns } from "@/crm/lib/calendarLayout";
 import {
@@ -339,6 +340,8 @@ export function ScheduleClient({
             </button>
           ))}
         </div>
+
+        <TimezoneBadge />
 
         <select
           value={groupFilter}

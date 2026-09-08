@@ -1,19 +1,13 @@
-import { redirect } from "next/navigation";
 import { db } from "@/shared/lib/db";
-import { getSessionUser } from "@/shared/lib/auth";
+import { requireRoleForPage } from "@/shared/lib/rbac";
 import { getTeacherRates, getTeacherPayouts } from "./actions";
 import { SalaryClient } from "./SalaryClient";
 
 export default async function TeacherSalaryPage() {
-  const sessionUser = await getSessionUser();
-
-  if (!sessionUser) {
-    redirect("/admin/login");
-  }
-
-  if (sessionUser.role !== "ADMIN") {
-    redirect("/");
-  }
+  await requireRoleForPage(["ADMIN"], {
+    loginPath: "/admin/login",
+    forbiddenPath: () => "/access-denied",
+  });
 
   const [ratesResult, payoutsResult, teachers] = await Promise.all([
     getTeacherRates(),

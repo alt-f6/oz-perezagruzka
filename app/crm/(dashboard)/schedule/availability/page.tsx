@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { db } from "@/shared/lib/db";
-import { requireRole } from "@/shared/lib/rbac";
+import { requireRoleForPage } from "@/shared/lib/rbac";
 import { AvailabilityGrid, type AvailabilityTeacher } from "../AvailabilityGrid";
 
 export default async function AvailabilityPage() {
-  const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
+  const sessionUser = await requireRoleForPage(["ADMIN", "MANAGER", "TEACHER"], {
+    loginPath: "/admin/login",
+    forbiddenPath: () => "/access-denied",
+  });
   const isTeacher = sessionUser.role === "TEACHER";
 
   // Teachers manage only their own grid; ADMIN/MANAGER pick from the roster.

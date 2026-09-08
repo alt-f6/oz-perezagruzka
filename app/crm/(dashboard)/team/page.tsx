@@ -4,12 +4,10 @@ import { db } from "@/shared/lib/db";
 import { TeamClient } from "./TeamClient";
 
 export default async function TeamPage() {
-  const sessionUser = await requireRoleForPage(["ADMIN"], {
+  await requireRoleForPage(["ADMIN"], {
     loginPath: "/admin/login",
     forbiddenPath: () => "/access-denied",
   });
-
-  const role = sessionUser.role;
 
   const [profiles, invites] = await Promise.all([
     db.user.findMany({
@@ -60,7 +58,7 @@ export default async function TeamPage() {
           token: i.token,
           createdAt: i.createdAt.toISOString(),
         }))}
-        currentUserRole={role}
+        currentUserRole="ADMIN"
       />
     </div>
   );

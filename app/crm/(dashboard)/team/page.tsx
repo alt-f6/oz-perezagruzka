@@ -1,20 +1,15 @@
-import { redirect } from "next/navigation";
-import { CRM_ROLES, getSessionUser } from "@/shared/lib/auth";
+import { CRM_ROLES } from "@/shared/lib/auth";
+import { requireRoleForPage } from "@/shared/lib/rbac";
 import { db } from "@/shared/lib/db";
 import { TeamClient } from "./TeamClient";
 
 export default async function TeamPage() {
-  const sessionUser = await getSessionUser();
-
-  if (!sessionUser) {
-    redirect("/admin/login");
-  }
+  const sessionUser = await requireRoleForPage(["ADMIN"], {
+    loginPath: "/admin/login",
+    forbiddenPath: () => "/access-denied",
+  });
 
   const role = sessionUser.role;
-
-  if (role !== "ADMIN") {
-    redirect("/");
-  }
 
   const [profiles, invites] = await Promise.all([
     db.user.findMany({

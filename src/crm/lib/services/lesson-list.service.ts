@@ -16,7 +16,16 @@ export async function listLessons(
   const limit = opts.limit ?? 50;
 
   const rows = await db.classSession.findMany({
-    where: isTeacher ? { teacherId: sessionUser.id } : undefined,
+    // See schedule-data.ts: also match by the session's current group
+    // teacher, not just its own (possibly stale) teacherId.
+    where: isTeacher
+      ? {
+          OR: [
+            { teacherId: sessionUser.id },
+            { group: { teacherId: sessionUser.id } },
+          ],
+        }
+      : undefined,
     orderBy: [{ scheduledAt: "desc" }, { id: "desc" }],
     take: limit + 1,
     ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),

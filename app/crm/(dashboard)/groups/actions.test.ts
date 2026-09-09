@@ -34,6 +34,12 @@ describe("cancelGroupUpcomingSessions", () => {
   });
 });
 
+function runWithTx() {
+  dbMock.$transaction.mockImplementation(
+    async (cb: (tx: typeof dbMock) => unknown) => cb(dbMock),
+  );
+}
+
 describe("assignTeacherToGroup", () => {
   it("requires ADMIN or MANAGER", async () => {
     await assignTeacherToGroup("group_1", "teacher_1");
@@ -41,6 +47,7 @@ describe("assignTeacherToGroup", () => {
   });
 
   it("clears the teacher when passed null", async () => {
+    runWithTx();
     const result = await assignTeacherToGroup("group_1", null);
 
     expect(result.error).toBeUndefined();
@@ -48,6 +55,7 @@ describe("assignTeacherToGroup", () => {
       where: { id: "group_1" },
       data: { teacherId: null },
     });
+    expect(dbMock.classSession.updateMany).not.toHaveBeenCalled();
   });
 
   it("rejects a teacherId that isn't an active TEACHER", async () => {
@@ -69,6 +77,7 @@ describe("assignTeacherToGroup", () => {
   });
 
   it("assigns a valid active teacher", async () => {
+    runWithTx();
     dbMock.user.findUnique.mockResolvedValue({ role: "TEACHER", isArchived: false });
 
     const result = await assignTeacherToGroup("group_1", "teacher_1");
@@ -79,6 +88,22 @@ describe("assignTeacherToGroup", () => {
       data: { teacherId: "teacher_1" },
     });
     expect(revalidatePathMock).toHaveBeenCalledWith("/groups");
+  });
+
+  it("carries a reassignment onto the group's own future scheduled sessions", async () => {
+    runWithTx();
+    dbMock.user.findUnique.mockResolvedValue({ role: "TEACHER", isArchived: false });
+
+    await assignTeacherToGroup("group_1", "teacher_1");
+
+    expect(dbMock.classSession.updateMany).toHaveBeenCalledWith({
+      where: {
+        groupId: "group_1",
+        status: "scheduled",
+        scheduledAt: { gt: expect.any(Date) },
+      },
+      data: { teacherId: "teacher_1" },
+    });
   });
 });
 
@@ -138,6 +163,7 @@ describe("updateGroup", () => {
   });
 
   it("updates name, teacher, and price together", async () => {
+    runWithTx();
     dbMock.user.findUnique.mockResolvedValue({ role: "TEACHER", isArchived: false });
 
     const result = await updateGroup("group_1", {

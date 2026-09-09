@@ -22,6 +22,7 @@ import Link from "next/link";
 type StudentRow = Omit<Student, "transactions"> & {
   groups: Group[];
   transactions?: { amount: number }[];
+  minRemainingLessons?: number | null;
 };
 
 export function StudentsClient({
@@ -38,6 +39,7 @@ export function StudentsClient({
   const showToast = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [lowBalanceOnly, setLowBalanceOnly] = useState(false);
   const [students, setStudents] = useState(initialStudents);
   const [nextCursor, setNextCursor] = useState(initialNextCursor);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -108,6 +110,7 @@ export function StudentsClient({
       grade: "",
       examType: "",
       subject: "",
+      school: "",
     },
   });
 
@@ -121,6 +124,14 @@ export function StudentsClient({
     setIsModalOpen(false);
     reset();
   };
+
+  const visibleStudents = students.filter(
+    (student) =>
+      !lowBalanceOnly ||
+      (student.minRemainingLessons !== null &&
+        student.minRemainingLessons !== undefined &&
+        student.minRemainingLessons <= 1),
+  );
 
   const [deleteCandidateId, setDeleteCandidateId] = useState<string | null>(
     null,
@@ -156,15 +167,31 @@ export function StudentsClient({
         )}
       </div>
 
-      <div className="flex max-w-md items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 shadow-sm transition-colors duration-150 focus-within:border-slate-400 focus-within:ring-4 focus-within:ring-slate-900/5">
-        <Search size={17} className="shrink-0 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Поиск по имени или телефону..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
-        />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex max-w-md flex-1 items-center gap-2.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 shadow-sm transition-colors duration-150 focus-within:border-slate-400 focus-within:ring-4 focus-within:ring-slate-900/5">
+          <Search size={17} className="shrink-0 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Поиск по имени или телефону..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+          />
+        </div>
+        {!isTeacher && (
+          <button
+            type="button"
+            onClick={() => setLowBalanceOnly((v) => !v)}
+            aria-pressed={lowBalanceOnly}
+            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors duration-150 ${
+              lowBalanceOnly
+                ? "bg-amber-500 text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            Абонемент заканчивается (≤1 ур.)
+          </button>
+        )}
       </div>
 
       <div className="table-wrap">
@@ -179,11 +206,15 @@ export function StudentsClient({
             </tr>
           </thead>
           <tbody>
-            {students.map((student) => {
+            {visibleStudents.map((student) => {
               const computedBalance =
                 student.transactions?.reduce((sum, t) => sum + t.amount, 0) ||
                 0;
               const isDebt = computedBalance < 0;
+              const lowAbonement =
+                student.minRemainingLessons !== null &&
+                student.minRemainingLessons !== undefined &&
+                student.minRemainingLessons <= 1;
 
               return (
                 <tr key={student.id}>
@@ -235,6 +266,14 @@ export function StudentsClient({
                       >
                         {computedBalance.toLocaleString("ru-RU")} ₽
                       </span>
+                      {lowAbonement && (
+                        <span
+                          className="badge-warning ml-1.5"
+                          title="Абонемент заканчивается"
+                        >
+                          ≤1 ур.
+                        </span>
+                      )}
                     </td>
                   )}
                   {!isTeacher && (
@@ -290,7 +329,7 @@ export function StudentsClient({
                 </tr>
               );
             })}
-            {students.length === 0 && (
+            {visibleStudents.length === 0 && (
               <tr>
                 <td
                   colSpan={isTeacher ? 2 : 5}
@@ -426,6 +465,15 @@ export function StudentsClient({
             <input
               {...register("subject")}
               placeholder="Математика"
+              className="input"
+            />
+          </div>
+
+          <div>
+            <label className="label">Школа / Учебное заведение</label>
+            <input
+              {...register("school")}
+              placeholder="Школа №1"
               className="input"
             />
           </div>

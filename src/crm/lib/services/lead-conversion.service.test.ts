@@ -32,6 +32,7 @@ const leadFixture = {
   name: "Иван Иванов",
   phone: "+79990000001",
   email: null,
+  school: "Школа №1",
   convertedUserId: null,
 };
 
@@ -95,7 +96,12 @@ describe("performLeadConversion", () => {
       data: { fullName: leadFixture.name, phone: leadFixture.phone, email: leadFixture.email, role: "STUDENT" },
     });
     expect(tx.student.create).toHaveBeenCalledWith({
-      data: { fullName: leadFixture.name, phone: leadFixture.phone, userId: "user_1" },
+      data: {
+        fullName: leadFixture.name,
+        phone: leadFixture.phone,
+        school: leadFixture.school,
+        userId: "user_1",
+      },
     });
     expect(tx.lead.update).toHaveBeenCalledWith({
       where: { id: "lead_1" },

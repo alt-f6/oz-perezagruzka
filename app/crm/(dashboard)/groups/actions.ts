@@ -131,9 +131,29 @@ export async function assignTeacherToGroup(
 
   try {
     const validTeacherId = await assertValidTeacherId(teacherId);
-    await db.group.update({
-      where: { id: groupId },
-      data: { teacherId: validTeacherId },
+    await db.$transaction(async (tx) => {
+      await tx.group.update({
+        where: { id: groupId },
+        data: { teacherId: validTeacherId },
+      });
+
+      // Carry the reassignment onto this group's own future scheduled
+      // sessions. Without this, ClassSession.teacherId keeps pointing at the
+      // previous teacher and the lesson silently disappears from the new
+      // teacher's schedule/lessons list (and 404s on the detail-page guard).
+      // Skipped when unassigning (null) since teacherId is NOT NULL on
+      // ClassSession; past/attended sessions are left untouched so billing
+      // and salary history stay intact.
+      if (validTeacherId) {
+        await tx.classSession.updateMany({
+          where: {
+            groupId,
+            status: "scheduled",
+            scheduledAt: { gt: new Date() },
+          },
+          data: { teacherId: validTeacherId },
+        });
+      }
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Неизвестная ошибка";
@@ -141,6 +161,8 @@ export async function assignTeacherToGroup(
   }
 
   revalidatePath("/groups");
+  revalidatePath("/lessons");
+  revalidatePath("/schedule");
   return {};
 }
 
@@ -164,16 +186,31 @@ export async function updateGroup(
 
   try {
     const validTeacherId = await assertValidTeacherId(parsed.data.teacherId);
-    await db.group.update({
-      where: { id: groupId },
-      data: {
-        name: parsed.data.name,
-        teacherId: validTeacherId,
-        pricePerLesson: parsed.data.price,
-        subject: parsed.data.subject || null,
-        grade: parsed.data.grade ?? null,
-        examType: parsed.data.examType ?? null,
-      },
+    await db.$transaction(async (tx) => {
+      await tx.group.update({
+        where: { id: groupId },
+        data: {
+          name: parsed.data.name,
+          teacherId: validTeacherId,
+          pricePerLesson: parsed.data.price,
+          subject: parsed.data.subject || null,
+          grade: parsed.data.grade ?? null,
+          examType: parsed.data.examType ?? null,
+        },
+      });
+
+      // See assignTeacherToGroup: keep this group's future scheduled
+      // sessions in sync with a teacher reassignment.
+      if (validTeacherId) {
+        await tx.classSession.updateMany({
+          where: {
+            groupId,
+            status: "scheduled",
+            scheduledAt: { gt: new Date() },
+          },
+          data: { teacherId: validTeacherId },
+        });
+      }
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Неизвестная ошибка";
@@ -181,6 +218,8 @@ export async function updateGroup(
   }
 
   revalidatePath("/groups");
+  revalidatePath("/lessons");
+  revalidatePath("/schedule");
   return {};
 }
 

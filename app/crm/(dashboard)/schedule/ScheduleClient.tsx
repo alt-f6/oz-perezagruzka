@@ -121,6 +121,12 @@ export function ScheduleClient({
     occurrences: { scheduledAt: string; label: string }[];
     values: LessonValues;
   } | null>(null);
+  // Set when createLesson reports a backfilled past occurrence lands in a
+  // month whose payout period is already closed for the resolved teacher.
+  const [closedPayoutWarning, setClosedPayoutWarning] = useState<{
+    occurrences: { scheduledAt: string; label: string }[];
+    values: LessonValues;
+  } | null>(null);
   const [overriding, setOverriding] = useState(false);
 
   const {
@@ -145,17 +151,29 @@ export function ScheduleClient({
     },
   });
 
-  // Returns true when the lesson was actually created. `acknowledge` re-submits
-  // past the teacher-availability warning after the operator confirmed it.
+  // Returns true when the lesson was actually created. `ack` re-submits past
+  // whichever soft warning the operator just confirmed.
   const submitCreate = async (
     values: LessonValues,
-    acknowledge: boolean,
+    ack: { unavailable?: boolean; closedPayout?: boolean } = {},
   ): Promise<boolean> => {
-    const result = await createLesson(
-      acknowledge ? { ...values, acknowledgeUnavailable: true } : values,
-    );
+    const result = await createLesson({
+      ...values,
+      ...(ack.unavailable ? { acknowledgeUnavailable: true } : {}),
+      ...(ack.closedPayout ? { acknowledgeClosedPayout: true } : {}),
+    });
     if (result?.error) {
       showToast(result.error, "error");
+      return false;
+    }
+    // Closed-payout is checked before availability server-side, so surface it
+    // first here too -- an operator overriding one warning may still hit the
+    // other on the next submit.
+    if ("closedPayoutWarning" in result && result.closedPayoutWarning) {
+      setClosedPayoutWarning({
+        occurrences: result.closedPayoutWarning.occurrences,
+        values,
+      });
       return false;
     }
     if ("availabilityWarning" in result && result.availabilityWarning) {
@@ -175,18 +193,31 @@ export function ScheduleClient({
 
   const onSubmit = async (values: LessonValues) => {
     try {
-      await submitCreate(values, false);
+      await submitCreate(values);
     } catch {
       showToast("Не удалось создать занятие", "error");
     }
   };
 
-  const confirmOverride = async () => {
+  const confirmOverrideAvailability = async () => {
     if (!availabilityWarning) return;
     setOverriding(true);
     try {
-      const created = await submitCreate(availabilityWarning.values, true);
+      const created = await submitCreate(availabilityWarning.values, { unavailable: true });
       if (created) setAvailabilityWarning(null);
+    } catch {
+      showToast("Не удалось создать занятие", "error");
+    } finally {
+      setOverriding(false);
+    }
+  };
+
+  const confirmOverrideClosedPayout = async () => {
+    if (!closedPayoutWarning) return;
+    setOverriding(true);
+    try {
+      const created = await submitCreate(closedPayoutWarning.values, { closedPayout: true });
+      if (created) setClosedPayoutWarning(null);
     } catch {
       showToast("Не удалось создать занятие", "error");
     } finally {
@@ -611,8 +642,31 @@ export function ScheduleClient({
             ))}
           </span>
         }
-        onConfirm={confirmOverride}
+        onConfirm={confirmOverrideAvailability}
         onClose={() => setAvailabilityWarning(null)}
+      />
+
+      <ConfirmDialog
+        open={closedPayoutWarning !== null}
+        danger
+        title="Расчётный период уже закрыт"
+        confirmLabel="Всё равно создать"
+        busy={overriding}
+        message={
+          <span>
+            Внимание: для этого преподавателя уже зафиксирована выплата за месяц,
+            в который попадают эти занятия — создание задним числом изменит начисления
+            за уже закрытый период:
+            <br />
+            {(closedPayoutWarning?.occurrences ?? []).map((o) => (
+              <span key={o.scheduledAt} className="mt-1 block font-medium text-slate-800">
+                • {o.label}
+              </span>
+            ))}
+          </span>
+        }
+        onConfirm={confirmOverrideClosedPayout}
+        onClose={() => setClosedPayoutWarning(null)}
       />
     </div>
   );

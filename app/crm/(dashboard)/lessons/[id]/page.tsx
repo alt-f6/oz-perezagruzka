@@ -52,7 +52,13 @@ export default async function LessonDetailPage({
     notFound();
   }
 
-  if (sessionUser.role === "TEACHER" && lesson.teacherId !== sessionUser.id) {
+  // A teacher may also open a lesson whose own teacherId is stale (points at
+  // a previous teacher after the group was reassigned) as long as the
+  // group's *current* teacher is them -- see the matching schedule/lessons
+  // list scoping in schedule-data.ts / lesson-list.service.ts.
+  const ownedByTeacher =
+    lesson.teacherId === sessionUser.id || lesson.group?.teacherId === sessionUser.id;
+  if (sessionUser.role === "TEACHER" && !ownedByTeacher) {
     notFound();
   }
 

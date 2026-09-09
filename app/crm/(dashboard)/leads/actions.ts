@@ -29,6 +29,7 @@ export async function createLead(
         parentName: parsed.data.parentName || null,
         phone: parsed.data.phone,
         subject: parsed.data.subject || null,
+        school: parsed.data.school || null,
         notes: parsed.data.notes || null,
         status: "NEW",
         utmSource: parsed.data.utmSource || null,
@@ -48,6 +49,7 @@ export async function createLead(
             name: parsed.data.studentName,
             parentName: parsed.data.parentName || null,
             subject: parsed.data.subject || null,
+            school: parsed.data.school || null,
             notes: parsed.data.notes || null,
             utmSource: parsed.data.utmSource || null,
             utmMedium: parsed.data.utmMedium || null,
@@ -112,6 +114,7 @@ export async function updateLead(
         parentName: parsed.data.parentName || null,
         phone: parsed.data.phone,
         subject: parsed.data.subject || null,
+        school: parsed.data.school || null,
         notes: parsed.data.notes || null,
         status: parsed.data.status,
         closedLostReason:

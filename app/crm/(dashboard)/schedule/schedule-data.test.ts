@@ -62,12 +62,16 @@ describe("loadScheduleData — fail-safe fetching", () => {
     expect(redirectSpy).not.toHaveBeenCalled();
   });
 
-  it("scopes teacher queries to their own id and skips the student list", async () => {
+  it("scopes teacher queries to their own id (plus group-reassigned sessions) and skips the student list", async () => {
     const { loadScheduleData } = await import("./schedule-data");
     await loadScheduleData({ id: "teacher-9", role: "TEACHER" });
 
     expect(classSessionFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { teacherId: "teacher-9" } }),
+      expect.objectContaining({
+        where: {
+          OR: [{ teacherId: "teacher-9" }, { group: { teacherId: "teacher-9" } }],
+        },
+      }),
     );
     // Teachers can't create lessons, so the (expensive) student list is skipped.
     expect(studentFindMany).not.toHaveBeenCalled();

@@ -3,7 +3,10 @@ import { db } from "@/shared/lib/db";
 import { buildAbsoluteUrl } from "@/shared/lib/url";
 import { requireRoleForPage } from "@/shared/lib/rbac";
 import { assertStudentVisibleToTeacher } from "@/crm/lib/access";
+import { computeAbonementSummary } from "@/crm/lib/services/abonement.service";
 import { PaymentModal } from "@/crm/components/PaymentModal";
+import { AbonementSection } from "./AbonementSection";
+import { OfferLinkButton } from "./OfferLinkButton";
 import { ExamTrackerSection } from "./ExamTrackerSection";
 import { FreezeSection } from "./FreezeSection";
 import { PortalInviteSection } from "./PortalInviteSection";
@@ -33,6 +36,7 @@ export default async function StudentDetailPage({
       id: true,
       fullName: true,
       userId: true,
+      school: true,
       ...(isTeacher
         ? {}
         : {
@@ -62,6 +66,8 @@ export default async function StudentDetailPage({
           })
         )._sum.amount ?? 0,
       );
+
+  const abonementSummary = isTeacher ? null : await computeAbonementSummary(id);
 
   const [examGoals, examResults, parentLinks, freezes] = await Promise.all([
     db.studentExamGoal.findMany({ where: { studentId: id } }),
@@ -135,6 +141,11 @@ export default async function StudentDetailPage({
                 Телефон: {phone || "Не указан"}
               </p>
             )}
+            {isTeacher && (
+              <p className="mt-0.5 text-sm text-slate-500">
+                Школа: {student.school || "Не указана"}
+              </p>
+            )}
           </div>
         </div>
         {!isTeacher && (
@@ -150,9 +161,12 @@ export default async function StudentDetailPage({
               </p>
             </div>
             <PaymentModal studentId={id} createPaymentSession={createStudentPaymentSession} />
+            <OfferLinkButton />
           </div>
         )}
       </div>
+
+      {!isTeacher && abonementSummary && <AbonementSection summary={abonementSummary} />}
 
       {!isTeacher && (
         <StudentProfileSection
@@ -172,6 +186,7 @@ export default async function StudentDetailPage({
               ((student as { examType: string | null }).examType as ExamType | null) ??
               null,
             subject: (student as { subject: string | null }).subject ?? "",
+            school: student.school ?? "",
           }}
         />
       )}

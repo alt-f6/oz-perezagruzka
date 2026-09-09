@@ -14,9 +14,11 @@ beforeEach(() => {
 });
 
 describe("listLessons", () => {
-  it("scopes to the teacher's own sessions for TEACHER", async () => {
+  it("scopes to the teacher's own sessions for TEACHER, including group sessions reassigned to them", async () => {
     await listLessons({ sessionUser: { id: "t1", role: "TEACHER" } });
-    expect(findManyMock.mock.calls[0][0].where).toEqual({ teacherId: "t1" });
+    expect(findManyMock.mock.calls[0][0].where).toEqual({
+      OR: [{ teacherId: "t1" }, { group: { teacherId: "t1" } }],
+    });
   });
 
   it("applies no teacher filter for ADMIN/MANAGER", async () => {

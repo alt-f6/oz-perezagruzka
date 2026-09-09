@@ -42,7 +42,20 @@ export async function loadScheduleData(sessionUser: {
   try {
     const [lessons, groups, teachers, students] = await Promise.all([
       db.classSession.findMany({
-        where: isTeacher ? { teacherId: sessionUser.id } : undefined,
+        // A teacher must also see sessions whose own teacherId is stale
+        // (still pointing at a previous teacher after the group was
+        // reassigned) as long as the session's group currently belongs to
+        // them -- otherwise a reassigned lesson silently vanishes from their
+        // calendar. INDIVIDUAL sessions (groupId null) fall through on the
+        // first branch only, which is correct since they have no group.
+        where: isTeacher
+          ? {
+              OR: [
+                { teacherId: sessionUser.id },
+                { group: { teacherId: sessionUser.id } },
+              ],
+            }
+          : undefined,
         orderBy: { scheduledAt: "asc" },
         take: 1000,
         select: {

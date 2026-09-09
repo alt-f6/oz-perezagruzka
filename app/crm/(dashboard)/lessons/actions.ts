@@ -25,9 +25,24 @@ export interface LessonAvailabilityWarning {
   occurrences: { scheduledAt: string; label: string }[];
 }
 
+/**
+ * Surfaced when a past-dated occurrence (ADMIN/MANAGER backfilling a missed
+ * lesson) falls in a month for which the resolved teacher already has a
+ * TeacherPayout on record. Retagging/charging into an already-paid-out period
+ * should never happen silently -- the operator must explicitly confirm.
+ */
+export interface ClosedPayoutWarning {
+  teacherId: string;
+  occurrences: { scheduledAt: string; label: string }[];
+}
+
 export type CreateLessonResult =
   | { error: string }
-  | { error?: undefined; availabilityWarning?: LessonAvailabilityWarning };
+  | {
+      error?: undefined;
+      availabilityWarning?: LessonAvailabilityWarning;
+      closedPayoutWarning?: ClosedPayoutWarning;
+    };
 
 // Longest bookable lesson (see lessonDurationOptions). Used only to widen the
 // DB scan window so an existing lesson that starts before the earliest new
@@ -175,6 +190,52 @@ export async function createLesson(
     };
   }
 
+  // Closed-payout guard (soft): a backfilled past occurrence whose month
+  // already has a TeacherPayout on record for the resolved teacher would
+  // otherwise silently attribute a new charge/salary-relevant session to an
+  // already-closed, already-paid period. ADMIN/MANAGER may override by
+  // re-submitting with acknowledgeClosedPayout, never silently.
+  const now = new Date();
+  const pastOccurrences = occurrences.filter((o) => o.scheduledAt <= now);
+  if (pastOccurrences.length > 0 && !parsed.data.acknowledgeClosedPayout) {
+    const monthRanges = new Map<string, { start: Date; end: Date }>();
+    for (const o of pastOccurrences) {
+      const y = o.scheduledAt.getUTCFullYear();
+      const m = o.scheduledAt.getUTCMonth();
+      const key = `${y}-${m}`;
+      if (!monthRanges.has(key)) {
+        monthRanges.set(key, {
+          start: new Date(Date.UTC(y, m, 1)),
+          end: new Date(Date.UTC(y, m + 1, 1)),
+        });
+      }
+    }
+
+    const closedMonthKeys = new Set<string>();
+    for (const [key, range] of monthRanges) {
+      const payout = await db.teacherPayout.findFirst({
+        where: { teacherId, periodFrom: { lt: range.end }, periodTo: { gt: range.start } },
+        select: { id: true },
+      });
+      if (payout) closedMonthKeys.add(key);
+    }
+
+    if (closedMonthKeys.size > 0) {
+      const closedOccurrences = pastOccurrences.filter((o) =>
+        closedMonthKeys.has(`${o.scheduledAt.getUTCFullYear()}-${o.scheduledAt.getUTCMonth()}`),
+      );
+      return {
+        closedPayoutWarning: {
+          teacherId,
+          occurrences: closedOccurrences.map((o) => ({
+            scheduledAt: o.scheduledAt.toISOString(),
+            label: `${formatMoscowDate(o.scheduledAt)} в ${formatMoscowTime(o.scheduledAt)}`,
+          })),
+        },
+      };
+    }
+  }
+
   // Availability guard (soft): surface any occurrence that falls in an hour the
   // teacher has NOT marked as working. ADMIN/MANAGER may override by re-submitting
   // with acknowledgeUnavailable, but the create never proceeds silently.
@@ -210,6 +271,10 @@ export async function createLesson(
         scheduledAt,
         durationMinutes,
         recurrenceGroupId,
+        // Pre-stamped for anything already in the past at creation time, so
+        // the lesson-reminders cron can never pick it up and send a
+        // same-day/next-day reminder for a lesson that already happened.
+        reminderSentAt: scheduledAt <= now ? now : null,
       })),
     });
   } catch (err) {
@@ -331,9 +396,14 @@ export async function setAttendance(
   if (sessionUser.role === "TEACHER") {
     const lesson = await db.classSession.findUnique({
       where: { id: lessonId },
-      select: { teacherId: true },
+      select: { teacherId: true, group: { select: { teacherId: true } } },
     });
-    if (!lesson || lesson.teacherId !== sessionUser.id) {
+    // Own the lesson either directly, or via the group's *current* teacher --
+    // see the matching schedule/lessons scoping fix (a group reassignment
+    // must not orphan a teacher's ability to mark attendance on it).
+    const owned =
+      lesson && (lesson.teacherId === sessionUser.id || lesson.group?.teacherId === sessionUser.id);
+    if (!owned) {
       throw new Error("forbidden: занятие не принадлежит преподавателю");
     }
   }
@@ -395,16 +465,18 @@ export async function assignMakeupLesson(values: {
       id: true,
       classSessionId: true,
       status: true,
-      classSession: { select: { groupId: true, teacherId: true } },
+      classSession: {
+        select: { groupId: true, teacherId: true, group: { select: { teacherId: true } } },
+      },
     },
   });
   if (!attendance) {
     return { error: "Запись посещаемости не найдена" };
   }
-  if (
-    sessionUser.role === "TEACHER" &&
-    attendance.classSession?.teacherId !== sessionUser.id
-  ) {
+  const ownedByTeacher =
+    attendance.classSession?.teacherId === sessionUser.id ||
+    attendance.classSession?.group?.teacherId === sessionUser.id;
+  if (sessionUser.role === "TEACHER" && !ownedByTeacher) {
     throw new Error("forbidden: занятие не принадлежит преподавателю");
   }
   if (attendance.status !== "EXCUSED") {

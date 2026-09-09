@@ -1,14 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const requireRoleMock = vi.hoisted(() => vi.fn());
-const dbMock = vi.hoisted(() => ({ $transaction: vi.fn() }));
+const dbMock = vi.hoisted(() => ({
+  $transaction: vi.fn(),
+  // Used directly (outside any transaction) by sendFirstPaymentOffer, which
+  // updateStudentBalance fires after a claimed manual credit.
+  student: { findUnique: vi.fn() },
+}));
 const revalidatePathMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/shared/lib/rbac", () => ({ requireRole: requireRoleMock }));
 vi.mock("@/shared/lib/db", () => ({ db: dbMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
-const { createStudent, updateStudent } = await import("./actions");
+const { createStudent, updateStudent, updateStudentBalance } = await import("./actions");
 
 interface TxMock {
   student: {
@@ -43,6 +48,7 @@ function runWithTx(tx: TxMock) {
 beforeEach(() => {
   vi.clearAllMocks();
   requireRoleMock.mockResolvedValue({ id: "admin_1", role: "ADMIN" });
+  dbMock.student.findUnique.mockResolvedValue(null);
 });
 
 describe("createStudent", () => {
@@ -78,6 +84,7 @@ describe("createStudent", () => {
         grade: null,
         examType: null,
         subject: null,
+        school: null,
       },
       select: { id: true },
     });
@@ -111,6 +118,7 @@ describe("createStudent", () => {
         grade: 9,
         examType: "OGE",
         subject: "Математика",
+        school: null,
       },
       select: { id: true },
     });
@@ -172,6 +180,7 @@ describe("updateStudent", () => {
         grade: 11,
         examType: "EGE",
         subject: "Физика",
+        school: null,
       },
     });
   });
@@ -227,6 +236,7 @@ describe("updateStudent", () => {
         grade: null,
         examType: null,
         subject: null,
+        school: null,
       },
     });
   });
@@ -285,5 +295,69 @@ describe("updateStudent", () => {
 
     expect(result.error).toMatch(/занят другим аккаунтом/);
     expect(tx.student.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateStudentBalance", () => {
+  interface BalanceTxMock {
+    transaction: { create: ReturnType<typeof vi.fn> };
+    student: { updateMany: ReturnType<typeof vi.fn> };
+  }
+
+  function makeBalanceTx(offerClaimCount = 1): BalanceTxMock {
+    return {
+      transaction: { create: vi.fn().mockResolvedValue({ id: "txn_1" }) },
+      student: { updateMany: vi.fn().mockResolvedValue({ count: offerClaimCount }) },
+    };
+  }
+
+  function runBalanceTx(tx: BalanceTxMock) {
+    dbMock.$transaction.mockImplementation(async (cb: (tx: BalanceTxMock) => unknown) => cb(tx));
+  }
+
+  it("records a positive amount as PAYMENT and claims the first-payment offer", async () => {
+    const tx = makeBalanceTx();
+    runBalanceTx(tx);
+
+    const result = await updateStudentBalance("student_1", 1000, "Пополнение");
+
+    expect(result.error).toBeUndefined();
+    expect(tx.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ amount: 1000, type: "PAYMENT" }) }),
+    );
+    expect(tx.student.updateMany).toHaveBeenCalledWith({
+      where: { id: "student_1", offerSentAt: null },
+      data: { offerSentAt: expect.any(Date) },
+    });
+  });
+
+  it("records a negative amount as ADJUSTMENT and never attempts to claim the offer", async () => {
+    const tx = makeBalanceTx();
+    runBalanceTx(tx);
+
+    const result = await updateStudentBalance("student_1", -500, "Корректировка");
+
+    expect(result.error).toBeUndefined();
+    expect(tx.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ amount: -500, type: "ADJUSTMENT" }) }),
+    );
+    expect(tx.student.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("succeeds without error when the offer was already claimed by a prior payment", async () => {
+    const tx = makeBalanceTx(0);
+    runBalanceTx(tx);
+
+    const result = await updateStudentBalance("student_1", 1000, "Повторное пополнение");
+
+    expect(result.error).toBeUndefined();
+  });
+
+  it("rejects a non-ADMIN caller", async () => {
+    requireRoleMock.mockRejectedValue(new Error("forbidden"));
+
+    await expect(updateStudentBalance("student_1", 1000, "Пополнение")).rejects.toThrow(
+      "forbidden",
+    );
   });
 });

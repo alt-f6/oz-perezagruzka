@@ -54,6 +54,20 @@ export function LessonsClient({
   const showToast = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
+  // Set when createLesson reports the chosen time is outside the teacher's
+  // declared working hours; drives the override-confirmation dialog so the
+  // lesson is never created silently against unavailability.
+  const [availabilityWarning, setAvailabilityWarning] = useState<{
+    occurrences: { scheduledAt: string; label: string }[];
+    values: LessonValues;
+  } | null>(null);
+  // Set when createLesson reports a backfilled past occurrence lands in a
+  // month whose payout period is already closed for the resolved teacher.
+  const [closedPayoutWarning, setClosedPayoutWarning] = useState<{
+    occurrences: { scheduledAt: string; label: string }[];
+    values: LessonValues;
+  } | null>(null);
+  const [overriding, setOverriding] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [cancelCandidate, setCancelCandidate] = useState<CancelCandidate | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -98,22 +112,77 @@ export function LessonsClient({
     },
   });
 
+  // Returns true when the lesson was actually created. `ack` re-submits past
+  // whichever soft warning the operator just confirmed.
+  const submitCreate = async (
+    values: LessonValues,
+    ack: { unavailable?: boolean; closedPayout?: boolean } = {},
+  ): Promise<boolean> => {
+    const result = await createLesson({
+      ...values,
+      ...(ack.unavailable ? { acknowledgeUnavailable: true } : {}),
+      ...(ack.closedPayout ? { acknowledgeClosedPayout: true } : {}),
+    });
+    if (result?.error) {
+      showToast(result.error, "error");
+      return false;
+    }
+    // Closed-payout is checked before availability server-side, so surface it
+    // first here too -- an operator overriding one warning may still hit the
+    // other on the next submit.
+    if ("closedPayoutWarning" in result && result.closedPayoutWarning) {
+      setClosedPayoutWarning({
+        occurrences: result.closedPayoutWarning.occurrences,
+        values,
+      });
+      return false;
+    }
+    if ("availabilityWarning" in result && result.availabilityWarning) {
+      setAvailabilityWarning({
+        occurrences: result.availabilityWarning.occurrences,
+        values,
+      });
+      return false;
+    }
+    showToast(
+      values.recurrence === "NONE" ? "Занятие создано" : "Занятия созданы",
+    );
+    reset();
+    setIsModalOpen(false);
+    return true;
+  };
+
   const onSubmit = async (values: LessonValues) => {
     try {
-      const result = await createLesson(values);
-
-      if (result?.error) {
-        showToast(result.error, "error");
-        return;
-      }
-
-      showToast(
-        values.recurrence === "NONE" ? "Занятие создано" : "Занятия созданы",
-      );
-      reset();
-      setIsModalOpen(false);
+      await submitCreate(values);
     } catch {
       showToast("Не удалось создать занятие", "error");
+    }
+  };
+
+  const confirmOverrideAvailability = async () => {
+    if (!availabilityWarning) return;
+    setOverriding(true);
+    try {
+      const created = await submitCreate(availabilityWarning.values, { unavailable: true });
+      if (created) setAvailabilityWarning(null);
+    } catch {
+      showToast("Не удалось создать занятие", "error");
+    } finally {
+      setOverriding(false);
+    }
+  };
+
+  const confirmOverrideClosedPayout = async () => {
+    if (!closedPayoutWarning) return;
+    setOverriding(true);
+    try {
+      const created = await submitCreate(closedPayoutWarning.values, { closedPayout: true });
+      if (created) setClosedPayoutWarning(null);
+    } catch {
+      showToast("Не удалось создать занятие", "error");
+    } finally {
+      setOverriding(false);
     }
   };
 
@@ -362,6 +431,50 @@ export function LessonsClient({
         </form>
       </Modal>
       )}
+
+      <ConfirmDialog
+        open={availabilityWarning !== null}
+        danger
+        title="Преподаватель не отметил это время рабочим"
+        confirmLabel="Всё равно создать"
+        busy={overriding}
+        message={
+          <span>
+            Внимание: преподаватель не отметил этот слот как рабочий:
+            <br />
+            {(availabilityWarning?.occurrences ?? []).map((o) => (
+              <span key={o.scheduledAt} className="mt-1 block font-medium text-slate-800">
+                • {o.label}
+              </span>
+            ))}
+          </span>
+        }
+        onConfirm={confirmOverrideAvailability}
+        onClose={() => setAvailabilityWarning(null)}
+      />
+
+      <ConfirmDialog
+        open={closedPayoutWarning !== null}
+        danger
+        title="Расчётный период уже закрыт"
+        confirmLabel="Всё равно создать"
+        busy={overriding}
+        message={
+          <span>
+            Внимание: для этого преподавателя уже зафиксирована выплата за месяц,
+            в который попадают эти занятия — создание задним числом изменит начисления
+            за уже закрытый период:
+            <br />
+            {(closedPayoutWarning?.occurrences ?? []).map((o) => (
+              <span key={o.scheduledAt} className="mt-1 block font-medium text-slate-800">
+                • {o.label}
+              </span>
+            ))}
+          </span>
+        }
+        onConfirm={confirmOverrideClosedPayout}
+        onClose={() => setClosedPayoutWarning(null)}
+      />
     </div>
   );
 }

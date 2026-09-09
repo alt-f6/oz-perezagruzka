@@ -9,6 +9,7 @@ interface LockedLead {
   name: string;
   phone: string | null;
   email: string | null;
+  school: string | null;
   convertedUserId: string | null;
 }
 
@@ -26,7 +27,7 @@ export async function performLeadConversion(
   try {
     return await db.$transaction(async (tx) => {
       const locked = await tx.$queryRaw<LockedLead[]>`
-        SELECT id, name, phone, email, "convertedUserId"
+        SELECT id, name, phone, email, school, "convertedUserId"
         FROM "Lead"
         WHERE id = ${leadId}
         FOR UPDATE
@@ -68,6 +69,7 @@ export async function performLeadConversion(
         data: {
           fullName: lead.name,
           phone: lead.phone,
+          school: lead.school,
           userId: user.id,
         },
       });

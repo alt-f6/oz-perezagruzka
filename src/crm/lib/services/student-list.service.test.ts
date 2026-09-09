@@ -30,6 +30,7 @@ describe("listStudents", () => {
       phone: null,
       groups: [{ id: "g1", name: "G1", teacherId: "t1" }],
       transactions: [],
+      minRemainingLessons: null,
     });
   });
 
@@ -50,6 +51,37 @@ describe("listStudents", () => {
     expect(call.where.groups).toBeUndefined();
     expect(result.students[0].phone).toBe("+79990000000");
     expect(result.students[0].transactions).toEqual([{ amount: 500 }]);
+  });
+
+  it("computes minRemainingLessons from the shared balance across the student's groups for ADMIN/MANAGER", async () => {
+    findManyMock.mockResolvedValue([
+      {
+        id: "s1",
+        fullName: "Ann",
+        phone: "+79990000000",
+        groups: [
+          { group: { id: "g1", name: "G1", teacherId: "t1", pricePerLesson: "500" } },
+          { group: { id: "g2", name: "G2", teacherId: "t1", pricePerLesson: "250" } },
+        ],
+        transactions: [{ amount: "1000.00" }],
+      },
+    ]);
+
+    const result = await listStudents({ sessionUser: { id: "a1", role: "ADMIN" } });
+
+    // 1000 shared balance: G1 (500/lesson) -> 2 left, G2 (250/lesson) -> 4 left.
+    // The lower figure wins, and it is NOT halved between the two groups.
+    expect(result.students[0].minRemainingLessons).toBe(2);
+  });
+
+  it("never leaks minRemainingLessons to a TEACHER caller", async () => {
+    findManyMock.mockResolvedValue([
+      { id: "s1", fullName: "Ann", groups: [{ group: { id: "g1", name: "G1", teacherId: "t1" } }] },
+    ]);
+
+    const result = await listStudents({ sessionUser: { id: "t1", role: "TEACHER" } });
+
+    expect(result.students[0].minRemainingLessons).toBeNull();
   });
 
   it("filters by fullName or phone contains (case-insensitive) when search is given", async () => {

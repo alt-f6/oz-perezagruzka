@@ -11,7 +11,11 @@ import {
 } from "@/crm/lib/schemas";
 import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
+import { claimFirstPaymentOffer, sendFirstPaymentOffer } from "@/crm/lib/services/offer.service";
+import { createLogger } from "@/shared/lib/logger";
 import type { ActionResult } from "@/crm/lib/types";
+
+const logger = createLogger("crm.students.actions");
 
 // Maps an optional form string to a persisted value: "" / undefined → null.
 function orNull(v: string | undefined | null): string | null {
@@ -93,6 +97,7 @@ export async function createStudent(
           grade: parsed.data.grade ?? null,
           examType: parsed.data.examType ?? null,
           subject: orNull(parsed.data.subject),
+          school: orNull(parsed.data.school),
         },
         select: { id: true },
       });
@@ -176,6 +181,7 @@ export async function updateStudent(
           grade: parsed.data.grade ?? null,
           examType: parsed.data.examType ?? null,
           subject: orNull(parsed.data.subject),
+          school: orNull(parsed.data.school),
         },
       });
 
@@ -270,22 +276,43 @@ export async function updateStudentBalance(
     return { error: parsed.error.issues[0]?.message ?? "Некорректная сумма" };
   }
 
+  const isCredit = parsed.data.amount > 0;
+  let offerClaimed = false;
+
   try {
-    await db.transaction.create({
-      data: {
-        studentId: studentId,
-        amount: parsed.data.amount,
-        type: parsed.data.amount >= 0 ? "PAYMENT" : "ADJUSTMENT",
-        description: parsed.data.description || "Ручное изменение баланса администратором",
-        // Manual admin adjustment has no natural external dedup key; a fresh
-        // UUID satisfies the required unique constraint without colliding.
-        idempotencyKey: randomUUID(),
-      },
+    await db.$transaction(async (tx) => {
+      await tx.transaction.create({
+        data: {
+          studentId: studentId,
+          amount: parsed.data.amount,
+          type: isCredit ? "PAYMENT" : "ADJUSTMENT",
+          description: parsed.data.description || "Ручное изменение баланса администратором",
+          // Manual admin adjustment has no natural external dedup key; a fresh
+          // UUID satisfies the required unique constraint without colliding.
+          idempotencyKey: randomUUID(),
+        },
+      });
+
+      // A manual credit (MANUAL_CREDIT) is a real first-payment moment too --
+      // eligible for the same idempotent offer trigger as a YooKassa payment.
+      if (isCredit) {
+        offerClaimed = await claimFirstPaymentOffer(tx, studentId);
+      }
     });
   } catch (err) {
     return {
       error: err instanceof Error ? err.message : "Ошибка создания транзакции",
     };
+  }
+
+  if (offerClaimed) {
+    try {
+      await sendFirstPaymentOffer(studentId);
+    } catch (err) {
+      logger.error("Не удалось отправить оферту после ручного пополнения", err, {
+        studentId,
+      });
+    }
   }
 
   revalidatePath("/students");

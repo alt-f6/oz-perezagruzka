@@ -176,6 +176,7 @@ export interface Lead {
   parentName: string | null;
   phone: string;
   subject: string | null;
+  school: string | null;
   notes: string | null;
   status: LeadStatus;
   closedLostReason: string | null;

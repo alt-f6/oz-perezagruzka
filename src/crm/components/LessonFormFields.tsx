@@ -223,10 +223,13 @@ export function LessonFormFields({
 
       <div>
         <label className="label">Дата</label>
+        {/* No `min` here: only ADMIN/MANAGER ever reach this form (TEACHER
+            can't create lessons at all), and they're allowed to backfill a
+            lesson into the past -- e.g. one missed by the operator on the day
+            it actually happened. */}
         <DatePicker
           value={date ?? ""}
           onChange={(next) => setValue("date", next, { shouldValidate: true })}
-          min={todayIso()}
           disabled={isSubmitting}
         />
         {errors.date && <p className="field-error">{errors.date.message}</p>}

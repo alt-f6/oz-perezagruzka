@@ -15,6 +15,7 @@ export interface StudentProfileInitial {
   grade: number | null;
   examType: ExamType | null;
   subject: string;
+  school: string;
 }
 
 /**
@@ -44,6 +45,7 @@ export function StudentProfileSection({
     grade: initial.grade ? String(initial.grade) : "",
     examType: initial.examType ?? "",
     subject: initial.subject,
+    school: initial.school,
   });
 
   const set = (key: keyof typeof form) => (
@@ -66,6 +68,7 @@ export function StudentProfileSection({
         grade: form.grade === "" ? undefined : Number(form.grade),
         examType: form.examType === "" ? undefined : (form.examType as ExamType),
         subject: form.subject,
+        school: form.school,
       });
       if (res?.error) {
         showToast(res.error, "error");
@@ -167,6 +170,18 @@ export function StudentProfileSection({
               value={form.subject}
               onChange={set("subject")}
               placeholder="Математика"
+            />
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <div>
+            <label className="label">Школа / Учебное заведение</label>
+            <input
+              className="input"
+              value={form.school}
+              onChange={set("school")}
+              placeholder="Школа №1"
             />
           </div>
         </div>

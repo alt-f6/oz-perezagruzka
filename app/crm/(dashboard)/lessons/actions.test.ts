@@ -19,6 +19,7 @@ const dbMock = vi.hoisted(() => ({
     updateMany: vi.fn(),
   },
   teacherAvailability: { findMany: vi.fn() },
+  teacherPayout: { findFirst: vi.fn() },
   $transaction: vi.fn(),
 }));
 
@@ -42,6 +43,9 @@ beforeEach(() => {
   // Default: no published availability grid → availability guard is a no-op
   // (opt-in), preserving pre-availability createLesson behavior.
   dbMock.teacherAvailability.findMany.mockResolvedValue([]);
+  // Default: no closed payout period for any teacher/month, so the
+  // closed-payout guard is a no-op unless a test explicitly opts in.
+  dbMock.teacherPayout.findFirst.mockResolvedValue(null);
 });
 
 describe("createLesson", () => {
@@ -331,6 +335,97 @@ describe("createLesson", () => {
 
     expect(result?.error).toBeUndefined();
     expect(dbMock.classSession.createMany).toHaveBeenCalled();
+  });
+
+  it("stamps reminderSentAt for a past-dated occurrence, guarding against cron spam", async () => {
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
+    dbMock.classSession.createMany.mockResolvedValue({ count: 1 });
+
+    await createLesson({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2026-09-01", // in the past relative to the test clock
+      time: "15:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+    });
+
+    const row = dbMock.classSession.createMany.mock.calls[0][0].data[0];
+    expect(row.reminderSentAt).toBeInstanceOf(Date);
+  });
+
+  it("leaves reminderSentAt null for a future occurrence", async () => {
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
+    dbMock.classSession.createMany.mockResolvedValue({ count: 1 });
+
+    await createLesson({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2099-01-01",
+      time: "15:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+    });
+
+    const row = dbMock.classSession.createMany.mock.calls[0][0].data[0];
+    expect(row.reminderSentAt).toBeNull();
+  });
+
+  it("returns a closedPayoutWarning (does not create) when a past occurrence's month already has a payout for the resolved teacher", async () => {
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
+    dbMock.teacherPayout.findFirst.mockResolvedValue({ id: "payout_1" });
+
+    const result = await createLesson({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2026-09-01",
+      time: "15:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+    });
+
+    expect("closedPayoutWarning" in result && result.closedPayoutWarning).toBeTruthy();
+    expect(dbMock.classSession.createMany).not.toHaveBeenCalled();
+  });
+
+  it("creates over a closed-payout warning once acknowledgeClosedPayout is set", async () => {
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
+    dbMock.classSession.createMany.mockResolvedValue({ count: 1 });
+    dbMock.teacherPayout.findFirst.mockResolvedValue({ id: "payout_1" });
+
+    const result = await createLesson({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2026-09-01",
+      time: "15:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+      acknowledgeClosedPayout: true,
+    });
+
+    expect(result?.error).toBeUndefined();
+    expect(dbMock.classSession.createMany).toHaveBeenCalledOnce();
+  });
+
+  it("does not consult teacherPayout at all when every occurrence is in the future", async () => {
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
+    dbMock.classSession.createMany.mockResolvedValue({ count: 1 });
+
+    await createLesson({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2099-01-01",
+      time: "15:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+    });
+
+    expect(dbMock.teacherPayout.findFirst).not.toHaveBeenCalled();
   });
 });
 

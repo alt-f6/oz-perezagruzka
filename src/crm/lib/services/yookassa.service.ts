@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/crm/lib/prisma";
 import { getNotificationProvider } from "@/crm/lib/services/notification.service";
+import { claimFirstPaymentOffer, sendFirstPaymentOffer } from "@/crm/lib/services/offer.service";
 import { createLogger } from "@/shared/lib/logger";
 import { requireSiteUrl } from "@/shared/lib/env";
 import { kopecksToRubles, type Kopecks } from "@/crm/lib/money";
@@ -196,14 +197,15 @@ export async function finalizeSuccessfulPayment({
   amount,
   description = "Онлайн-оплата через YooKassa",
 }: FinalizeSuccessfulPaymentParams): Promise<boolean> {
-  const created = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     await tx.paymentIntent.updateMany({
       where: { yookassaId: paymentId, status: "PENDING" },
       data: { status: "SUCCEEDED" },
     });
 
+    let created;
     try {
-      return await tx.transaction.create({
+      created = await tx.transaction.create({
         data: {
           studentId,
           amount: Number(kopecksToRubles(amount)),
@@ -214,13 +216,29 @@ export async function finalizeSuccessfulPayment({
       });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-        return null;
+        return { created: null, offerClaimed: false };
       }
       throw err;
     }
+
+    // Only claim the first-payment offer once the charge itself is real (not
+    // a retried webhook we've already processed above).
+    const offerClaimed = await claimFirstPaymentOffer(tx, studentId);
+    return { created, offerClaimed };
   });
 
-  if (!created) return false;
+  if (result.offerClaimed) {
+    try {
+      await sendFirstPaymentOffer(studentId);
+    } catch (err) {
+      log.error("Не удалось отправить оферту после первой оплаты", err, {
+        paymentId,
+        studentId,
+      });
+    }
+  }
+
+  if (!result.created) return false;
 
   try {
     revalidatePath("/parent/dashboard");

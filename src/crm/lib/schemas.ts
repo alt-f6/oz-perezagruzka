@@ -120,6 +120,7 @@ const studentDomainFields = {
   grade: optionalGradeSchema,
   examType: optionalExamTypeSchema,
   subject: optionalText,
+  school: z.string().trim().max(255).optional().or(z.literal("")),
 };
 
 export const studentSchema = z.object({
@@ -215,6 +216,11 @@ export const lessonSchema = z
     // in an hour the chosen teacher has NOT marked as working. Absent/false =>
     // createLesson surfaces the availability warning instead of persisting.
     acknowledgeUnavailable: z.boolean().optional(),
+    // Set true only after the operator explicitly confirmed scheduling a
+    // lesson (ADMIN/MANAGER-only, in the past) into a month whose payout
+    // period is already closed for the resolved teacher. Absent/false =>
+    // createLesson surfaces the closed-payout warning instead of persisting.
+    acknowledgeClosedPayout: z.boolean().optional(),
   })
   // An absent `type` is treated as GROUP, so GROUP validation fires unless the
   // caller explicitly chose INDIVIDUAL.
@@ -339,6 +345,7 @@ export const leadSchema = z
     parentName: z.string().optional().or(z.literal("")),
     phone: russianPhoneSchema,
     subject: z.string().optional().or(z.literal("")),
+    school: z.string().trim().max(255).optional().or(z.literal("")),
     notes: z.string().optional().or(z.literal("")),
     status: leadStatusEnum,
     closedLostReason: z.string().optional().or(z.literal("")),

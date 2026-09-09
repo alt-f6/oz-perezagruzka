@@ -190,6 +190,11 @@ model Student {
   grade       Int?
   examType    String?
   subject     String?
+  school      String?
+  // Set once, the first time a payment is successfully credited to this
+  // student (YooKassa webhook or a manual admin credit) -- see
+  // src/crm/lib/services/offer.service.ts. Never cleared/reset.
+  offerSentAt DateTime?
   createdAt DateTime  @default(now())
   deletedAt DateTime?
 
@@ -501,6 +506,7 @@ model Lead {
 
   // Lead lifecycle
   subject          String?
+  school           String?
   notes            String?
   message          String?
   source           LeadSource @default(OTHER)

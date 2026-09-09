@@ -35,6 +35,7 @@ export function LeadModal({ lead, trigger, triggerLabel, triggerClassName }: Lea
           parentName: lead.parentName ?? "",
           phone: lead.phone,
           subject: lead.subject ?? "",
+          school: lead.school ?? "",
           notes: lead.notes ?? "",
           status: lead.status,
           closedLostReason: lead.closedLostReason ?? "",
@@ -47,6 +48,7 @@ export function LeadModal({ lead, trigger, triggerLabel, triggerClassName }: Lea
           parentName: "",
           phone: "",
           subject: "",
+          school: "",
           notes: "",
           status: "NEW",
           closedLostReason: "",
@@ -152,6 +154,18 @@ export function LeadModal({ lead, trigger, triggerLabel, triggerClassName }: Lea
               {...register("subject")}
               className="input"
               placeholder="Математика ОГЭ, 9 класс"
+            />
+          </div>
+
+          <div>
+            <label className="label">
+              Школа / Учебное заведение
+            </label>
+            <input
+              disabled={isSubmitting}
+              {...register("school")}
+              className="input"
+              placeholder="Школа №1"
             />
           </div>
 

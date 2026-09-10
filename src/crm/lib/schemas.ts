@@ -326,6 +326,20 @@ export const paymentAmountSchema = z.object({
     .max(1_000_000, { message: "Слишком большая сумма" }),
 });
 
+export const attendanceStatusEnum = z.enum(["PRESENT", "ABSENT", "EXCUSED", "CANCELLED_BY_CENTER"]);
+
+// setAttendance payload (app/crm/(dashboard)/lessons/actions.ts). All keys are
+// independently optional -- the UI saves one field at a time (status select,
+// grade select, or homework checkbox each fire their own call) -- so this
+// only rejects a key that IS present but malformed, never a partial payload.
+export const setAttendanceUpdateSchema = z.object({
+  status: attendanceStatusEnum.optional(),
+  grade: z.number().int().min(1, { message: "Оценка должна быть от 1 до 5" }).max(5, { message: "Оценка должна быть от 1 до 5" }).nullable().optional(),
+  homeworkCompleted: z.boolean().optional(),
+});
+
+export type SetAttendanceUpdateValues = z.infer<typeof setAttendanceUpdateSchema>;
+
 export const leadStatusEnum = z.enum([
   "NEW",
   "CONTACTED",

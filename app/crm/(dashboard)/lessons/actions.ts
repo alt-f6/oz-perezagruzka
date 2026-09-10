@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import type { AttendanceStatus } from "@prisma/client";
-import { lessonSchema, makeupSchema, type LessonValues } from "@/crm/lib/schemas";
+import { lessonSchema, makeupSchema, setAttendanceUpdateSchema, type LessonValues } from "@/crm/lib/schemas";
 import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import { BillingService } from "@/crm/lib/services/billing.service";
@@ -393,54 +393,66 @@ export async function setAttendance(
 ): Promise<ActionResult> {
   const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
 
+  const parsed = setAttendanceUpdateSchema.safeParse(update);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Некорректные данные" };
+  }
+
+  const lesson = await db.classSession.findUnique({
+    where: { id: lessonId },
+    select: { teacherId: true, group: { select: { teacherId: true } } },
+  });
+  if (!lesson) {
+    return { error: "Занятие не найдено" };
+  }
+
   if (sessionUser.role === "TEACHER") {
-    const lesson = await db.classSession.findUnique({
-      where: { id: lessonId },
-      select: { teacherId: true, group: { select: { teacherId: true } } },
-    });
     // Own the lesson either directly, or via the group's *current* teacher --
-    // see the matching schedule/lessons scoping fix (a group reassignment
-    // must not orphan a teacher's ability to mark attendance on it).
+    // a group reassignment must not orphan a teacher's ability to mark
+    // attendance on it.
     const owned =
-      lesson && (lesson.teacherId === sessionUser.id || lesson.group?.teacherId === sessionUser.id);
+      lesson.teacherId === sessionUser.id || lesson.group?.teacherId === sessionUser.id;
     if (!owned) {
-      throw new Error("forbidden: занятие не принадлежит преподавателю");
+      return { error: "Занятие не принадлежит преподавателю" };
     }
   }
 
   try {
-    if (update.status !== undefined) {
-      await BillingService.markAttendanceAndCharge(
-        lessonId,
-        studentId,
-        update.status,
-      );
+    if (parsed.data.status !== undefined) {
+      await BillingService.markAttendanceAndCharge(lessonId, studentId, parsed.data.status);
     }
 
-    if (update.grade !== undefined || update.homeworkCompleted !== undefined) {
-      const updateData: { grade?: number | null; homeworkCompleted?: boolean } =
-        {};
-      if (update.grade !== undefined) updateData.grade = update.grade;
-      if (update.homeworkCompleted !== undefined) {
-        updateData.homeworkCompleted = update.homeworkCompleted;
+    if (parsed.data.grade !== undefined || parsed.data.homeworkCompleted !== undefined) {
+      // Grading/homework requires an Attendance row. If the teacher never
+      // touched the status dropdown (it visually defaults to PRESENT but
+      // isn't persisted until an explicit change), materialize the row now
+      // via the same billing path a real PRESENT selection would take --
+      // grading a student implies they attended, keeping billing state
+      // consistent instead of failing the save outright. Skipped when this
+      // same call also sets `status`: the branch above already
+      // created/updated the row with whatever status was actually
+      // requested, so materializing again here would stomp it back to
+      // PRESENT.
+      if (parsed.data.status === undefined) {
+        await BillingService.markAttendanceAndCharge(lessonId, studentId, "PRESENT");
+      }
+
+      const updateData: { grade?: number | null; homeworkCompleted?: boolean } = {};
+      if (parsed.data.grade !== undefined) updateData.grade = parsed.data.grade;
+      if (parsed.data.homeworkCompleted !== undefined) {
+        updateData.homeworkCompleted = parsed.data.homeworkCompleted;
       }
 
       await db.attendance.update({
         where: {
-          classSessionId_studentId: {
-            classSessionId: lessonId,
-            studentId,
-          },
+          classSessionId_studentId: { classSessionId: lessonId, studentId },
         },
         data: updateData,
       });
     }
   } catch (err) {
     return {
-      error:
-        err instanceof Error
-          ? err.message
-          : "Не удалось обновить посещаемость",
+      error: err instanceof Error ? err.message : "Не удалось обновить посещаемость",
     };
   }
 

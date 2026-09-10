@@ -5,6 +5,7 @@ import {
   weekKeyToDate,
   withSlot,
 } from "@/crm/lib/availability";
+import { BillingService } from "@/crm/lib/services/billing.service";
 
 const dbMock = vi.hoisted(() => ({
   group: { findUnique: vi.fn() },
@@ -18,6 +19,7 @@ const dbMock = vi.hoisted(() => ({
     findMany: vi.fn(),
     updateMany: vi.fn(),
   },
+  attendance: { update: vi.fn() },
   teacherAvailability: { findMany: vi.fn() },
   teacherPayout: { findFirst: vi.fn() },
   $transaction: vi.fn(),
@@ -30,8 +32,20 @@ const rbacMock = vi.hoisted(() => ({
 vi.mock("@/shared/lib/db", () => ({ db: dbMock }));
 vi.mock("@/shared/lib/rbac", () => rbacMock);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("@/crm/lib/prisma", () => ({
+  prisma: { $transaction: vi.fn((cb) => cb({
+    $queryRaw: vi.fn(),
+    classSession: { findUniqueOrThrow: vi.fn().mockResolvedValue({ id: "lesson_1", scheduledAt: new Date(), group: null, pricePerLesson: 0 }) },
+    freeze: { findFirst: vi.fn().mockResolvedValue(null) },
+    attendance: { upsert: vi.fn().mockResolvedValue({ id: "att_1" }) },
+    transaction: { deleteMany: vi.fn(), create: vi.fn() },
+  })) },
+}));
+vi.mock("@/crm/lib/services/notification.service", () => ({
+  getNotificationProvider: vi.fn(() => ({ sendDebtReminder: vi.fn() })),
+}));
 
-const { createLesson, deleteLesson, bulkCancelSessions } = await import("./actions");
+const { createLesson, deleteLesson, bulkCancelSessions, setAttendance } = await import("./actions");
 
 const ADMIN = { id: "user_1", email: "a@a.com", role: "ADMIN" };
 
@@ -530,5 +544,98 @@ describe("bulkCancelSessions", () => {
 
     await expect(bulkCancelSessions({ sessionIds: ["a"] })).rejects.toThrow("forbidden");
     expect(dbMock.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+const TEACHER = { id: "teacher_1", email: "t@a.com", role: "TEACHER" };
+
+describe("setAttendance", () => {
+  beforeEach(() => {
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "teacher_1",
+      group: { teacherId: "teacher_1" },
+    });
+    dbMock.attendance.update.mockResolvedValue({ id: "att_1" });
+  });
+
+  it("returns a handled error (not a throw) when a TEACHER doesn't own the lesson", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "someone_else",
+      group: null,
+    });
+
+    const result = await setAttendance("lesson_1", "student_1", { grade: 5 });
+
+    expect(result.error).toBeTruthy();
+    expect(dbMock.attendance.update).not.toHaveBeenCalled();
+  });
+
+  it("allows a TEACHER who owns the lesson directly (session.teacherId) to save a grade", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+
+    const result = await setAttendance("lesson_1", "student_1", { grade: 4 });
+
+    expect(result.error).toBeUndefined();
+  });
+
+  it("allows a TEACHER who owns the lesson only via the group's current teacher", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "previous_teacher",
+      group: { teacherId: "teacher_1" },
+    });
+
+    const result = await setAttendance("lesson_1", "student_1", { homeworkCompleted: true });
+
+    expect(result.error).toBeUndefined();
+  });
+
+  it("materializes the Attendance row via BillingService (status=PRESENT) before grading, when no status is set and no row exists yet", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    const markSpy = vi
+      .spyOn(BillingService, "markAttendanceAndCharge")
+      .mockResolvedValue({ id: "att_1" } as never);
+
+    const result = await setAttendance("lesson_1", "student_1", { grade: 5 });
+
+    expect(result.error).toBeUndefined();
+    expect(markSpy).toHaveBeenCalledWith("lesson_1", "student_1", "PRESENT");
+    expect(dbMock.attendance.update).toHaveBeenCalledWith({
+      where: { classSessionId_studentId: { classSessionId: "lesson_1", studentId: "student_1" } },
+      data: { grade: 5 },
+    });
+    markSpy.mockRestore();
+  });
+
+  it("does NOT re-materialize the row when this same call also sets status (billing already created/updated it)", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    const markSpy = vi
+      .spyOn(BillingService, "markAttendanceAndCharge")
+      .mockResolvedValue({ id: "att_1" } as never);
+
+    await setAttendance("lesson_1", "student_1", { status: "ABSENT", grade: 2 });
+
+    expect(markSpy).toHaveBeenCalledTimes(1);
+    expect(markSpy).toHaveBeenCalledWith("lesson_1", "student_1", "ABSENT");
+    markSpy.mockRestore();
+  });
+
+  it("rejects an out-of-range grade before touching the database", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+
+    const result = await setAttendance("lesson_1", "student_1", { grade: 7 });
+
+    expect(result.error).toMatch(/от 1 до 5/);
+    expect(dbMock.attendance.update).not.toHaveBeenCalled();
+  });
+
+  it("returns a handled error instead of throwing when the lesson does not exist", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.classSession.findUnique.mockResolvedValue(null);
+
+    const result = await setAttendance("missing_lesson", "student_1", { grade: 5 });
+
+    expect(result.error).toBeTruthy();
   });
 });

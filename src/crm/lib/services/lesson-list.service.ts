@@ -37,6 +37,7 @@ export async function listLessons(
       scheduledAt: true,
       status: true,
       durationMinutes: true,
+      isTrial: true,
       recurrenceGroupId: true,
       teacherId: true,
       teacher: { select: { fullName: true } },

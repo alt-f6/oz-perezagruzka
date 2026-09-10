@@ -2,7 +2,15 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
-import { CalendarDays, ChevronRight, GraduationCap, Plus, Repeat, Trash2 } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronRight,
+  GraduationCap,
+  Plus,
+  Repeat,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -54,6 +62,7 @@ export function LessonsClient({
   const showToast = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
+  const [trialOnly, setTrialOnly] = useState(false);
   // Set when createLesson reports the chosen time is outside the teacher's
   // declared working hours; drives the override-confirmation dialog so the
   // lesson is never created silently against unavailability.
@@ -187,8 +196,8 @@ export function LessonsClient({
   };
 
   const visibleLessons = useMemo(
-    () => lessons.filter((l) => showCancelled || l.status !== "cancelled"),
-    [lessons, showCancelled],
+    () => lessons.filter((l) => (showCancelled || l.status !== "cancelled") && (!trialOnly || l.isTrial)),
+    [lessons, showCancelled, trialOnly],
   );
 
   const toggleSelected = (lessonId: string) => {
@@ -262,6 +271,15 @@ export function LessonsClient({
             />
             Показать отменённые
           </label>
+          <label className="flex items-center gap-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={trialOnly}
+              onChange={(e) => setTrialOnly(e.target.checked)}
+              aria-label="Только пробные уроки"
+            />
+            Только пробные
+          </label>
           {!isTeacher && (
             <button
               type="button"
@@ -328,6 +346,12 @@ export function LessonsClient({
                       {sessionLabel(lesson)}
                       {isCancelled && (
                         <span className="badge-neutral ml-2 align-middle">Отменено</span>
+                      )}
+                      {lesson.isTrial && (
+                        <span className="badge-warning ml-2 inline-flex items-center gap-1 align-middle">
+                          <Sparkles size={11} className="shrink-0" />
+                          ПРОБНЫЙ УРОК
+                        </span>
                       )}
                     </p>
                     <p className="mt-0.5 text-sm text-slate-500">

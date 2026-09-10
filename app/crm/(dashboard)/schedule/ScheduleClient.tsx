@@ -8,6 +8,7 @@ import {
   ChevronRight,
   GraduationCap,
   Plus,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -48,6 +49,7 @@ export interface ScheduleLesson {
   teacherId: string;
   status: string;
   durationMinutes: number;
+  isTrial?: boolean;
   group?: { id: string; name: string } | null;
   student?: { id: string; fullName: string } | null;
   teacher?: { fullName: string } | null;
@@ -114,6 +116,7 @@ export function ScheduleClient({
   const [teacherFilter, setTeacherFilter] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
+  const [trialOnly, setTrialOnly] = useState(false);
   // Set when createLesson reports the chosen time is outside the teacher's
   // declared working hours; drives the override-confirmation dialog so the
   // lesson is never created silently against unavailability.
@@ -231,9 +234,10 @@ export function ScheduleClient({
         (l) =>
           (!groupFilter || l.groupId === groupFilter) &&
           (!teacherFilter || l.teacherId === teacherFilter) &&
-          (showCancelled || l.status !== "cancelled"),
+          (showCancelled || l.status !== "cancelled") &&
+          (!trialOnly || l.isTrial),
       ),
-    [lessons, groupFilter, teacherFilter, showCancelled],
+    [lessons, groupFilter, teacherFilter, showCancelled, trialOnly],
   );
 
   const lessonsByDay = useMemo(() => {
@@ -409,6 +413,16 @@ export function ScheduleClient({
           />
           Показать отменённые
         </label>
+
+        <label className="flex items-center gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={trialOnly}
+            onChange={(e) => setTrialOnly(e.target.checked)}
+            aria-label="Только пробные уроки"
+          />
+          Только пробные
+        </label>
       </div>
 
       {view === "day" && (
@@ -480,6 +494,12 @@ export function ScheduleClient({
                       <GraduationCap size={12} className="shrink-0" />
                       {getTeacherLabel(lesson)}
                     </span>
+                    {lesson.isTrial && (
+                      <span className="badge-warning mt-0.5 w-full gap-1 truncate px-1.5 py-0 text-[11px]">
+                        <Sparkles size={12} className="shrink-0" />
+                        ПРОБНЫЙ УРОК
+                      </span>
+                    )}
                   </Link>
                 );
               })}
@@ -537,6 +557,12 @@ export function ScheduleClient({
                             <GraduationCap size={12} className="shrink-0" />
                             {getTeacherLabel(lesson)}
                           </span>
+                          {lesson.isTrial && (
+                            <span className="badge-warning mt-0.5 w-full gap-1 truncate px-1.5 py-0 text-[11px]">
+                              <Sparkles size={12} className="shrink-0" />
+                              ПРОБНЫЙ
+                            </span>
+                          )}
                         </Link>
                       );
                     })
@@ -582,9 +608,12 @@ export function ScheduleClient({
                       className={`truncate rounded px-1.5 py-0.5 text-[11px] font-medium ${
                         lesson.status === "cancelled"
                           ? "bg-slate-100 text-slate-400"
-                          : "bg-accent/[0.08] text-slate-900"
+                          : lesson.isTrial
+                            ? "bg-amber-100 text-amber-800"
+                            : "bg-accent/[0.08] text-slate-900"
                       }`}
                     >
+                      {lesson.isTrial && "✦ "}
                       {formatTimeRange({
                         scheduledAt: lesson.scheduledAt,
                         durationMinutes: lesson.durationMinutes,

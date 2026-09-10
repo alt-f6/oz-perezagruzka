@@ -67,6 +67,7 @@ export async function loadScheduleData(sessionUser: {
           teacherId: true,
           status: true,
           durationMinutes: true,
+          isTrial: true,
           group: { select: { id: true, name: true } },
           student: { select: { id: true, fullName: true } },
           teacher: { select: { fullName: true } },

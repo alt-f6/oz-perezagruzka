@@ -81,6 +81,7 @@ export interface ClassSession {
   durationMinutes: number;
   pricePerLesson?: number | null;
   recurrenceGroupId?: string | null;
+  isTrial?: boolean;
 }
 
 export interface ClassSessionWithGroup extends ClassSession {

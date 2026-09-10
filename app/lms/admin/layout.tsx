@@ -11,12 +11,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   });
 
   // TEACHER gets no access to the global curriculum CMS (lessons/students/
-  // assignments/messages are unscoped ADMIN/MANAGER tooling) — just the
-  // landing page, so the LMS App Switcher link resolves instead of bouncing
-  // through roleHome("TEACHER") = "/admin" in an infinite redirect loop.
+  // assignments/messages are unscoped ADMIN/MANAGER tooling) -- only the
+  // AI tutor. MANAGER doesn't get the tutor link (not part of its role scope).
   const items =
     user.role === "TEACHER"
-      ? []
+      ? [{ href: "/admin/tutor", label: "ИИ-Репетитор" }]
       : user.role === "MANAGER"
         ? [
             { href: "/admin/lessons", label: "Уроки" },
@@ -27,6 +26,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             { href: "/admin/students", label: "Ученики" },
             { href: "/admin/assignments", label: "Назначения" },
             { href: "/admin/messages", label: "Сообщения" },
+            { href: "/admin/tutor", label: "ИИ-Репетитор" },
           ];
 
   return (

@@ -26,9 +26,9 @@ const MODEL_ID = "deepseek-chat";
 const CHAT_TIMEOUT_MS = 30_000;
 
 export async function POST(req: Request) {
-  // Student-only feature (admins bypass for support/QA).
+  // Student/teacher feature (admins bypass for support/QA).
   try {
-    await requireRole(["STUDENT"], { adminBypass: true });
+    await requireRole(["STUDENT", "TEACHER"], { adminBypass: true });
   } catch {
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }

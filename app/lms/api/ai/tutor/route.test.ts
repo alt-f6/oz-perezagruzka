@@ -60,6 +60,20 @@ describe("POST /api/ai/tutor", () => {
     expect(streamTextMock).not.toHaveBeenCalled();
   });
 
+  it("allows a TEACHER through (previously 401'd)", async () => {
+    requireRoleMock.mockResolvedValue({ id: "teacher_1", role: "TEACHER" });
+    const res = await POST(makeRequest({ topicCode: "1.5", messages: [userMessage] }));
+    expect(res.status).not.toBe(401);
+    // requireRole itself is mocked to always resolve regardless of the role
+    // list it's called with, so the assertion above alone can't distinguish
+    // the STUDENT-only gate from the STUDENT+TEACHER one. Assert on the
+    // actual allow-list passed in, which is what really gates a real TEACHER.
+    expect(requireRoleMock).toHaveBeenCalledWith(
+      expect.arrayContaining(["TEACHER"]),
+      expect.anything(),
+    );
+  });
+
   it("rejects a non-whitelisted topic code with HTTP 400", async () => {
     for (const topicCode of ["1.16", "1.0", "2.1", "1.", "1.5; rm", "../secret"]) {
       const res = await POST(makeRequest({ topicCode, messages: [userMessage] }));

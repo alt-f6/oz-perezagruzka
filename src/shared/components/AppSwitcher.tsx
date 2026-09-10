@@ -32,8 +32,13 @@ const DEFAULT_ORIGINS: Record<AppTarget, string> = {
  * Subdomain cookies are host-only (no Domain attribute is set when signing
  * in), so swapping crm./lms. via a plain link never touches the other
  * app's session cookie.
+ *
+ * Exported so other client nav components (e.g. the CRM Sidebar) that link
+ * to a specific route in another app -- not just that app's root -- can
+ * build the same absolute, subdomain-correct origin instead of guessing a
+ * bare relative path that would resolve against the wrong app's origin.
  */
-function resolveOrigin(app: AppTarget): string {
+export function resolveOrigin(app: AppTarget): string {
   if (typeof window === "undefined") return "";
 
   const { hostname, port } = window.location;

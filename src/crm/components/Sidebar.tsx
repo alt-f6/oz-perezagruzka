@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Bot,
   Calendar,
   CalendarDays,
   DollarSign,
@@ -14,7 +15,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useToast } from "@/crm/components/ToastProvider";
-import { AppSwitcher } from "@/shared/components/AppSwitcher";
+import { AppSwitcher, resolveOrigin } from "@/shared/components/AppSwitcher";
 import type { Role } from "@/shared/lib/auth";
 
 const NAV_ITEMS: { href: string; label: string; icon: typeof Users; roles: Role[] }[] = [
@@ -27,12 +28,29 @@ const NAV_ITEMS: { href: string; label: string; icon: typeof Users; roles: Role[
   { href: "/team", label: "Команда", icon: Briefcase, roles: ["ADMIN"] },
 ];
 
+// The AI tutor is an LMS route (app/lms/admin/tutor), served on a different
+// subdomain (lms.<host>) than this CRM sidebar (crm.<host>) -- see
+// src/shared/lib/url.ts / AppSwitcher's resolveOrigin. A same-app relative
+// href like "/admin/tutor" would resolve against the CRM's own origin and
+// 404, so this link's absolute LMS origin is resolved at render time (same
+// convention AppSwitcher uses for its cross-app links) and rendered as a
+// plain <a> for a full cross-origin navigation, not next/link's <Link>
+// (which is for same-app client-side transitions).
+const TUTOR_NAV_ITEM = {
+  path: "/admin/tutor",
+  label: "ИИ-Репетитор",
+  icon: Bot,
+  roles: ["ADMIN", "TEACHER"] as Role[],
+};
+
 export function Sidebar({ email, role }: { email: string; role: Role }) {
   const pathname = usePathname();
   const router = useRouter();
   const showToast = useToast();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const navItems = NAV_ITEMS.filter((item) => item.roles.includes(role));
+  const showTutor = TUTOR_NAV_ITEM.roles.includes(role);
+  const tutorHref = `${resolveOrigin("lms")}${TUTOR_NAV_ITEM.path}`;
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -89,6 +107,18 @@ export function Sidebar({ email, role }: { email: string; role: Role }) {
             </Link>
           );
         })}
+        {showTutor ? (
+          <a
+            href={tutorHref}
+            className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-600 transition-colors duration-150 hover:bg-slate-50 hover:text-slate-900"
+          >
+            <Bot
+              size={17}
+              className="shrink-0 text-slate-400 transition-colors group-hover:text-slate-600"
+            />
+            <span className="truncate">{TUTOR_NAV_ITEM.label}</span>
+          </a>
+        ) : null}
       </nav>
 
       <div className="p-3">

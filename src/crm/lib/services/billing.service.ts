@@ -19,7 +19,7 @@ export class BillingService {
 
         const classSession = await tx.classSession.findUniqueOrThrow({
           where: { id: classSessionId },
-          include: { group: true },
+          include: { group: true, student: true },
         });
 
         // GROUP sessions bill the group's price; INDIVIDUAL (1-on-1) sessions
@@ -28,6 +28,10 @@ export class BillingService {
           classSession.group?.pricePerLesson ??
           classSession.pricePerLesson ??
           new Prisma.Decimal(0);
+
+        const description = classSession.isTrial
+          ? `Пробное занятие: ${classSession.group?.name ?? classSession.student?.fullName ?? "Индивидуальное занятие"}`
+          : undefined;
 
         const isBillableStatus = status === "PRESENT" || status === "ABSENT";
 
@@ -90,6 +94,7 @@ export class BillingService {
               // the same lesson/student naturally collides on this key instead
               // of relying solely on the separate composite unique constraint.
               idempotencyKey: `lesson_charge:${classSessionId}:${studentId}`,
+              description,
             },
           });
         }

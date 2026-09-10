@@ -96,8 +96,10 @@ export async function computeAbonementSummary(studentId: string): Promise<Abonem
   // No group membership: fall back to the student's most recent individual
   // (1-on-1) lesson rate, if any. There's no dedicated per-student rate field,
   // so "the last session's price" IS the personal rate the roadmap refers to.
+  // isTrial: false -- a one-off discounted trial rate must never be
+  // projected as the ongoing per-lesson rate shown on the profile card.
   const lastIndividualSession = await db.classSession.findFirst({
-    where: { studentId, type: "INDIVIDUAL", pricePerLesson: { not: null } },
+    where: { studentId, type: "INDIVIDUAL", pricePerLesson: { not: null }, isTrial: false },
     orderBy: { scheduledAt: "desc" },
     select: { pricePerLesson: true },
   });

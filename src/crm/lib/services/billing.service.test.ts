@@ -129,6 +129,57 @@ describe("BillingService.markAttendanceAndCharge", () => {
     });
   });
 
+  it("tags a trial GROUP lesson's charge with a 'Пробное занятие: <group>' description", async () => {
+    const tx = makeTx({
+      classSession: {
+        ...classSessionFixture,
+        isTrial: true,
+        group: { pricePerLesson: 1000, name: "Английский А2" },
+      },
+    });
+    runWithTx(tx);
+
+    await BillingService.markAttendanceAndCharge("session_1", "student_1", "PRESENT");
+
+    expect(tx.transaction.create).toHaveBeenCalledWith({
+      data: {
+        studentId: "student_1",
+        classSessionId: "session_1",
+        amount: -1000,
+        type: "LESSON_CHARGE",
+        idempotencyKey: "lesson_charge:session_1:student_1",
+        description: "Пробное занятие: Английский А2",
+      },
+    });
+  });
+
+  it("tags a trial INDIVIDUAL lesson's charge with the student's name when there's no group", async () => {
+    const tx = makeTx({
+      classSession: {
+        id: "session_2",
+        scheduledAt: new Date("2026-08-03T10:00:00.000Z"),
+        group: null,
+        pricePerLesson: 500,
+        isTrial: true,
+        student: { fullName: "Иван Иванов" },
+      },
+    });
+    runWithTx(tx);
+
+    await BillingService.markAttendanceAndCharge("session_2", "student_1", "PRESENT");
+
+    expect(tx.transaction.create).toHaveBeenCalledWith({
+      data: {
+        studentId: "student_1",
+        classSessionId: "session_2",
+        amount: -500,
+        type: "LESSON_CHARGE",
+        idempotencyKey: "lesson_charge:session_2:student_1",
+        description: "Пробное занятие: Иван Иванов",
+      },
+    });
+  });
+
   it("re-stamps priceAtTime to the current group price on every upsert, including status-change updates", async () => {
     const tx = makeTx({ classSession: classSessionFixture });
     runWithTx(tx);

@@ -97,8 +97,22 @@ describe("computeAbonementSummary", () => {
     expect(result.minRemainingLessons).toBe(2);
     expect(dbMock.classSession.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { studentId: "student_1", type: "INDIVIDUAL", pricePerLesson: { not: null } },
+        where: { studentId: "student_1", type: "INDIVIDUAL", pricePerLesson: { not: null }, isTrial: false },
         orderBy: { scheduledAt: "desc" },
+      }),
+    );
+  });
+
+  it("excludes trial sessions from the individual-rate lookup's where clause", async () => {
+    dbMock.transaction.aggregate.mockResolvedValue({ _sum: { amount: 2000 } });
+    dbMock.groupStudent.findMany.mockResolvedValue([]);
+    dbMock.classSession.findFirst.mockResolvedValue({ pricePerLesson: 800 });
+
+    await computeAbonementSummary("student_1");
+
+    expect(dbMock.classSession.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { studentId: "student_1", type: "INDIVIDUAL", pricePerLesson: { not: null }, isTrial: false },
       }),
     );
   });

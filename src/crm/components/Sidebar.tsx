@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useToast } from "@/crm/components/ToastProvider";
 import { AppSwitcher, resolveOrigin } from "@/shared/components/AppSwitcher";
 import type { Role } from "@/shared/lib/auth";
@@ -36,6 +36,18 @@ const NAV_ITEMS: { href: string; label: string; icon: typeof Users; roles: Role[
 // convention AppSwitcher uses for its cross-app links) and rendered as a
 // plain <a> for a full cross-origin navigation, not next/link's <Link>
 // (which is for same-app client-side transitions).
+//
+// resolveOrigin reads window.location, so it returns "" during SSR. Unlike
+// AppSwitcher's own cross-app links (which only render inside a dropdown
+// opened after hydration, so they never run during SSR), this nav item is
+// part of the always-visible list and DOES render server-side. Computing
+// tutorHref eagerly would make the server-rendered href a bare
+// "/admin/tutor" (wrong CRM-origin path, 404) that then flips to the
+// absolute LMS URL after hydration -- a hydration mismatch, and a window
+// where a pre-hydration click 404s. So the href is gated behind a
+// client-only `mounted` flag: before mount, the link renders with no href
+// (identical markup on server and client); once mounted (post-hydration,
+// window is always defined), the real absolute href is attached.
 const TUTOR_NAV_ITEM = {
   path: "/admin/tutor",
   label: "ИИ-Репетитор",
@@ -48,9 +60,15 @@ export function Sidebar({ email, role }: { email: string; role: Role }) {
   const router = useRouter();
   const showToast = useToast();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const navItems = NAV_ITEMS.filter((item) => item.roles.includes(role));
   const showTutor = TUTOR_NAV_ITEM.roles.includes(role);
-  const tutorHref = `${resolveOrigin("lms")}${TUTOR_NAV_ITEM.path}`;
+  // Only computed/rendered after mount -- see comment above TUTOR_NAV_ITEM.
+  const tutorHref = mounted ? `${resolveOrigin("lms")}${TUTOR_NAV_ITEM.path}` : undefined;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -110,7 +128,12 @@ export function Sidebar({ email, role }: { email: string; role: Role }) {
         {showTutor ? (
           <a
             href={tutorHref}
-            className="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-slate-600 transition-colors duration-150 hover:bg-slate-50 hover:text-slate-900"
+            aria-disabled={!mounted}
+            className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-150 ${
+              mounted
+                ? "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                : "cursor-default text-slate-400"
+            }`}
           >
             <Bot
               size={17}

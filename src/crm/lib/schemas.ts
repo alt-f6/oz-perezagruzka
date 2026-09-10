@@ -203,6 +203,10 @@ export const lessonSchema = z
         },
         { message: "Некорректная цена (0–1 000 000)" },
       ),
+    // "Пробное занятие" toggle -- available on both GROUP and INDIVIDUAL
+    // lessons; only INDIVIDUAL lessons additionally expose a discounted
+    // pricePerLesson override (see LessonFormFields.tsx).
+    isTrial: z.boolean().optional(),
     date: z.string().min(1, { message: "Укажите дату" }),
     time: z.string().min(1, { message: "Укажите время" }),
     durationMinutes: lessonDurationSchema,

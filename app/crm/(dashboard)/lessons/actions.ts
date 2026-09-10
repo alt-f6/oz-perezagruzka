@@ -120,6 +120,7 @@ export async function createLesson(
     groupId: string | null;
     studentId: string | null;
     pricePerLesson: number | null;
+    isTrial: boolean;
   };
 
   if (parsed.data.type === "INDIVIDUAL") {
@@ -151,6 +152,7 @@ export async function createLesson(
       pricePerLesson: parsed.data.pricePerLesson
         ? Number(parsed.data.pricePerLesson)
         : null,
+      isTrial: parsed.data.isTrial ?? false,
     };
   } else {
     const group = await db.group.findUnique({
@@ -169,6 +171,7 @@ export async function createLesson(
       groupId: parsed.data.groupId as string,
       studentId: null,
       pricePerLesson: null,
+      isTrial: parsed.data.isTrial ?? false,
     };
   }
 
@@ -267,6 +270,7 @@ export async function createLesson(
         groupId: sessionLink.groupId,
         studentId: sessionLink.studentId,
         pricePerLesson: sessionLink.pricePerLesson,
+        isTrial: sessionLink.isTrial,
         teacherId,
         scheduledAt,
         durationMinutes,

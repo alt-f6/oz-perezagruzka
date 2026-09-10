@@ -136,6 +136,15 @@ export function LessonFormFields({
       {/* Keep `type` in the form payload without an extra visible control. */}
       <input type="hidden" {...register("type")} />
 
+      <label className="flex items-center gap-2 text-sm text-slate-600">
+        <input
+          type="checkbox"
+          disabled={isSubmitting}
+          {...register("isTrial")}
+        />
+        Пробное занятие
+      </label>
+
       {lessonType === "GROUP" ? (
         <div>
           <label className="label">Группа</label>
@@ -204,7 +213,7 @@ export function LessonFormFields({
           </div>
 
           <div>
-            <label className="label">Стоимость занятия, ₽ (необязательно)</label>
+            <label className="label">Стоимость занятия, ₽ (необязательно; укажите сниженную цену для пробного занятия)</label>
             <input
               type="number"
               min={0}

@@ -241,6 +241,45 @@ describe("createLesson", () => {
     });
   });
 
+  it("persists isTrial through to createMany when set", async () => {
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
+    dbMock.classSession.createMany.mockResolvedValue({ count: 1 });
+
+    await createLesson({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2026-09-01",
+      time: "15:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+      isTrial: true,
+    });
+
+    expect(dbMock.classSession.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ isTrial: true })],
+    });
+  });
+
+  it("defaults isTrial to false when not provided", async () => {
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
+    dbMock.classSession.createMany.mockResolvedValue({ count: 1 });
+
+    await createLesson({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2026-09-01",
+      time: "15:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+    });
+
+    expect(dbMock.classSession.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ isTrial: false })],
+    });
+  });
+
   it("warns (does not create) when the chosen time is outside a published availability grid", async () => {
     dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
     // Teacher published an all-empty grid for the lesson's week (2026-09-01 is a

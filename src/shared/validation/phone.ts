@@ -37,6 +37,34 @@ export const russianPhoneSchema = z
     return normalized;
   });
 
+/**
+ * Formats raw keystroke input into a Russian phone mask (`+7 (999) 123-45-67`)
+ * as the user types. Single source of truth for the masking behavior shared
+ * by every phone input in the landing funnel.
+ */
+export function formatRussianPhoneInput(rawValue: string): string {
+  const digits = rawValue.replace(/\D/g, "");
+  if (digits.length === 0) return "";
+
+  let formatted = "+7";
+  const startIdx = digits[0] === "7" || digits[0] === "8" ? 1 : 0;
+  const remaining = digits.substring(startIdx);
+
+  if (remaining.length > 0) {
+    formatted += " (" + remaining.substring(0, 3);
+  }
+  if (remaining.length >= 4) {
+    formatted += ") " + remaining.substring(3, 6);
+  }
+  if (remaining.length >= 7) {
+    formatted += "-" + remaining.substring(6, 8);
+  }
+  if (remaining.length >= 9) {
+    formatted += "-" + remaining.substring(8, 10);
+  }
+  return formatted;
+}
+
 export const russianPhoneOptionalSchema = z
   .string()
   .trim()

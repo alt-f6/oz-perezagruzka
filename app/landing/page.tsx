@@ -1,4 +1,3 @@
-import dynamic from "next/dynamic";
 import type { Metadata } from "next";
 import Header from "@/landing/components/sections/Header";
 import ExamToggle from "@/landing/components/ui/ExamToggle";
@@ -11,6 +10,7 @@ import FAQ from "@/landing/components/sections/FAQ";
 import { FAQ_ITEMS } from "@/landing/data/faq";
 import FinalCTA from "@/landing/components/sections/FinalCTA";
 import Footer from "@/landing/components/sections/Footer";
+import ReadinessMapSection from "@/landing/components/sections/ReadinessMap/ReadinessMapSection";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://perezagruzka-edu.ru";
 
@@ -73,17 +73,6 @@ function faqJsonLd() {
   };
 }
 
-const ReadinessMapWizard = dynamic(
-  () => import("@/landing/components/sections/ReadinessMap/ReadinessMapWizard"),
-  {
-    loading: () => (
-      <div id="readiness-map" className="scroll-mt-20 p-8 text-center text-ink-400">
-        Загрузка...
-      </div>
-    ),
-  },
-);
-
 export default function Home() {
   return (
     <>
@@ -134,7 +123,7 @@ export default function Home() {
           <Pricing />
           <FAQ />
           <FinalCTA />
-          <ReadinessMapWizard />
+          <ReadinessMapSection />
         </div>
         
         <Footer />

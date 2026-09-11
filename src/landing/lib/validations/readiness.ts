@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ExamType } from "@/landing/lib/exam-context";
+import { russianPhoneSchema } from "@/shared/validation/phone";
 
 // Single source of truth for the wizard's selectable option *values*. The UI
 // (`ReadinessMapWizard`) imports these instead of redeclaring its own string
@@ -108,6 +109,10 @@ export const readinessActionInputSchema = z.object({
   utm: utmSchema,
   examType: z.enum(["oge", "ege"] satisfies [ExamType, ExamType]).default("oge"),
   consent: z.literal(true, "Необходимо согласие на обработку персональных данных"),
+  // Kept as a sibling of `input` (like `consent`/`honeypot`) rather than
+  // inside `readinessInputSchema` so it never gets forwarded to the AI
+  // prompt payload or logged into aiChatLog alongside the quiz answers.
+  phone: russianPhoneSchema,
   honeypot: z.string().max(200).optional(),
   formRenderedAt: z.number().optional(),
 });

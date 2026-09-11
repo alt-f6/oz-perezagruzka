@@ -13,7 +13,7 @@ vi.mock("next/headers", () => ({
 }));
 vi.mock("@/landing/lib/db", () => ({
   prisma: {
-    lead: { create: vi.fn(), update: vi.fn() },
+    lead: { create: vi.fn(), update: vi.fn(), findUnique: vi.fn() },
     aiChatLog: { create: vi.fn() },
     $transaction: vi.fn(),
   },
@@ -37,6 +37,7 @@ const VALID_INPUT = {
   sessionId: "session-1",
   utm: {},
   consent: true as const,
+  phone: "9991234567",
 };
 
 describe("submitReadinessMap", () => {
@@ -156,6 +157,78 @@ describe("submitReadinessMap", () => {
       expect.objectContaining({ leadId: "lead-1", consentType: "PRIVACY_POLICY" }),
     );
     expect(generateReadinessMapMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("merges into the existing lead when the phone number already belongs to another lead (P2002)", async () => {
+    checkRateLimitMock.mockResolvedValue({ success: true, remaining: 2, resetAt: Date.now() });
+    const { Prisma } = await import("@prisma/client");
+    const { prisma } = await import("@/landing/lib/db");
+    const { submitReadinessMap } = await import("./readiness");
+
+    vi.mocked(prisma.lead.create).mockReset();
+    vi.mocked(prisma.lead.create).mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+        code: "P2002",
+        clientVersion: "5.0.0",
+      }),
+    );
+    vi.mocked(prisma.lead.findUnique).mockReset();
+    vi.mocked(prisma.lead.findUnique).mockResolvedValue({ id: "existing-lead", name: "Старое имя" } as never);
+    vi.mocked(prisma.lead.update).mockReset();
+    vi.mocked(prisma.lead.update).mockResolvedValue({ id: "existing-lead" } as never);
+    vi.mocked(prisma.aiChatLog.create).mockReset();
+    vi.mocked(prisma.aiChatLog.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.$transaction).mockReset();
+    vi.mocked(prisma.$transaction).mockResolvedValue([] as never);
+    recordConsentMock.mockResolvedValue(undefined);
+    generateReadinessMapMock.mockResolvedValue({
+      output: {
+        readinessScore: 72,
+        whatISee: "...",
+        attentionZones: "...",
+        strengths: "...",
+        futurePaths: "...",
+        firstStep: "...",
+      },
+      model: "gemini-2.5-flash",
+      latencyMs: 100,
+    });
+
+    const result = await submitReadinessMap({ ...VALID_INPUT, formRenderedAt: Date.now() - 10_000 });
+
+    expect(result.status).toBe("success");
+    expect(prisma.lead.findUnique).toHaveBeenCalledWith({ where: { phone: "+79991234567" } });
+    expect(prisma.lead.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "existing-lead" } }),
+    );
+    expect(recordConsentMock).toHaveBeenCalledWith(
+      expect.objectContaining({ leadId: "existing-lead" }),
+    );
+  });
+
+  it("returns a structured error when the P2002 conflict can't be resolved to an existing lead", async () => {
+    checkRateLimitMock.mockResolvedValue({ success: true, remaining: 2, resetAt: Date.now() });
+    const { Prisma } = await import("@prisma/client");
+    const { prisma } = await import("@/landing/lib/db");
+    const { submitReadinessMap } = await import("./readiness");
+
+    vi.mocked(prisma.lead.create).mockReset();
+    vi.mocked(prisma.lead.create).mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+        code: "P2002",
+        clientVersion: "5.0.0",
+      }),
+    );
+    vi.mocked(prisma.lead.findUnique).mockReset();
+    vi.mocked(prisma.lead.findUnique).mockResolvedValue(null);
+
+    const result = await submitReadinessMap({ ...VALID_INPUT, formRenderedAt: Date.now() - 10_000 });
+
+    expect(result).toEqual({
+      status: "error",
+      message: "Не удалось сохранить заявку. Попробуйте ещё раз.",
+    });
+    expect(generateReadinessMapMock).not.toHaveBeenCalled();
   });
 
   it("defaults to ОГЭ in the lead notes when examType is omitted", async () => {

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import ReadinessMapWizard from "./ReadinessMapWizard";
@@ -26,6 +26,7 @@ vi.mock("@/landing/lib/analytics", () => ({
 async function completeAllStepsExceptConsent(
   user: ReturnType<typeof userEvent.setup>,
   deadlineStepTitle = "Сколько времени осталось до ОГЭ?",
+  options: { fillPhone?: string } = {},
 ) {
   // Step 1: name (optional, leave blank)
   await user.click(screen.getByRole("button", { name: "Далее" }));
@@ -47,6 +48,14 @@ async function completeAllStepsExceptConsent(
   await screen.findByText(deadlineStepTitle);
   // Step 6: deadline
   await user.click(screen.getByRole("button", { name: "3–6 месяцев" }));
+
+  // The phone input reformats its own value on every keystroke (same
+  // userEvent + jsdom desync documented in ContactForm.test.tsx), so deliver
+  // the full raw digit string via one native change event instead of typing.
+  const { fillPhone = "9991234567" } = options;
+  if (fillPhone) {
+    fireEvent.change(screen.getByLabelText("Номер телефона"), { target: { value: fillPhone } });
+  }
 }
 
 function setHash(hash: string) {
@@ -160,6 +169,21 @@ describe("ReadinessMapWizard", () => {
     expect(submitReadinessMapMock).not.toHaveBeenCalled();
   });
 
+  it("blocks final submission and shows an inline error when the phone number is missing or incomplete", async () => {
+    const user = userEvent.setup();
+    renderWizard();
+
+    await completeAllStepsExceptConsent(user, undefined, { fillPhone: "999123" });
+    const consentCheckbox = document.getElementById("readiness-consent") as HTMLInputElement;
+    await user.click(consentCheckbox);
+    await user.click(screen.getByRole("button", { name: "Получить карту" }));
+
+    expect(
+      await screen.findByText("Введите корректный номер телефона в формате +7XXXXXXXXXX"),
+    ).toBeInTheDocument();
+    expect(submitReadinessMapMock).not.toHaveBeenCalled();
+  });
+
   it("submits with the collected input and shows the success result on a successful response", async () => {
     submitReadinessMapMock.mockResolvedValue({
       status: "success",
@@ -188,6 +212,7 @@ describe("ReadinessMapWizard", () => {
     expect(callArg.input.subjects).toBe("Математика");
     expect(callArg.input.deadline).toBe("3-6m");
     expect(callArg.examType).toBe("oge");
+    expect(callArg.phone).toBe("+79991234567");
 
     // ResultSuccess does not render the numeric readinessScore anywhere in
     // the DOM (verified by reading ResultSuccess.tsx) - it renders the text
@@ -195,9 +220,16 @@ describe("ReadinessMapWizard", () => {
     expect(await screen.findByText("Карта готовности")).toBeInTheDocument();
     expect(screen.getByText("Хорошая база")).toBeInTheDocument();
     expect(reachGoalMock).toHaveBeenCalledWith("quiz_submitted");
+
+    // The phone was already collected and saved on Step 6, so the success
+    // screen must show a confirmation banner instead of asking again.
+    expect(
+      screen.getByText(/Заявка принята! Ваш номер \+7 \(999\) 123-45-67 зафиксирован/),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Номер телефона")).not.toBeInTheDocument();
   });
 
-  it("renders the fallback view (with its own ContactForm) when the API call fails Zod validation server-side", async () => {
+  it("renders the fallback view with a phone-confirmation banner (no repeat ContactForm) when the API call fails server-side", async () => {
     submitReadinessMapMock.mockResolvedValue({
       status: "fallback",
       leadId: "lead-2",
@@ -215,6 +247,10 @@ describe("ReadinessMapWizard", () => {
       await screen.findByText("Наш ИИ сейчас перегружен. Мы сохранили вашу заявку."),
     ).toBeInTheDocument();
     expect(screen.getByText("Заявка сохранена")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Заявка принята! Ваш номер \+7 \(999\) 123-45-67 зафиксирован/),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Номер телефона")).not.toBeInTheDocument();
   });
 
   it("shows a submit error and returns to the form when the action call rejects", async () => {

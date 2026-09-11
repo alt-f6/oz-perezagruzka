@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import type { ReadinessOutput } from "@/landing/lib/validations/readiness";
 import Atmosphere from "@/landing/components/ui/Atmosphere";
-import { ContactForm } from "./ContactForm";
 import { useExam } from "@/landing/lib/exam-context";
 import { RESULT_ATTENTION_ZONES_TITLE, RESULT_COPY_HEADER } from "@/landing/lib/exam-content";
 import { createLogger } from "@/shared/lib/logger";
@@ -14,9 +13,10 @@ const logger = createLogger("landing.readiness-map.result-success");
 interface ResultSuccessProps {
   leadId: string;
   map: ReadinessOutput;
+  phone: string;
 }
 
-export function ResultSuccess({ leadId, map }: ResultSuccessProps) {
+export function ResultSuccess({ map, phone }: ResultSuccessProps) {
   const prefersReducedMotion = useReducedMotion();
   const sectionRef = useRef<HTMLElement>(null);
   const [copied, setCopied] = useState(false);
@@ -154,14 +154,11 @@ export function ResultSuccess({ leadId, map }: ResultSuccessProps) {
               )}
             </button>
 
-            <div className="rounded-2xl border border-brand-100 bg-brand-50/60 p-6 sm:p-8">
-              <h5 className="font-extrabold text-base text-ink-900 mb-2">
-                Хотите понять реальный уровень ребенка по конкретному предмету?
-              </h5>
-              <p className="text-sm text-ink-600 leading-relaxed mb-6 font-medium">
-                Запишитесь на индивидуальную бесплатную консультацию. Мы составим пошаговый трек подготовки.
+            <div className="rounded-2xl border border-brand-200 bg-brand-50 p-6 sm:p-8 text-center">
+              <p className="font-extrabold text-brand-700 text-sm md:text-base leading-relaxed">
+                ✓ Заявка принята! Ваш номер {phone} зафиксирован. Эксперт подготовит детальный
+                разбор и свяжется с вами в течение 15 минут (с 09:00 до 21:00).
               </p>
-              <ContactForm leadId={leadId} ctaLabel="Записаться на бесплатный разбор" />
             </div>
 
           </div>

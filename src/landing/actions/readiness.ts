@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { Prisma, type Lead } from "@prisma/client";
 import { prisma } from "@/landing/lib/db";
 import { checkRateLimit } from "@/landing/lib/rate-limit";
 import { hashRequestHeaders } from "@/landing/lib/request-ip";
@@ -31,7 +32,7 @@ export async function submitReadinessMap(
   if (!parsed.success) {
     return { status: "error", message: "Проверьте заполненные поля и попробуйте снова." };
   }
-  const { input, sessionId, utm, examType } = parsed.data;
+  const { input, sessionId, utm, examType, phone } = parsed.data;
 
   const hdrs = await headers();
   const ipHash = hashRequestHeaders(hdrs);
@@ -52,31 +53,58 @@ export async function submitReadinessMap(
     return {
       status: "fallback",
       leadId: "bot-detected",
-      message:
-        "Спасибо! Мы сохранили вашу заявку — оставьте WhatsApp, и наш эксперт пришлёт карту готовности лично.",
+      message: "Спасибо! Мы сохранили вашу заявку.",
     };
   }
 
-  const lead = await prisma.lead.create({
-    data: {
-      name: input.name?.trim() || "Без имени",
-      source: "READINESS_MAP",
-      status: "NEW",
-      // No dedicated exam-type column on Lead - recorded as a notes prefix
-      // so CRM managers see it at a glance without a schema migration.
-      notes: `Экзамен: ${examType === "ege" ? "ЕГЭ" : "ОГЭ"}`,
-      sessionId,
-      ipHash,
-      utmSource: utm?.utmSource,
-      utmMedium: utm?.utmMedium,
-      utmCampaign: utm?.utmCampaign,
-      utmContent: utm?.utmContent,
-      utmTerm: utm?.utmTerm,
-      clickId: utm?.clickId,
-      referrer: utm?.referrer,
-      landingPage: utm?.landingPage,
-    },
-  });
+  const leadAttribution = {
+    // No dedicated exam-type column on Lead - recorded as a notes prefix
+    // so CRM managers see it at a glance without a schema migration.
+    notes: `Экзамен: ${examType === "ege" ? "ЕГЭ" : "ОГЭ"}`,
+    sessionId,
+    ipHash,
+    utmSource: utm?.utmSource,
+    utmMedium: utm?.utmMedium,
+    utmCampaign: utm?.utmCampaign,
+    utmContent: utm?.utmContent,
+    utmTerm: utm?.utmTerm,
+    clickId: utm?.clickId,
+    referrer: utm?.referrer,
+    landingPage: utm?.landingPage,
+  };
+
+  let lead: Lead;
+  try {
+    lead = await prisma.lead.create({
+      data: {
+        name: input.name?.trim() || "Без имени",
+        phone,
+        source: "READINESS_MAP",
+        status: "NEW",
+        ...leadAttribution,
+      },
+    });
+  } catch (err) {
+    if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) {
+      throw err;
+    }
+
+    // This phone number already belongs to another lead (e.g. a repeat quiz
+    // attempt) - update that existing record with the fresh submission
+    // instead of failing the whole flow.
+    const existingLead = await prisma.lead.findUnique({ where: { phone } });
+    if (!existingLead) {
+      return { status: "error", message: "Не удалось сохранить заявку. Попробуйте ещё раз." };
+    }
+
+    lead = await prisma.lead.update({
+      where: { id: existingLead.id },
+      data: {
+        name: input.name?.trim() || existingLead.name,
+        ...leadAttribution,
+      },
+    });
+  }
 
   await recordConsent({
     leadId: lead.id,
@@ -141,8 +169,7 @@ export async function submitReadinessMap(
     return {
       status: "fallback",
       leadId: lead.id,
-      message:
-        "Наш ИИ сейчас перегружен. Мы сохранили вашу заявку — оставьте WhatsApp, и наш эксперт пришлёт карту готовности лично.",
+      message: "Наш ИИ сейчас перегружен. Мы сохранили вашу заявку — эксперт подготовит карту готовности вручную.",
     };
   }
 }

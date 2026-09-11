@@ -7,7 +7,7 @@ import { z } from "zod";
 import { motion, AnimatePresence } from "framer-motion";
 import { attachLeadContact } from "@/landing/actions/lead";
 import { LegalCheckbox } from "@/landing/components/ui/LegalCheckbox";
-import { normalizeRussianPhone } from "@/shared/validation/phone";
+import { formatRussianPhoneInput, normalizeRussianPhone } from "@/shared/validation/phone";
 
 const contactFormSchema = z.object({
   phone: z
@@ -67,32 +67,8 @@ export function ContactForm({ leadId, ctaLabel }: ContactFormProps) {
 
   const phoneRegister = form.register("phone", {
     onChange: (e) => {
-      const rawValue = e.target.value;
-      const digits = rawValue.replace(/\D/g, "");
-      
-      let formatted = "";
-      if (digits.length > 0) {
-        formatted = "+7";
-        if (digits.length > 1) {
-          const startIdx = digits[0] === "7" || digits[0] === "8" ? 1 : 0;
-          const remaining = digits.substring(startIdx);
-          
-          if (remaining.length > 0) {
-            formatted += " (" + remaining.substring(0, 3);
-          }
-          if (remaining.length >= 4) {
-            formatted += ") " + remaining.substring(3, 6);
-          }
-          if (remaining.length >= 7) {
-            formatted += "-" + remaining.substring(6, 8);
-          }
-          if (remaining.length >= 9) {
-            formatted += "-" + remaining.substring(8, 10);
-          }
-        }
-      }
-      form.setValue("phone", formatted, { shouldValidate: true });
-    }
+      form.setValue("phone", formatRussianPhoneInput(e.target.value), { shouldValidate: true });
+    },
   });
 
   if (state === "done") {

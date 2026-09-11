@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -16,6 +16,7 @@ import {
 import { submitReadinessMap, type ReadinessActionResult } from "@/landing/actions/readiness";
 import { reachGoal } from "@/landing/lib/analytics";
 import { LegalCheckbox } from "@/landing/components/ui/LegalCheckbox";
+import { formatRussianPhoneInput, russianPhoneSchema } from "@/shared/validation/phone";
 import Atmosphere from "@/landing/components/ui/Atmosphere";
 import { useExam } from "@/landing/lib/exam-context";
 import {
@@ -156,6 +157,8 @@ export default function ReadinessMapWizard() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [consent, setConsent] = useState(false);
   const [consentError, setConsentError] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   const [selectedGrade, setSelectedGrade] = useState<ReadinessInput["grade"]>(QUIZ_DEFAULT_GRADE[exam]);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
@@ -270,6 +273,11 @@ export default function ReadinessMapWizard() {
     form.setValue("deadline", value, { shouldValidate: true, shouldDirty: true });
   };
 
+  const handlePhoneChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setPhone(formatRussianPhoneInput(e.target.value));
+    if (phoneError) setPhoneError(null);
+  };
+
   const goNext = useCallback(async () => {
     const valid = await form.trigger(currentStep.key);
     if (!valid) return;
@@ -282,8 +290,14 @@ export default function ReadinessMapWizard() {
       return;
     }
 
+    const phoneResult = russianPhoneSchema.safeParse(phone);
+    setPhoneError(phoneResult.success ? null : (phoneResult.error.issues[0]?.message ?? "Введите корректный номер телефона"));
+
     if (!consent) {
       setConsentError(true);
+    }
+
+    if (!phoneResult.success || !consent) {
       return;
     }
 
@@ -296,6 +310,7 @@ export default function ReadinessMapWizard() {
         utm,
         examType: exam,
         consent,
+        phone: phoneResult.data,
         honeypot: honeypotRef.current?.value,
         formRenderedAt: formRenderedAt ?? undefined,
       });
@@ -312,7 +327,7 @@ export default function ReadinessMapWizard() {
       setSubmitError("Не получилось отправить форму. Проверьте соединение и попробуйте снова.");
       setPhase("form");
     }
-  }, [consent, currentStep.key, exam, form, formRenderedAt, isLastStep, sessionId, stepIndex, utm]);
+  }, [consent, currentStep.key, exam, form, formRenderedAt, isLastStep, phone, sessionId, stepIndex, utm]);
 
   const goBack = useCallback(() => {
     setDirection(-1);
@@ -325,9 +340,9 @@ export default function ReadinessMapWizard() {
 
   if (phase === "result" && result) {
     return result.status === "success" ? (
-      <ResultSuccess leadId={result.leadId} map={result.map} />
+      <ResultSuccess leadId={result.leadId} map={result.map} phone={phone} />
     ) : (
-      <ResultFallback leadId={result.leadId} message={result.message} />
+      <ResultFallback leadId={result.leadId} message={result.message} phone={phone} />
     );
   }
 
@@ -643,7 +658,34 @@ export default function ReadinessMapWizard() {
           </AnimatePresence>
 
           {isLastStep && (
-            <div className="mt-6">
+            <div className="mt-6 space-y-4">
+              <div>
+                <label htmlFor="readiness-phone" className="sr-only">
+                  Номер телефона
+                </label>
+                <input
+                  id="readiness-phone"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="+7 (999) 123-45-67"
+                  value={phone}
+                  onChange={handlePhoneChange}
+                  aria-invalid={phoneError ? true : undefined}
+                  aria-describedby={phoneError ? "readiness-phone-error" : undefined}
+                  className={`min-h-[44px] w-full rounded-2xl border px-6 py-4 text-base text-ink-900 placeholder:text-ink-400 outline-none transition-all duration-300 ${
+                    phoneError
+                      ? "border-rose-400/60 bg-rose-50 focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
+                      : "border-ink-200 bg-white focus:border-brand-400 focus:ring-4 focus:ring-brand-100"
+                  }`}
+                />
+                {phoneError && (
+                  <p id="readiness-phone-error" className="mt-2 text-xs font-bold text-rose-500 flex items-center gap-1.5 pl-1">
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-rose-500" />
+                    {phoneError}
+                  </p>
+                )}
+              </div>
               <LegalCheckbox
                 checked={consent}
                 onChange={(value) => {

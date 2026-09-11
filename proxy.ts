@@ -70,6 +70,12 @@ function isRootStaticAssetPath(pathname: string) {
   return ROOT_STATIC_ASSET_PATHS.has(pathname) || ROOT_STATIC_ASSET_EXTENSIONS.test(pathname);
 }
 
+const COURSES_PATH_PREFIX = "/courses/";
+
+function isCoursesAssetPath(pathname: string) {
+  return pathname.startsWith(COURSES_PATH_PREFIX);
+}
+
 function isPublicPath(app: "crm" | "lms", pathname: string) {
   if (isStaticAssetPath(pathname)) return true;
   const publicPrefixes =
@@ -100,6 +106,10 @@ export async function proxy(request: NextRequest) {
   const response = NextResponse.next();
 
   if (isRootStaticAssetPath(pathname)) {
+    return response;
+  }
+
+  if (isCoursesAssetPath(pathname)) {
     return response;
   }
 

@@ -102,4 +102,14 @@ describe("proxy fail-closed routing", () => {
       }
     },
   );
+
+  it.each(["crm.example.com", "lms.example.com", "landing.example.com"])(
+    "never rewrites /courses/* into the %s app namespace",
+    async (host) => {
+      const res = await proxy(makeRequest(host, "/courses/math-ege-base/01_Vychisleniya.html"));
+
+      expect(res.headers.get("x-middleware-rewrite")).toBeNull();
+      expect(authMocks.getSessionUserFromRequest).not.toHaveBeenCalled();
+    },
+  );
 });

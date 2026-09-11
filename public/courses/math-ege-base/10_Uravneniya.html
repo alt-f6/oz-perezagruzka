@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Уравнения — конспект урока</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800;900&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --accent: #1FA8FF;
+    --accent-dark: #0B5C8F;
+    --accent-soft: #1FA8FF1A;
+    --accent-soft2: #1FA8FF33;
+    --ink: #17181C;
+    --ink-soft: #4A4B52;
+    --paper: #FBFAF7;
+    --card: #FFFFFF;
+    --line: #ECEAE3;
+    --ok: #1D9A6C;
+    --warn: #E24B4B;
+    --radius: 20px;
+    --radius-sm: 12px;
+    --maxw: 760px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    width: 100%;
+    min-height: 100%;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Manrope', -apple-system, sans-serif;
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  img, svg { max-width: 100%; }
+  .wrap { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 5vw 60px; }
+  h1, h2 { font-family: 'Unbounded', 'Manrope', sans-serif; }
+
+  /* progress strip */
+  .topbar {
+    background: var(--ink);
+    color: #fff;
+    font-family: 'Manrope', sans-serif;
+    font-weight: 700;
+    font-size: 12.5px;
+    letter-spacing: .02em;
+    padding: 9px 4vw;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+  .topbar span { white-space: nowrap; }
+  .topbar .prog-track {
+    flex: 1 1 80px;
+    min-width: 50px;
+    max-width: 220px;
+    height: 6px;
+    background: rgba(255,255,255,.18);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .topbar .prog-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 99px;
+    width: 77%;
+  }
+
+  /* hero */
+  .hero {
+    width: 100%;
+    padding: clamp(28px, 8vw, 56px) 5vw clamp(24px, 6vw, 46px);
+    background:
+      radial-gradient(circle at 14% 20%, var(--accent-soft2), transparent 45%),
+      radial-gradient(circle at 88% 0%, var(--accent-soft), transparent 40%),
+      var(--paper);
+    border-bottom: 3px solid var(--ink);
+  }
+  .hero-inner { width: 100%; max-width: var(--maxw); margin: 0 auto; }
+  .hero-emoji {
+    font-size: clamp(38px, 9vw, 56px);
+    display: inline-block;
+    line-height: 1;
+    margin-bottom: 14px;
+  }
+  .hero-tag {
+    display: inline-block;
+    background: var(--ink);
+    color: #fff;
+    font-family: 'Manrope', sans-serif;
+    font-weight: 800;
+    font-size: 13px;
+    letter-spacing: .03em;
+    padding: 6px 14px;
+    border-radius: 99px;
+    margin-bottom: 18px;
+  }
+  .hero h1 {
+    font-size: clamp(30px, 5vw, 44px);
+    font-weight: 800;
+    line-height: 1.12;
+    margin: 0 0 10px;
+    max-width: 14ch;
+  }
+  .hero .sub {
+    font-size: 16px;
+    color: var(--ink-soft);
+    font-weight: 600;
+    margin: 0;
+  }
+  .hero .time-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 18px;
+    background: var(--card);
+    border: 2px solid var(--ink);
+    border-radius: 99px;
+    padding: 7px 16px;
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  /* reveal animation */
+  .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity .6s cubic-bezier(.16,1,.3,1), transform .6s cubic-bezier(.16,1,.3,1);
+  }
+  .reveal.is-in { opacity: 1; transform: translateY(0); }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal { opacity: 1; transform: none; transition: none; }
+    html { scroll-behavior: auto; }
+  }
+
+  /* section headers */
+  section { margin-top: 52px; }
+  .sec-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .sec-emoji {
+    width: 44px; height: 44px; min-width: 44px;
+    border-radius: 12px;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+  .sec-head h2 { font-size: 22px; font-weight: 700; margin: 0; }
+
+  /* metaphor */
+  .metaphor-card {
+    background: var(--card);
+    border: 2.5px solid var(--ink);
+    border-radius: var(--radius);
+    padding: clamp(18px, 5vw, 26px) clamp(18px, 5vw, 28px);
+    box-shadow: 6px 6px 0 var(--accent);
+  }
+  .metaphor-card .m-title {
+    font-family: 'Unbounded', sans-serif;
+    font-weight: 700;
+    font-size: 17px;
+    color: var(--accent-dark);
+    margin: 0 0 10px;
+  }
+  .metaphor-card p { margin: 0; color: var(--ink); }
+
+  /* plan */
+  .plan-list { list-style: none; margin: 0; padding: 0; counter-reset: step; }
+  .plan-list li {
+    counter-increment: step;
+    display: flex;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1.5px dashed var(--line);
+    align-items: flex-start;
+  }
+  .plan-list li:last-child { border-bottom: none; }
+  .plan-list li::before {
+    content: counter(step);
+    flex: none;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: #fff;
+    font-family: 'Unbounded', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .plan-list li p { margin: 4px 0 0; font-weight: 600; }
+
+  /* examples */
+  .ex-card {
+    background: var(--card);
+    border: 2px solid var(--line);
+    border-left: 6px solid var(--accent);
+    border-radius: var(--radius-sm);
+    padding: clamp(14px, 4vw, 20px) clamp(14px, 4vw, 22px);
+    margin-bottom: 18px;
+  }
+  .ex-num {
+    display: inline-block;
+    font-family: 'Unbounded', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-dark);
+    background: var(--accent-soft);
+    padding: 4px 10px;
+    border-radius: 99px;
+    margin-bottom: 10px;
+    letter-spacing: .03em;
+  }
+  .ex-problem { font-weight: 700; margin: 0 0 12px; }
+  details.ex-details { margin-top: 4px; }
+  details.ex-details summary {
+    cursor: pointer;
+    font-weight: 800;
+    color: var(--accent-dark);
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    padding: 8px 14px;
+    background: var(--accent-soft);
+    border-radius: 99px;
+    user-select: none;
+  }
+  details.ex-details summary::-webkit-details-marker { display: none; }
+  details.ex-details summary::after { content: '👉 показать решение'; }
+  details.ex-details[open] summary::after { content: '🙈 скрыть решение'; }
+  .ex-solution {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1.5px dashed var(--line);
+  }
+  .ex-solution p { margin: 0 0 10px; color: var(--ink-soft); }
+  .ex-answer {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Unbounded', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    background: var(--ink);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* memes */
+  .meme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  @media (max-width: 640px) { .meme-grid { grid-template-columns: 1fr; } }
+  .meme {
+    background: var(--card);
+    border: 2.5px solid var(--ink);
+    border-radius: 16px;
+    padding: 18px;
+    box-shadow: 5px 5px 0 var(--ink);
+  }
+  .meme:nth-child(odd) { transform: rotate(-1.1deg); }
+  .meme:nth-child(even) { transform: rotate(1.1deg); }
+  .drake-row { display: flex; align-items: center; gap: 12px; padding: 10px 8px; border-radius: 10px; }
+  .drake-reject { background: #FDEBEC; }
+  .drake-prefer { background: var(--accent-soft); margin-top: 8px; }
+  .drake-emoji { font-size: 26px; flex: none; }
+  .drake-row p { margin: 0; font-weight: 700; font-size: 14.5px; }
+  .brain-row { display: flex; align-items: center; gap: 12px; padding: 8px; }
+  .brain-emoji { font-size: 20px; flex: none; width: 44px; }
+  .brain-row p { margin: 0; font-weight: 600; font-size: 14px; color: var(--ink-soft); }
+  .brain-top { background: var(--accent-soft); border-radius: 10px; }
+  .brain-top p { color: var(--ink); font-weight: 800; }
+  .meme-buttons { text-align: center; }
+  .sweat-emoji { font-size: 30px; margin-bottom: 10px; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .fake-btn {
+    flex: 1 1 120px;
+    background: var(--ink);
+    color: #fff;
+    font-weight: 700;
+    font-size: 13px;
+    padding: 12px 10px;
+    border-radius: 10px;
+  }
+  .meme-chat { display: flex; align-items: center; min-height: 90px; }
+  .chat-bubble {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 14px 18px;
+    border-radius: 18px 18px 18px 4px;
+  }
+
+  /* hacks & mistakes */
+  .tip-list, .warn-list { display: grid; gap: 12px; }
+  .tip-item, .warn-item {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    background: var(--card);
+    border-radius: var(--radius-sm);
+    padding: 16px 18px;
+    border: 2px solid var(--line);
+  }
+  .tip-item { border-left: 6px solid var(--ok); }
+  .warn-item { border-left: 6px solid var(--warn); }
+  .tip-item .ico, .warn-item .ico { font-size: 20px; flex: none; }
+  .tip-item p, .warn-item p { margin: 0; font-weight: 600; }
+
+  footer {
+    width: 100%;
+    max-width: var(--maxw);
+    margin: 70px auto 0;
+    padding: 24px 5vw 40px;
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 13px;
+    font-weight: 600;
+    border-top: 2px dashed var(--line);
+  }
+
+  @media (max-width: 380px) {
+    body { font-size: 16px; }
+    .topbar { font-size: 11px; padding: 8px 4vw; }
+    .hero-tag { font-size: 12px; padding: 5px 12px; }
+    .sec-head h2 { font-size: 19px; }
+    .sec-emoji { width: 38px; height: 38px; min-width: 38px; font-size: 19px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span>Урок 10 из 13</span>
+  <div class="prog-track"><div class="prog-fill"></div></div>
+  <span>Задание №17</span>
+</div>
+
+<div class="hero">
+  <div class="hero-inner">
+    <span class="hero-emoji">🔑</span>
+    <div><span class="hero-tag">Задание №17</span></div>
+    <h1>Уравнения</h1>
+    <p class="sub">Конспект урока для подготовки к базовому ЕГЭ по математике</p>
+    <span class="time-badge">⏱️ 5-7 минут на чтение</span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <section class="reveal">
+    <div class="sec-head"><div class="sec-emoji">🎯</div><h2>Метафора: Ключ к замку</h2></div>
+    <div class="metaphor-card">
+      <p>Уравнение — закрытый замок, x — ключ, который ты ищешь. У каждого «типа замка» (показательный, логарифмический, квадратный, с корнем) есть свой стандартный способ подбора ключа. Не изобретай способ заново каждый раз — узнай тип замка и применяй нужный метод.</p>
+    </div>
+  </section>
+
+  <section class="reveal">
+    <div class="sec-head"><div class="sec-emoji">🗺️</div><h2>Как решать: план</h2></div>
+    <ul class="plan-list">
+      <li><p>Определи тип по внешнему виду: x в степени, под логарифмом, под корнем, или x²</p></li>
+<li><p>Показательное: приведи к одному основанию, приравняй показатели</p></li>
+<li><p>Логарифмическое: приведи к одному основанию, приравняй выражения под ним</p></li>
+<li><p>Квадратное: перенеси всё влево, найди дискриминант, посчитай корни</p></li>
+<li><p>С корнем: возведи в квадрат, реши, обязательно проверь корень подстановкой</p></li>
+    </ul>
+  </section>
+
+  <section class="reveal">
+    <div class="sec-head"><div class="sec-emoji">✏️</div><h2>Три разбора</h2></div>
+    
+        <div class="ex-card">
+          <span class="ex-num">РАЗБОР 1</span>
+          <p class="ex-problem">Найдите корень уравнения 2^(9−x) = 8.</p>
+          <details class="ex-details">
+            <summary></summary>
+            <div class="ex-solution">
+              <p>8 = 2³. Значит 9 − x = 3.</p>
+              <span class="ex-answer">✅ Ответ: 6</span>
+            </div>
+          </details>
+        </div>
+
+        <div class="ex-card">
+          <span class="ex-num">РАЗБОР 2</span>
+          <p class="ex-problem">Решите x² + 5x = −6. Если корней больше одного, запишите больший.</p>
+          <details class="ex-details">
+            <summary></summary>
+            <div class="ex-solution">
+              <p>x² + 5x + 6 = 0. D = 25−24 = 1. x = (−5±1)/2, то есть −2 и −3. Больший — −2.</p>
+              <span class="ex-answer">✅ Ответ: −2</span>
+            </div>
+          </details>
+        </div>
+
+        <div class="ex-card">
+          <span class="ex-num">РАЗБОР 3</span>
+          <p class="ex-problem">Найдите корень уравнения √(13 − x) = 3.</p>
+          <details class="ex-details">
+            <summary></summary>
+            <div class="ex-solution">
+              <p>Возводим в квадрат: 13 − x = 9. Проверка: √(13−4)=√9=3 — верно.</p>
+              <span class="ex-answer">✅ Ответ: 4</span>
+            </div>
+          </details>
+        </div>
+  </section>
+
+  <section class="reveal">
+    <div class="sec-head"><div class="sec-emoji">😂</div><h2>Мемы по теме</h2></div>
+    <div class="meme-grid">
+      
+        <div class="meme meme-buttons">
+          <div class="sweat-emoji" aria-hidden="true">😰</div>
+          <div class="btn-row">
+            <div class="fake-btn">Решать уравнение подбором наугад</div>
+            <div class="fake-btn">Решить по алгоритму за 20 секунд</div>
+          </div>
+        </div>
+
+        <div class="meme meme-chat">
+          <div class="chat-bubble">Когда не проверил корень уравнения с корнем и получил «лишний» ответ 🚫</div>
+        </div>
+    </div>
+  </section>
+
+  <section class="reveal">
+    <div class="sec-head"><div class="sec-emoji">⚡</div><h2>Три лайфхака</h2></div>
+    <div class="tip-list">
+      <div class="tip-item"><span class="ico">💡</span><p>Приводи к одному основанию сразу, не считая — это самое важное первое действие</p></div>
+<div class="tip-item"><span class="ico">💡</span><p>Дискриминант — не гадание, всегда идёшь через формулу D = b²−4ac</p></div>
+<div class="tip-item"><span class="ico">💡</span><p>С корнем: сначала реши до конца, проверку сделай одной подстановкой в самом конце</p></div>
+    </div>
+  </section>
+
+  <section class="reveal">
+    <div class="sec-head"><div class="sec-emoji">⚠️</div><h2>Три типичные ошибки</h2></div>
+    <div class="warn-list">
+      <div class="warn-item"><span class="ico">🚫</span><p>Не проверяют корень в уравнении с корнем/логарифмом — появляются «лишние» корни</p></div>
+<div class="warn-item"><span class="ico">🚫</span><p>Путают знаки в формуле дискриминанта или корней</p></div>
+<div class="warn-item"><span class="ico">🚫</span><p>Не дочитывают вопрос до конца (просят больший корень, а пишут оба)</p></div>
+    </div>
+  </section>
+
+</div>
+
+<footer>Курс подготовки к базовому ЕГЭ по математике &middot; Урок 10 из 13</footer>
+
+<script>
+  (function() {
+    var els = document.querySelectorAll('.reveal');
+    if (!('IntersectionObserver' in window)) {
+      els.forEach(function(el) { el.classList.add('is-in'); });
+      return;
+    }
+    var io = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-in');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12 });
+    els.forEach(function(el) { io.observe(el); });
+  })();
+</script>
+
+</body>
+</html>

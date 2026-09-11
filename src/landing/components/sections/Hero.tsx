@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import Image from "next/image";
 import { reachGoal } from "@/landing/lib/analytics";
 import { useExam } from "@/landing/lib/exam-context";
 import {
@@ -124,29 +125,24 @@ export default function Hero() {
           </div>
         </div>
 
-        <div className="relative mx-auto w-full max-w-[320px] flex-1 lg:mx-0 lg:max-w-[380px]">
-          <div className="relative aspect-[9/16] w-full overflow-hidden rounded-[2rem] border-4 border-white shadow-2xl shadow-brand-900/20">
-            <video
-              className="h-full w-full object-cover"
-              poster="/landing/photos/photo_2023-06-19_11-11-04.jpg"
-              autoPlay
-              muted
-              loop
-              playsInline
-              aria-hidden="true"
-            >
-              <source src="/landing/videos/4873106-hd_1080_1920_25fps.mp4" type="video/mp4" />
-            </video>
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink-900/60 via-transparent to-transparent"
+        <div className="relative mx-auto w-full max-w-[320px] flex-1 lg:mx-0 lg:max-w-[420px]">
+          <div
+            aria-hidden="true"
+            className="absolute -bottom-8 -left-8 -z-10 h-44 w-44 rounded-full bg-pink/35 blur-2xl"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute -top-8 -right-8 -z-10 h-44 w-44 rounded-full bg-neon/35 blur-2xl"
+          />
+          <div className="relative aspect-[3/4] w-full overflow-hidden rounded-[22px] border-[4px] border-electric shadow-xl">
+            <Image
+              src="/landing/photos/photo_2026-08-23_11-25-16.jpg"
+              alt="Ученики «Перезагрузки» за партой на фоне доски с надписью «Перезагрузка»"
+              fill
+              priority
+              sizes="(min-width: 1024px) 420px, (min-width: 640px) 60vw, 90vw"
+              className="object-cover object-center"
             />
-            <div className="pointer-events-none absolute bottom-4 left-4 right-4 flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 shadow-sm backdrop-blur-md">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm">
-                🤖
-              </span>
-              <span className="text-xs font-bold text-ink-900">ИИ на связи 24/7</span>
-            </div>
           </div>
         </div>
 

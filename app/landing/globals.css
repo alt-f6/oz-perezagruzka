@@ -60,6 +60,15 @@
   --color-hero-glow-lime: #aaee00;
   --color-hero-frame-blue: #0055ff;
 
+  /* Brandbook v2 flat token aliases — same hex values as the scales above,
+     exposed as single-name utilities (bg-electric, text-ink, border-neon,
+     etc.) per the brandbook spec. */
+  --color-sky: #bee0f5;
+  --color-electric: #0055ff;
+  --color-neon: #aaee00;
+  --color-pink: #ff6eb4;
+  --color-ink: #111111;
+
   /* Social brand colors — intentional exceptions to the brand/accent/ink
      palette, used only for the floating contact buttons and share icons. */
   --color-telegram: #26a5e4;
@@ -141,6 +150,12 @@
   --color-hero-glow-pink: var(--color-hero-glow-pink);
   --color-hero-glow-lime: var(--color-hero-glow-lime);
   --color-hero-frame-blue: var(--color-hero-frame-blue);
+
+  --color-sky: var(--color-sky);
+  --color-electric: var(--color-electric);
+  --color-neon: var(--color-neon);
+  --color-pink: var(--color-pink);
+  --color-ink: var(--color-ink);
 
   --color-telegram: var(--color-telegram);
   --color-telegram-share: var(--color-telegram-share);

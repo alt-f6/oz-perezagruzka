@@ -345,6 +345,57 @@ export const setAttendanceUpdateSchema = z.object({
 
 export type SetAttendanceUpdateValues = z.infer<typeof setAttendanceUpdateSchema>;
 
+export const submissionStatusEnum = z.enum([
+  "SUBMITTED",
+  "GRADED",
+  "REJECTED",
+  "NEEDS_REVISION",
+]);
+
+// submitHomework payload (app/crm/(student)/portal/actions.ts). Requires at
+// least one of content/fileKey -- an empty submission has nothing for a
+// teacher to grade.
+export const submitHomeworkSchema = z
+  .object({
+    lessonId: z.uuid(),
+    content: z.string().trim().max(5000, { message: "Слишком длинный ответ" }).optional(),
+    fileKey: z.string().trim().min(1).optional(),
+  })
+  .refine((v) => Boolean(v.content) || Boolean(v.fileKey), {
+    message: "Добавьте текст ответа или файл",
+    path: ["content"],
+  });
+
+export type SubmitHomeworkValues = z.infer<typeof submitHomeworkSchema>;
+
+// gradeSubmission payload (app/crm/(dashboard)/lessons/actions.ts). A score
+// is only required when the teacher actually marks the work GRADED --
+// REJECTED/NEEDS_REVISION are feedback-only outcomes with no numeric grade.
+export const gradeSubmissionSchema = z
+  .object({
+    submissionId: z.uuid(),
+    status: submissionStatusEnum,
+    score: z
+      .number()
+      .int()
+      .min(1, { message: "Оценка должна быть от 1 до 5" })
+      .max(5, { message: "Оценка должна быть от 1 до 5" })
+      .nullable()
+      .optional(),
+    teacherComment: z
+      .string()
+      .trim()
+      .max(2000, { message: "Комментарий слишком длинный" })
+      .nullable()
+      .optional(),
+  })
+  .refine((v) => v.status !== "GRADED" || v.score != null, {
+    message: "Укажите оценку от 1 до 5",
+    path: ["score"],
+  });
+
+export type GradeSubmissionValues = z.infer<typeof gradeSubmissionSchema>;
+
 export const leadStatusEnum = z.enum([
   "NEW",
   "CONTACTED",

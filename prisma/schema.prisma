@@ -33,6 +33,13 @@ enum TransactionType {
   ADJUSTMENT
 }
 
+enum SubmissionStatus {
+  SUBMITTED
+  GRADED
+  REJECTED
+  NEEDS_REVISION
+}
+
 enum PaymentIntentStatus {
   PENDING
   SUCCEEDED
@@ -93,14 +100,15 @@ model User {
   updatedAt    DateTime @updatedAt
 
   // CRM: staff-side relations
-  students      Student[]
-  groups        Group[]         @relation("GroupTeacher")
-  classSessions ClassSession[]  @relation("ClassSessionTeacher")
-  rates         TeacherRate[]
-  payouts       TeacherPayout[]
-  availability  TeacherAvailability[]
-  invites       Invite[]        @relation("InviteInviter")
-  parentProfile Parent?         @relation("ParentUser")
+  students          Student[]
+  groups            Group[]               @relation("GroupTeacher")
+  classSessions     ClassSession[]        @relation("ClassSessionTeacher")
+  rates             TeacherRate[]
+  payouts           TeacherPayout[]
+  availability      TeacherAvailability[]
+  invites           Invite[]              @relation("InviteInviter")
+  parentProfile     Parent?               @relation("ParentUser")
+  gradedSubmissions Submission[]          @relation("GradedSubmissions")
 
   // Lead conversion: a Lead becomes a User (role STUDENT) upon payment
   convertedFromLead Lead?
@@ -165,17 +173,17 @@ model Parent {
 
 // A "Student" is a CRM child profile, distinct from its optional User login account.
 model Student {
-  id        String    @id @default(uuid())
-  userId    String?
-  fullName  String
-  phone     String?   @unique
+  id          String    @id @default(uuid())
+  userId      String?
+  fullName    String
+  phone       String?   @unique
   // Operator-entered contact email for the student, editable on the profile
   // card and used to seed the LMS invite. Deliberately NOT a DB unique
   // constraint: uniqueness is validated gracefully in the app layer (against
   // other students and existing User accounts) so a collision surfaces as a
   // friendly message instead of a raw P2002. The authoritative login-identity
   // uniqueness still lives on User.email / Invite.email.
-  email     String?
+  email       String?
   // Denormalized parent contact captured directly on the student card. Kept
   // alongside (not in place of) the richer Parent/ParentStudent portal model:
   // this is the quick operational contact an operator fills in on the profile,
@@ -195,8 +203,8 @@ model Student {
   // student (YooKassa webhook or a manual admin credit) -- see
   // src/crm/lib/services/offer.service.ts. Never cleared/reset.
   offerSentAt DateTime?
-  createdAt DateTime  @default(now())
-  deletedAt DateTime?
+  createdAt   DateTime  @default(now())
+  deletedAt   DateTime?
 
   user           User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
   parents        ParentStudent[]
@@ -209,6 +217,7 @@ model Student {
   examResults    StudentExamResult[]
   invites        Invite[]            @relation("InviteStudent")
   paymentIntents PaymentIntent[]
+  submissions    Submission[]
 
   @@index([userId])
   // Covers the "active students" filter used on dashboard/groups/students pages.
@@ -307,6 +316,7 @@ model ClassSession {
   teacher      User          @relation("ClassSessionTeacher", fields: [teacherId], references: [id])
   attendance   Attendance[]
   transactions Transaction[]
+  submissions  Submission[]
 
   makeupTargetFor MakeupLesson[] @relation("TargetClassSession")
 
@@ -340,6 +350,33 @@ model Attendance {
 
   @@unique([classSessionId, studentId])
   @@index([studentId])
+}
+
+// A student's homework submission for a ClassSession, distinct from
+// Attendance.homeworkCompleted (a teacher-set whole-lesson checkbox with no
+// content). fileKey is an R2 object key (never a public URL) scoped to
+// `homework-submissions/{lessonId}/{studentId}/...` -- viewed via a
+// short-lived signGetObject URL, matching LessonAsset.storageKey's pattern.
+model Submission {
+  id             String           @id @default(uuid())
+  lessonId       String
+  studentId      String
+  content        String? // Text answer or link
+  fileKey        String? // R2 object key of an optional attached file
+  status         SubmissionStatus @default(SUBMITTED)
+  score          Int? // 1 to 5, matching Attendance.grade's scale
+  teacherComment String?
+  gradedById     String? // User (teacher/admin) who graded it
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  lesson   ClassSession @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  student  Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  gradedBy User?        @relation("GradedSubmissions", fields: [gradedById], references: [id], onDelete: SetNull)
+
+  @@unique([lessonId, studentId])
+  @@index([studentId])
+  @@index([gradedById])
 }
 
 model MakeupLesson {

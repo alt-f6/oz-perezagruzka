@@ -20,6 +20,7 @@ const dbMock = vi.hoisted(() => ({
     updateMany: vi.fn(),
   },
   attendance: { update: vi.fn(), upsert: vi.fn() },
+  submission: { findUnique: vi.fn(), update: vi.fn() },
   teacherAvailability: { findMany: vi.fn() },
   teacherPayout: { findFirst: vi.fn() },
   $transaction: vi.fn(),
@@ -29,8 +30,13 @@ const rbacMock = vi.hoisted(() => ({
   requireRole: vi.fn(),
 }));
 
+const r2Mock = vi.hoisted(() => ({
+  signGetObject: vi.fn(),
+}));
+
 vi.mock("@/shared/lib/db", () => ({ db: dbMock }));
 vi.mock("@/shared/lib/rbac", () => rbacMock);
+vi.mock("@/lms/server/r2/signed", () => r2Mock);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/crm/lib/prisma", () => ({
   prisma: { $transaction: vi.fn((cb) => cb({
@@ -45,7 +51,8 @@ vi.mock("@/crm/lib/services/notification.service", () => ({
   getNotificationProvider: vi.fn(() => ({ sendDebtReminder: vi.fn() })),
 }));
 
-const { createLesson, deleteLesson, bulkCancelSessions, setAttendance } = await import("./actions");
+const { createLesson, deleteLesson, bulkCancelSessions, setAttendance, gradeSubmission, getSubmissionFileUrl } =
+  await import("./actions");
 
 const ADMIN = { id: "user_1", email: "a@a.com", role: "ADMIN" };
 
@@ -739,5 +746,168 @@ describe("setAttendance", () => {
 
     expect(result.error).toBeTruthy();
     markSpy.mockRestore();
+  });
+});
+
+describe("gradeSubmission", () => {
+  beforeEach(() => {
+    dbMock.submission.findUnique.mockResolvedValue({
+      id: "11111111-1111-4111-8111-111111111111",
+      lessonId: "lesson_1",
+      fileKey: "homework-submissions/lesson_1/student_1/abc-file.pdf",
+      lesson: { teacherId: "teacher_1", group: null },
+    });
+    dbMock.submission.update.mockResolvedValue({ id: "11111111-1111-4111-8111-111111111111" });
+  });
+
+  it("grades a submission and stamps gradedById from the session user", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+
+    const result = await gradeSubmission({
+      submissionId: "11111111-1111-4111-8111-111111111111",
+      status: "GRADED",
+      score: 5,
+      teacherComment: "Отличная работа",
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(dbMock.submission.update).toHaveBeenCalledWith({
+      where: { id: "11111111-1111-4111-8111-111111111111" },
+      data: {
+        status: "GRADED",
+        gradedById: "user_1",
+        score: 5,
+        teacherComment: "Отличная работа",
+      },
+    });
+  });
+
+  it("rejects GRADED status without a score before touching the database", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+
+    const result = await gradeSubmission({ submissionId: "11111111-1111-4111-8111-111111111111", status: "GRADED" });
+
+    expect(result.error).toBeTruthy();
+    expect(dbMock.submission.update).not.toHaveBeenCalled();
+  });
+
+  it("allows NEEDS_REVISION without a score", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+
+    const result = await gradeSubmission({
+      submissionId: "11111111-1111-4111-8111-111111111111",
+      status: "NEEDS_REVISION",
+      teacherComment: "Переделай задание 3",
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(dbMock.submission.update).toHaveBeenCalledWith({
+      where: { id: "11111111-1111-4111-8111-111111111111" },
+      data: {
+        status: "NEEDS_REVISION",
+        gradedById: "user_1",
+        teacherComment: "Переделай задание 3",
+      },
+    });
+  });
+
+  it("returns a handled error (not a throw) when a TEACHER doesn't own the lesson", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.submission.findUnique.mockResolvedValue({
+      id: "11111111-1111-4111-8111-111111111111",
+      lessonId: "lesson_1",
+      fileKey: null,
+      lesson: { teacherId: "someone_else", group: null },
+    });
+
+    const result = await gradeSubmission({ submissionId: "11111111-1111-4111-8111-111111111111", status: "GRADED", score: 5 });
+
+    expect(result.error).toBeTruthy();
+    expect(dbMock.submission.update).not.toHaveBeenCalled();
+  });
+
+  it("allows a TEACHER who owns the lesson only via the group's current teacher", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.submission.findUnique.mockResolvedValue({
+      id: "11111111-1111-4111-8111-111111111111",
+      lessonId: "lesson_1",
+      fileKey: null,
+      lesson: { teacherId: "previous_teacher", group: { teacherId: "teacher_1" } },
+    });
+
+    const result = await gradeSubmission({ submissionId: "11111111-1111-4111-8111-111111111111", status: "GRADED", score: 4 });
+
+    expect(result.error).toBeUndefined();
+  });
+
+  it("returns a handled error instead of throwing when the submission does not exist", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    dbMock.submission.findUnique.mockResolvedValue(null);
+
+    const result = await gradeSubmission({ submissionId: "missing", status: "GRADED", score: 5 });
+
+    expect(result.error).toBeTruthy();
+  });
+
+  it("rejects an out-of-range score before touching the database", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+
+    const result = await gradeSubmission({ submissionId: "11111111-1111-4111-8111-111111111111", status: "GRADED", score: 9 });
+
+    expect(result.error).toMatch(/от 1 до 5/);
+    expect(dbMock.submission.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("getSubmissionFileUrl", () => {
+  beforeEach(() => {
+    dbMock.submission.findUnique.mockResolvedValue({
+      id: "11111111-1111-4111-8111-111111111111",
+      lessonId: "lesson_1",
+      fileKey: "homework-submissions/lesson_1/student_1/abc-file.pdf",
+      lesson: { teacherId: "teacher_1", group: null },
+    });
+  });
+
+  it("mints a signed URL for a submission's fileKey", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    r2Mock.signGetObject.mockResolvedValue("https://r2.example.com/signed");
+
+    const result = await getSubmissionFileUrl("11111111-1111-4111-8111-111111111111");
+
+    expect(r2Mock.signGetObject).toHaveBeenCalledWith(
+      "homework-submissions/lesson_1/student_1/abc-file.pdf",
+    );
+    expect(result).toEqual({ url: "https://r2.example.com/signed" });
+  });
+
+  it("returns a handled error when the submission has no attached file", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    dbMock.submission.findUnique.mockResolvedValue({
+      id: "11111111-1111-4111-8111-111111111111",
+      lessonId: "lesson_1",
+      fileKey: null,
+      lesson: { teacherId: "teacher_1", group: null },
+    });
+
+    const result = await getSubmissionFileUrl("11111111-1111-4111-8111-111111111111");
+
+    expect(result.error).toBeTruthy();
+    expect(r2Mock.signGetObject).not.toHaveBeenCalled();
+  });
+
+  it("blocks a TEACHER who doesn't own the lesson from minting a URL", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.submission.findUnique.mockResolvedValue({
+      id: "11111111-1111-4111-8111-111111111111",
+      lessonId: "lesson_1",
+      fileKey: "homework-submissions/lesson_1/student_1/abc-file.pdf",
+      lesson: { teacherId: "someone_else", group: null },
+    });
+
+    const result = await getSubmissionFileUrl("11111111-1111-4111-8111-111111111111");
+
+    expect(result.error).toBeTruthy();
+    expect(r2Mock.signGetObject).not.toHaveBeenCalled();
   });
 });

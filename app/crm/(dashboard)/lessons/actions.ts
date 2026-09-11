@@ -1,8 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { AttendanceStatus } from "@prisma/client";
-import { lessonSchema, makeupSchema, setAttendanceUpdateSchema, type LessonValues } from "@/crm/lib/schemas";
+import type { AttendanceStatus, SubmissionStatus } from "@prisma/client";
+import {
+  lessonSchema,
+  makeupSchema,
+  setAttendanceUpdateSchema,
+  gradeSubmissionSchema,
+  type LessonValues,
+} from "@/crm/lib/schemas";
 import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import { BillingService } from "@/crm/lib/services/billing.service";
@@ -583,4 +589,115 @@ export async function assignMakeupLesson(values: {
 
   revalidatePath(`/lessons/${attendance.classSessionId}`);
   return {};
+}
+
+// Shared by gradeSubmission and getSubmissionFileUrl: fetches the submission
+// plus enough of its lesson to run the same teacher-ownership check used
+// elsewhere in this file (setAttendance) -- a group reassignment must not
+// orphan a teacher's ability to grade work tied to it.
+type SubmissionForGrading = {
+  id: string;
+  lessonId: string;
+  fileKey: string | null;
+};
+
+async function loadSubmissionForGrading(
+  submissionId: string,
+  sessionUser: { id: string; role: string },
+): Promise<{ ok: true; submission: SubmissionForGrading } | { ok: false; error: string }> {
+  const submission = await db.submission.findUnique({
+    where: { id: submissionId },
+    select: {
+      id: true,
+      lessonId: true,
+      fileKey: true,
+      lesson: { select: { teacherId: true, group: { select: { teacherId: true } } } },
+    },
+  });
+  if (!submission) return { ok: false, error: "Работа не найдена" };
+
+  if (sessionUser.role === "TEACHER") {
+    const owned =
+      submission.lesson.teacherId === sessionUser.id ||
+      submission.lesson.group?.teacherId === sessionUser.id;
+    if (!owned) {
+      return { ok: false, error: "Занятие не принадлежит преподавателю" };
+    }
+  }
+
+  return {
+    ok: true,
+    submission: { id: submission.id, lessonId: submission.lessonId, fileKey: submission.fileKey },
+  };
+}
+
+export async function gradeSubmission(values: {
+  submissionId: string;
+  status: SubmissionStatus;
+  score?: number | null;
+  teacherComment?: string | null;
+}): Promise<ActionResult> {
+  const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
+
+  const parsed = gradeSubmissionSchema.safeParse(values);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Некорректные данные" };
+  }
+
+  const result = await loadSubmissionForGrading(parsed.data.submissionId, sessionUser);
+  if (!result.ok) return { error: result.error };
+
+  const updateData: {
+    status: SubmissionStatus;
+    gradedById: string;
+    score?: number | null;
+    teacherComment?: string | null;
+  } = {
+    status: parsed.data.status,
+    gradedById: sessionUser.id,
+  };
+  if (parsed.data.score !== undefined) updateData.score = parsed.data.score;
+  if (parsed.data.teacherComment !== undefined) {
+    updateData.teacherComment = parsed.data.teacherComment;
+  }
+
+  try {
+    await db.submission.update({
+      where: { id: parsed.data.submissionId },
+      data: updateData,
+    });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Не удалось сохранить оценку" };
+  }
+
+  revalidatePath(`/lessons/${result.submission.lessonId}`);
+  return {};
+}
+
+// Mints a short-lived signed GET URL so a teacher/admin can view a student's
+// uploaded homework file without ever storing (or exposing) a public URL --
+// same read pattern as LessonAsset's PDF viewer.
+export async function getSubmissionFileUrl(
+  submissionId: string,
+): Promise<{ error: string } | { error?: undefined; url: string }> {
+  const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
+
+  const result = await loadSubmissionForGrading(submissionId, sessionUser);
+  if (!result.ok) return { error: result.error };
+  if (!result.submission.fileKey) {
+    return { error: "К этой работе не прикреплён файл" };
+  }
+
+  try {
+    // Lazy-imported: the R2 client throws at module load if its env vars are
+    // unset, and eagerly importing it here would break every test/page that
+    // merely imports this actions.ts file for its other, unrelated exports.
+    const { signGetObject } = await import("@/lms/server/r2/signed");
+    const url = await signGetObject(result.submission.fileKey);
+    return { url };
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Не удалось открыть файл",
+    };
+  }
 }

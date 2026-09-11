@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileText, Video } from "lucide-react";
+import { FileText, Presentation, Video } from "lucide-react";
 
 import { cn } from "@/shared/lib/utils";
 import { VideoPlayer } from "@/lms/components/student/VideoPlayer";
@@ -11,10 +11,12 @@ import { syncPlaybackPosition } from "../../../../app/lms/student/lessons/[id]/a
 
 type MediaRow = { id: string; title: string | null; embed_url: string; provider: string; order: number };
 type PdfRow = { id: string; title: string | null; order: number };
+export type PresentationRow = { id: string; title: string | null; url: string; order: number };
 
 type StageAsset =
   | { kind: "video"; id: string; title: string | null; embedUrl: string; provider: string }
-  | { kind: "pdf"; id: string; title: string | null };
+  | { kind: "pdf"; id: string; title: string | null }
+  | { kind: "presentation"; id: string; title: string | null; url: string };
 
 type Props = {
   lessonId: string;
@@ -22,10 +24,19 @@ type Props = {
   studentEmail: string | null;
   media: MediaRow[];
   pdfs: PdfRow[];
+  presentations?: PresentationRow[];
   initialPosition: number;
 };
 
-export function LessonStage({ lessonId, studentId, studentEmail, media, pdfs, initialPosition }: Props) {
+export function LessonStage({
+  lessonId,
+  studentId,
+  studentEmail,
+  media,
+  pdfs,
+  presentations = [],
+  initialPosition,
+}: Props) {
   const assets: StageAsset[] = [
     ...media.map((m) => ({
       kind: "video" as const,
@@ -35,6 +46,7 @@ export function LessonStage({ lessonId, studentId, studentEmail, media, pdfs, in
       provider: m.provider,
     })),
     ...pdfs.map((p) => ({ kind: "pdf" as const, id: p.id, title: p.title })),
+    ...presentations.map((p) => ({ kind: "presentation" as const, id: p.id, title: p.title, url: p.url })),
   ];
 
   const [activeIndex, setActiveIndex] = useState(0);
@@ -70,7 +82,9 @@ export function LessonStage({ lessonId, studentId, studentEmail, media, pdfs, in
                 ? videoCount > 1
                   ? `Видео ${videoNumber}`
                   : "Видео"
-                : "PDF");
+                : asset.kind === "pdf"
+                  ? "PDF"
+                  : "Презентация");
 
             return (
               <button
@@ -89,8 +103,10 @@ export function LessonStage({ lessonId, studentId, studentEmail, media, pdfs, in
               >
                 {asset.kind === "video" ? (
                   <Video className="size-3.5" aria-hidden="true" />
-                ) : (
+                ) : asset.kind === "pdf" ? (
                   <FileText className="size-3.5" aria-hidden="true" />
+                ) : (
+                  <Presentation className="size-3.5" aria-hidden="true" />
                 )}
                 {label}
               </button>
@@ -111,7 +127,7 @@ export function LessonStage({ lessonId, studentId, studentEmail, media, pdfs, in
                 provider={active.provider}
                 initialPositionSeconds={activeIndex === 0 ? initialPosition : 0}
               />
-            ) : (
+            ) : active.kind === "pdf" ? (
               <PdfViewer
                 assetId={active.id}
                 watermark={watermarkText}
@@ -120,6 +136,17 @@ export function LessonStage({ lessonId, studentId, studentEmail, media, pdfs, in
                   void syncPlaybackPosition(lessonId, page);
                 }}
               />
+            ) : (
+              <div className="w-full h-full min-h-[85vh] rounded-2xl overflow-hidden bg-white shadow-sm">
+                <iframe
+                  src={active.url}
+                  title={active.title ?? "Презентация"}
+                  className="w-full h-full min-h-[85vh] border-0"
+                  style={{ width: "100%", height: "100%", minHeight: "85vh", border: 0 }}
+                  allow="fullscreen"
+                  loading="lazy"
+                />
+              </div>
             )}
           </div>
         </MediaErrorBoundary>

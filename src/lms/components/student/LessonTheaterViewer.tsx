@@ -14,7 +14,7 @@ import {
   SheetTrigger,
 } from "@/shared/components/ui/sheet";
 import { CurriculumSidebar, type CurriculumLesson } from "@/lms/components/student/CurriculumSidebar";
-import { LessonStage } from "@/lms/components/student/LessonStage";
+import { LessonStage, type PresentationRow } from "@/lms/components/student/LessonStage";
 import { LessonCompletionToggle } from "@/lms/components/student/LessonCompletionToggle";
 
 type MediaRow = { id: string; title: string | null; embed_url: string; provider: string; order: number };
@@ -27,6 +27,7 @@ type Props = {
   lesson: { id: string; title: string; description: string; content: string; order: number };
   media: MediaRow[];
   pdfs: PdfRow[];
+  presentations?: PresentationRow[];
   practiceLink: PracticeLink | null;
   curriculum: CurriculumLesson[];
   initialCompleted: boolean;
@@ -40,6 +41,7 @@ export function LessonTheaterViewer({
   lesson,
   media,
   pdfs,
+  presentations = [],
   practiceLink,
   curriculum,
   initialCompleted,
@@ -178,6 +180,7 @@ export function LessonTheaterViewer({
           studentEmail={studentEmail}
           media={media}
           pdfs={pdfs}
+          presentations={presentations}
           initialPosition={initialPosition}
         />
 

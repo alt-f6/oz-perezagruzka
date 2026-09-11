@@ -57,11 +57,15 @@ export default async function StudentLessonPage({ params }: Props) {
   const lesson = lessonRow;
   const practiceLink = lesson.practiceLinkUrl ? { url: lesson.practiceLinkUrl, label: lesson.practiceLinkLabel } : null;
 
-  const media = await db.lessonMedia.findMany({
+  const mediaRows = await db.lessonMedia.findMany({
     where: { lessonId, isPublic: true },
     orderBy: [{ order: "asc" }, { id: "asc" }],
-    select: { id: true, title: true, embedUrl: true, provider: true, order: true },
+    select: { id: true, title: true, embedUrl: true, provider: true, kind: true, order: true },
   });
+  const media = mediaRows.filter((m) => m.kind !== "presentation");
+  const presentations = mediaRows
+    .filter((m) => m.kind === "presentation")
+    .map((m) => ({ id: m.id, title: m.title, url: m.embedUrl, order: m.order }));
 
   const pdfs = await db.lessonAsset.findMany({
     where: { lessonId, kind: "pdf", isPublic: true },
@@ -104,6 +108,7 @@ export default async function StudentLessonPage({ params }: Props) {
           provider: m.provider,
           order: m.order,
         }))}
+        presentations={presentations}
         pdfs={pdfs.map((p) => ({ id: p.id, title: p.title, order: p.order }))}
         practiceLink={practiceLink}
         curriculum={curriculum}

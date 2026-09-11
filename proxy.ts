@@ -70,6 +70,12 @@ function isRootStaticAssetPath(pathname: string) {
   return ROOT_STATIC_ASSET_PATHS.has(pathname) || ROOT_STATIC_ASSET_EXTENSIONS.test(pathname);
 }
 
+// Course HTML lesson files (13 static files under public/courses/math-ege-base/)
+// live at the true root in public/courses/**, not namespaced under
+// public/<app>/**. They must never be rewritten to /crm/courses/** or
+// /lms/courses/** -- those paths don't exist and the request would 404.
+// Like isRootStaticAssetPath, this bypass takes priority over the per-app
+// rewrite for intentionally un-namespaced paths.
 const COURSES_PATH_PREFIX = "/courses/";
 
 function isCoursesAssetPath(pathname: string) {

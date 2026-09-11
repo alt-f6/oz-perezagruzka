@@ -19,7 +19,7 @@ const dbMock = vi.hoisted(() => ({
     findMany: vi.fn(),
     updateMany: vi.fn(),
   },
-  attendance: { update: vi.fn() },
+  attendance: { update: vi.fn(), upsert: vi.fn() },
   teacherAvailability: { findMany: vi.fn() },
   teacherPayout: { findFirst: vi.fn() },
   $transaction: vi.fn(),
@@ -676,5 +676,68 @@ describe("setAttendance", () => {
     const result = await setAttendance("missing_lesson", "student_1", { grade: 5 });
 
     expect(result.error).toBeTruthy();
+  });
+
+  it("saves a comment on its own, independent of grade/homeworkCompleted", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    const markSpy = vi
+      .spyOn(BillingService, "markAttendanceAndCharge")
+      .mockResolvedValue({ id: "att_1" } as never);
+
+    const result = await setAttendance("lesson_1", "student_1", {
+      comment: "Отлично поработал",
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(markSpy).toHaveBeenCalledWith("lesson_1", "student_1", "PRESENT");
+    expect(dbMock.attendance.update).toHaveBeenCalledWith({
+      where: { classSessionId_studentId: { classSessionId: "lesson_1", studentId: "student_1" } },
+      data: { comment: "Отлично поработал" },
+    });
+    markSpy.mockRestore();
+  });
+
+  it("does not block the journal save when billing throws -- records a plain attendance row and returns a soft warning", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    const markSpy = vi
+      .spyOn(BillingService, "markAttendanceAndCharge")
+      .mockRejectedValue(new Error("insufficient balance"));
+    dbMock.attendance.upsert.mockResolvedValue({ id: "att_1" });
+
+    const result = await setAttendance("lesson_1", "student_1", {
+      status: "PRESENT",
+      grade: 5,
+    });
+
+    expect(result.error).toBeUndefined();
+    expect("warning" in result && result.warning).toBeTruthy();
+    expect(dbMock.attendance.upsert).toHaveBeenCalledWith({
+      where: { classSessionId_studentId: { classSessionId: "lesson_1", studentId: "student_1" } },
+      update: { status: "PRESENT" },
+      create: {
+        classSessionId: "lesson_1",
+        studentId: "student_1",
+        status: "PRESENT",
+        priceAtTime: 0,
+      },
+    });
+    expect(dbMock.attendance.update).toHaveBeenCalledWith({
+      where: { classSessionId_studentId: { classSessionId: "lesson_1", studentId: "student_1" } },
+      data: { grade: 5 },
+    });
+    markSpy.mockRestore();
+  });
+
+  it("returns a handled error when both billing and the attendance fallback fail", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    const markSpy = vi
+      .spyOn(BillingService, "markAttendanceAndCharge")
+      .mockRejectedValue(new Error("insufficient balance"));
+    dbMock.attendance.upsert.mockRejectedValue(new Error("db unavailable"));
+
+    const result = await setAttendance("lesson_1", "student_1", { status: "PRESENT" });
+
+    expect(result.error).toBeTruthy();
+    markSpy.mockRestore();
   });
 });

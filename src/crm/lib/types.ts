@@ -152,7 +152,9 @@ export const ATTENDANCE_STATUS_CLASSES: Record<AttendanceStatus, string> = {
   CANCELLED_BY_CENTER: "bg-rose-100 text-rose-700",
 };
 
-export type ActionResult = { error: string } | { error?: undefined };
+export type ActionResult =
+  | { error: string }
+  | { error?: undefined; warning?: string };
 
 export interface Profile {
   id: string;

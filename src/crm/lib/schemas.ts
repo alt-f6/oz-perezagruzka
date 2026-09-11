@@ -340,6 +340,7 @@ export const setAttendanceUpdateSchema = z.object({
   status: attendanceStatusEnum.optional(),
   grade: z.number().int().min(1, { message: "Оценка должна быть от 1 до 5" }).max(5, { message: "Оценка должна быть от 1 до 5" }).nullable().optional(),
   homeworkCompleted: z.boolean().optional(),
+  comment: z.string().trim().max(2000, { message: "Комментарий слишком длинный" }).nullable().optional(),
 });
 
 export type SetAttendanceUpdateValues = z.infer<typeof setAttendanceUpdateSchema>;

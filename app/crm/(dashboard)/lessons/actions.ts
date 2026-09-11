@@ -13,6 +13,9 @@ import {
   type Occurrence,
 } from "@/crm/lib/lessonOccurrences";
 import { collectUnavailableOccurrences } from "@/crm/lib/services/availability.service";
+import { createLogger } from "@/shared/lib/logger";
+
+const log = createLogger("lessons.actions");
 
 /**
  * A lesson-creation request that lands (partly) outside the teacher's declared
@@ -393,6 +396,7 @@ export async function setAttendance(
     status?: AttendanceStatus;
     grade?: number | null;
     homeworkCompleted?: boolean;
+    comment?: string | null;
   },
 ): Promise<ActionResult> {
   const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
@@ -421,47 +425,91 @@ export async function setAttendance(
     }
   }
 
+  const hasGradingFields =
+    parsed.data.grade !== undefined ||
+    parsed.data.homeworkCompleted !== undefined ||
+    parsed.data.comment !== undefined;
+
+  let billingWarning: string | undefined;
+
   try {
     if (parsed.data.status !== undefined) {
       await BillingService.markAttendanceAndCharge(lessonId, studentId, parsed.data.status);
-    }
-
-    if (parsed.data.grade !== undefined || parsed.data.homeworkCompleted !== undefined) {
-      // Grading/homework requires an Attendance row. If the teacher never
-      // touched the status dropdown (it visually defaults to PRESENT but
-      // isn't persisted until an explicit change), materialize the row now
-      // via the same billing path a real PRESENT selection would take --
+    } else if (hasGradingFields) {
+      // Grading/homework/comment requires an Attendance row. If the teacher
+      // never touched the status dropdown (it visually defaults to PRESENT
+      // but isn't persisted until an explicit change), materialize the row
+      // now via the same billing path a real PRESENT selection would take --
       // grading a student implies they attended, keeping billing state
-      // consistent instead of failing the save outright. Skipped when this
-      // same call also sets `status`: the branch above already
-      // created/updated the row with whatever status was actually
-      // requested, so materializing again here would stomp it back to
-      // PRESENT.
-      if (parsed.data.status === undefined) {
-        await BillingService.markAttendanceAndCharge(lessonId, studentId, "PRESENT");
-      }
+      // consistent instead of failing the save outright.
+      await BillingService.markAttendanceAndCharge(lessonId, studentId, "PRESENT");
+    }
+  } catch (err) {
+    // Billing (balance/freeze/pricing) is a downstream concern -- a billing
+    // failure must never block the teacher from recording that a student
+    // attended, was graded, or got homework/comments noted. Fall back to a
+    // plain, unbilled attendance row and surface a soft warning instead of
+    // failing the whole save.
+    log.warn("Списание не выполнено, посещаемость сохранена без списания", {
+      lessonId,
+      studentId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    billingWarning =
+      "Посещаемость сохранена, но списание не выполнено — проверьте баланс ученика";
 
-      const updateData: { grade?: number | null; homeworkCompleted?: boolean } = {};
-      if (parsed.data.grade !== undefined) updateData.grade = parsed.data.grade;
-      if (parsed.data.homeworkCompleted !== undefined) {
-        updateData.homeworkCompleted = parsed.data.homeworkCompleted;
-      }
+    const fallbackStatus = parsed.data.status ?? "PRESENT";
+    try {
+      await db.attendance.upsert({
+        where: {
+          classSessionId_studentId: { classSessionId: lessonId, studentId },
+        },
+        update: { status: fallbackStatus },
+        create: {
+          classSessionId: lessonId,
+          studentId,
+          status: fallbackStatus,
+          priceAtTime: 0,
+        },
+      });
+    } catch (fallbackErr) {
+      return {
+        error:
+          fallbackErr instanceof Error
+            ? fallbackErr.message
+            : "Не удалось обновить посещаемость",
+      };
+    }
+  }
 
+  if (hasGradingFields) {
+    const updateData: {
+      grade?: number | null;
+      homeworkCompleted?: boolean;
+      comment?: string | null;
+    } = {};
+    if (parsed.data.grade !== undefined) updateData.grade = parsed.data.grade;
+    if (parsed.data.homeworkCompleted !== undefined) {
+      updateData.homeworkCompleted = parsed.data.homeworkCompleted;
+    }
+    if (parsed.data.comment !== undefined) updateData.comment = parsed.data.comment;
+
+    try {
       await db.attendance.update({
         where: {
           classSessionId_studentId: { classSessionId: lessonId, studentId },
         },
         data: updateData,
       });
+    } catch (err) {
+      return {
+        error: err instanceof Error ? err.message : "Не удалось обновить посещаемость",
+      };
     }
-  } catch (err) {
-    return {
-      error: err instanceof Error ? err.message : "Не удалось обновить посещаемость",
-    };
   }
 
   revalidatePath(`/lessons/${lessonId}`);
-  return {};
+  return billingWarning ? { warning: billingWarning } : {};
 }
 
 export async function assignMakeupLesson(values: {

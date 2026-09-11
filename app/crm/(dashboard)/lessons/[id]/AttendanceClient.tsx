@@ -65,13 +65,18 @@ export function AttendanceClient({
       status?: AttendanceStatus;
       grade?: number | null;
       homeworkCompleted?: boolean;
+      comment?: string | null;
     },
   ) => {
     setBusyStudentId(studentId);
     try {
       const result = await setAttendance(lesson.id, studentId, update);
-      if (result?.error) {
+      if (result.error !== undefined) {
         showToast(result.error, "error");
+        return;
+      }
+      if (result.warning) {
+        showToast(result.warning, "error");
         return;
       }
       showToast("Журнал обновлен");
@@ -81,6 +86,12 @@ export function AttendanceClient({
       setBusyStudentId(null);
     }
   };
+
+  // Buffers in-progress comment edits so a save fires on blur, not on every
+  // keystroke; falls back to the persisted value once no local edit exists.
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>(
+    {},
+  );
 
   const [makeupSelection, setMakeupSelection] = useState<
     Record<string, string>
@@ -160,6 +171,7 @@ export function AttendanceClient({
                   <th>Посещаемость</th>
                   <th>Оценка</th>
                   <th>Домашнее задание</th>
+                  <th>Комментарий</th>
                   <th>Отработка</th>
                   {!isTeacher && <th>Списание</th>}
                 </tr>
@@ -254,6 +266,29 @@ export function AttendanceClient({
                             })
                           }
                           className="h-4 w-4 rounded border-slate-200 accent-accent"
+                        />
+                      </td>
+
+                      <td>
+                        <input
+                          type="text"
+                          value={commentDrafts[student.id] ?? record?.comment ?? ""}
+                          disabled={isBusy}
+                          placeholder="Комментарий..."
+                          onChange={(e) =>
+                            setCommentDrafts((prev) => ({
+                              ...prev,
+                              [student.id]: e.target.value,
+                            }))
+                          }
+                          onBlur={(e) => {
+                            const value = e.target.value.trim();
+                            if (value === (record?.comment ?? "")) return;
+                            updateAttendanceData(student.id, {
+                              comment: value || null,
+                            });
+                          }}
+                          className="w-40 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 shadow-sm outline-none transition-all duration-200 focus:border-accent/50 focus:ring-2 focus:ring-accent/10 disabled:opacity-50"
                         />
                       </td>
 

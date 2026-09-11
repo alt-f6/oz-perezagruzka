@@ -20,6 +20,42 @@ export type ScheduleLoadResult =
   | { ok: true; data: ScheduleData }
   | { ok: false; error: string };
 
+// A teacher's student filter must only offer students they actually teach:
+// those in one of their groups, plus those they have (or had) an INDIVIDUAL
+// session with. Mirrors the same teacherId/group.teacherId OR used for the
+// lessons query above, so the filter's options never outgrow what the
+// teacher can actually see on their own calendar.
+async function loadTeacherStudentRoster(
+  teacherId: string,
+): Promise<ScheduleStudent[]> {
+  const [individualSessions, groupRoster] = await Promise.all([
+    db.classSession.findMany({
+      where: {
+        type: "INDIVIDUAL",
+        studentId: { not: null },
+        OR: [{ teacherId }, { group: { teacherId } }],
+      },
+      distinct: ["studentId"],
+      select: { student: { select: { id: true, fullName: true } } },
+    }),
+    db.groupStudent.findMany({
+      where: { group: { teacherId } },
+      select: { student: { select: { id: true, fullName: true } } },
+    }),
+  ]);
+
+  const byId = new Map<string, ScheduleStudent>();
+  for (const { student } of individualSessions) {
+    if (student) byId.set(student.id, student);
+  }
+  for (const { student } of groupRoster) {
+    byId.set(student.id, student);
+  }
+  return Array.from(byId.values()).sort((a, b) =>
+    a.fullName.localeCompare(b.fullName),
+  );
+}
+
 /**
  * Loads everything the schedule calendar needs, wrapped so that ANY data-layer
  * failure (query timeout, missing relation, null teacher/group field) resolves
@@ -40,7 +76,7 @@ export async function loadScheduleData(sessionUser: {
   const isTeacher = sessionUser.role === "TEACHER";
 
   try {
-    const [lessons, groups, teachers, students] = await Promise.all([
+    const [lessons, groupsRaw, teachers, students] = await Promise.all([
       db.classSession.findMany({
         // A teacher must also see sessions whose own teacherId is stale
         // (still pointing at a previous teacher after the group was
@@ -76,7 +112,12 @@ export async function loadScheduleData(sessionUser: {
       db.group.findMany({
         where: isTeacher ? { teacherId: sessionUser.id } : undefined,
         orderBy: { name: "asc" },
-        select: { id: true, name: true, teacherId: true },
+        select: {
+          id: true,
+          name: true,
+          teacherId: true,
+          students: { select: { studentId: true } },
+        },
       }),
       db.user.findMany({
         where: isTeacher
@@ -85,10 +126,11 @@ export async function loadScheduleData(sessionUser: {
         orderBy: { fullName: "asc" },
         select: { id: true, fullName: true },
       }),
-      // Students power the individual-lesson picker. Teachers can't create
-      // lessons, so the list is only needed for ADMIN/MANAGER.
+      // Students power the individual-lesson picker (ADMIN/MANAGER only, since
+      // teachers can't create lessons) and the schedule's student filter,
+      // which teachers DO need -- scoped to their own roster below.
       isTeacher
-        ? Promise.resolve([])
+        ? loadTeacherStudentRoster(sessionUser.id)
         : db.student.findMany({
             where: { deletedAt: null },
             orderBy: { fullName: "asc" },
@@ -96,11 +138,18 @@ export async function loadScheduleData(sessionUser: {
           }),
     ]);
 
+    const groups: ScheduleGroup[] = groupsRaw.map((group) => ({
+      id: group.id,
+      name: group.name,
+      teacherId: group.teacherId,
+      studentIds: group.students.map((s) => s.studentId),
+    }));
+
     return {
       ok: true,
       data: {
         lessons: lessons as unknown as ScheduleLesson[],
-        groups: groups as ScheduleGroup[],
+        groups,
         teachers: teachers as ScheduleTeacher[],
         students: students as ScheduleStudent[],
       },

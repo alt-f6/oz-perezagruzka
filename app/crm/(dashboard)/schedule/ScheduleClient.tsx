@@ -59,6 +59,7 @@ export interface ScheduleGroup {
   id: string;
   name: string;
   teacherId?: string | null;
+  studentIds?: string[];
 }
 
 export interface ScheduleTeacher {
@@ -114,6 +115,8 @@ export function ScheduleClient({
   const [view, setView] = useState<ViewMode>("day");
   const [groupFilter, setGroupFilter] = useState("");
   const [teacherFilter, setTeacherFilter] = useState("");
+  const [studentFilter, setStudentFilter] = useState("");
+  const [studentQuery, setStudentQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
   const [trialOnly, setTrialOnly] = useState(false);
@@ -228,6 +231,23 @@ export function ScheduleClient({
     }
   };
 
+  // Maps a group's id to its roster (student ids), so a group session can be
+  // matched against the selected student even though ScheduleLesson only
+  // carries the group's id/name, not its full roster.
+  const groupRosterById = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const group of groups) {
+      map.set(group.id, new Set(group.studentIds ?? []));
+    }
+    return map;
+  }, [groups]);
+
+  const studentOptions = useMemo(() => {
+    const q = studentQuery.trim().toLowerCase();
+    if (!q) return students;
+    return students.filter((s) => s.fullName.toLowerCase().includes(q));
+  }, [students, studentQuery]);
+
   const filteredLessons = useMemo(
     () =>
       lessons.filter(
@@ -235,9 +255,21 @@ export function ScheduleClient({
           (!groupFilter || l.groupId === groupFilter) &&
           (!teacherFilter || l.teacherId === teacherFilter) &&
           (showCancelled || l.status !== "cancelled") &&
-          (!trialOnly || l.isTrial),
+          (!trialOnly || l.isTrial) &&
+          (!studentFilter ||
+            l.studentId === studentFilter ||
+            (l.groupId != null &&
+              (groupRosterById.get(l.groupId)?.has(studentFilter) ?? false))),
       ),
-    [lessons, groupFilter, teacherFilter, showCancelled, trialOnly],
+    [
+      lessons,
+      groupFilter,
+      teacherFilter,
+      showCancelled,
+      trialOnly,
+      studentFilter,
+      groupRosterById,
+    ],
   );
 
   const lessonsByDay = useMemo(() => {
@@ -403,6 +435,39 @@ export function ScheduleClient({
             </option>
           ))}
         </select>
+
+        <input
+          type="search"
+          placeholder="Поиск ученика..."
+          value={studentQuery}
+          onChange={(e) => setStudentQuery(e.target.value)}
+          className="input w-36 py-2 shadow-sm"
+          aria-label="Поиск ученика"
+        />
+
+        <select
+          value={studentFilter}
+          onChange={(e) => setStudentFilter(e.target.value)}
+          className="input w-auto py-2 shadow-sm"
+          aria-label="Фильтр по ученику"
+        >
+          <option value="">Все ученики</option>
+          {studentOptions.map((student) => (
+            <option key={student.id} value={student.id}>
+              {student.fullName}
+            </option>
+          ))}
+        </select>
+
+        {studentFilter && (
+          <button
+            type="button"
+            onClick={() => setStudentFilter("")}
+            className="btn-secondary py-2 text-xs"
+          >
+            Сбросить фильтр
+          </button>
+        )}
 
         <label className="flex items-center gap-2 text-sm text-slate-600">
           <input

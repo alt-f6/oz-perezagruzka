@@ -198,6 +198,77 @@ describe("parseAndNormalizeVideoUrl", () => {
   });
 });
 
+describe("Embed code / iframe snippet extraction", () => {
+  it("extracts the src URL from a pasted iframe snippet", () => {
+    const result = parseAndNormalizeVideoUrl(
+      '<iframe src="https://vk.com/video_ext.php?oid=-123456&id=456789&hash=abc123" width="853" height="480" frameborder="0" allowfullscreen></iframe>'
+    );
+    expect(result.isValid).toBe(true);
+    if (result.isValid) {
+      expect(result.provider).toBe("vk");
+      expect(result.embedUrl).toBe(
+        "https://vk.com/video_ext.php?oid=-123456&id=456789&hash=abc123"
+      );
+    }
+  });
+
+  it("extracts the src URL when quotes are backslash-escaped", () => {
+    const result = parseAndNormalizeVideoUrl(
+      '<iframe src=\\"https://vk.com/video_ext.php?oid=-123456&id=456789\\"></iframe>'
+    );
+    expect(result.isValid).toBe(true);
+    if (result.isValid) {
+      expect(result.embedUrl).toBe("https://vk.com/video_ext.php?oid=-123456&id=456789");
+    }
+  });
+
+  it("extracts the src URL when it is single-quoted", () => {
+    const result = parseAndNormalizeVideoUrl(
+      "<iframe src='https://rutube.ru/play/embed/8a4c1c4b3f6f5e2d1a0b9c8d7e6f5a4b'></iframe>"
+    );
+    expect(result.isValid).toBe(true);
+    if (result.isValid) {
+      expect(result.provider).toBe("rutube");
+    }
+  });
+
+  it("decodes HTML-escaped ampersands in the src attribute", () => {
+    const result = parseAndNormalizeVideoUrl(
+      '<iframe src="https://vk.com/video_ext.php?oid=-123456&amp;id=456789&amp;hash=abc123"></iframe>'
+    );
+    expect(result.isValid).toBe(true);
+    if (result.isValid) {
+      expect(result.embedUrl).toBe(
+        "https://vk.com/video_ext.php?oid=-123456&id=456789&hash=abc123"
+      );
+    }
+  });
+});
+
+describe("VK Video — hash in query string", () => {
+  it("preserves a hash passed as a query parameter on a watch URL", () => {
+    const result = parseAndNormalizeVideoUrl(
+      "https://vkvideo.ru/video-123456_456789?hash=queryHash1"
+    );
+    expect(result.isValid).toBe(true);
+    if (result.isValid) {
+      expect(result.embedUrl).toBe(
+        "https://vk.com/video_ext.php?oid=-123456&id=456789&hash=queryHash1"
+      );
+    }
+  });
+
+  it("ignores unrelated extra query params like list", () => {
+    const result = parseAndNormalizeVideoUrl(
+      "https://vkvideo.ru/video-123456_456789?list=ln-abc123"
+    );
+    expect(result.isValid).toBe(true);
+    if (result.isValid) {
+      expect(result.embedUrl).toBe("https://vk.com/video_ext.php?oid=-123456&id=456789");
+    }
+  });
+});
+
 describe("Hostname anchoring (regression)", () => {
   it("rejects a malicious host with a vimeo.com substring in the query string", () => {
     const result = parseAndNormalizeVideoUrl(

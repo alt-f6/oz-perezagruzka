@@ -26,7 +26,7 @@ const nextConfig: NextConfig = {
             value: [
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com data:",
-              "frame-src 'self' https://www.youtube.com https://player.vimeo.com https://vk.com https://vkvideo.ru https://rutube.ru https://kinescope.io",
+              "frame-src 'self' https://www.youtube.com https://player.vimeo.com https://vk.com https://*.vk.com https://vkvideo.ru https://*.vkvideo.ru https://rutube.ru https://*.rutube.ru https://kinescope.io https://*.kinescope.io",
             ].join("; "),
           },
         ],

@@ -12,6 +12,32 @@ function toUrl(raw: string): URL | null {
   }
 }
 
+const HTML_ENTITIES: Record<string, string> = {
+  "&amp;": "&",
+  "&quot;": '"',
+  "&#039;": "'",
+  "&apos;": "'",
+  "&lt;": "<",
+  "&gt;": ">",
+};
+
+function decodeHtmlEntities(value: string): string {
+  return value.replace(/&(amp|quot|#039|apos|lt|gt);/g, (m) => HTML_ENTITIES[m] ?? m);
+}
+
+/** Pulls the URL out of a pasted `<iframe src="...">` embed snippet, if the input looks like one. */
+function extractUrlFromInput(raw: string): string {
+  const unescaped = raw.replace(/\\"/g, '"').replace(/\\'/g, "'");
+
+  if (!/<[a-z][^>]*\bsrc\s*=/i.test(unescaped)) {
+    return unescaped;
+  }
+
+  const match = unescaped.match(/\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+  const src = match?.[1] ?? match?.[2] ?? match?.[3];
+  return src ? decodeHtmlEntities(src) : unescaped;
+}
+
 function parseVk(raw: string): string | null {
   const url = toUrl(raw);
   if (!url) return null;
@@ -28,7 +54,8 @@ function parseVk(raw: string): string | null {
 
   const idMatch = url.pathname.match(/^\/video(-?\d+)_(\d+)(?:_([a-zA-Z0-9]+))?/);
   if (idMatch) {
-    const [, oid, id, hash] = idMatch;
+    const [, oid, id, pathHash] = idMatch;
+    const hash = pathHash || url.searchParams.get("hash");
     return `https://vk.com/video_ext.php?oid=${oid}&id=${id}${hash ? `&hash=${hash}` : ""}`;
   }
 
@@ -108,11 +135,13 @@ const PARSERS: Array<{ provider: VideoProvider; parse: (raw: string) => string |
 ];
 
 export function parseAndNormalizeVideoUrl(rawUrl: string): NormalizedVideoResult {
-  const originalUrl = (rawUrl ?? "").trim();
+  const trimmed = (rawUrl ?? "").trim();
 
-  if (!originalUrl) {
-    return { isValid: false, error: "empty_url", originalUrl };
+  if (!trimmed) {
+    return { isValid: false, error: "empty_url", originalUrl: trimmed };
   }
+
+  const originalUrl = extractUrlFromInput(trimmed).trim();
 
   for (const { provider, parse } of PARSERS) {
     const embedUrl = parse(originalUrl);

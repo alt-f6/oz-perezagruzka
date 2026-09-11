@@ -226,7 +226,7 @@ export function LessonVideoManager({ lessonId }: { lessonId: string }) {
                 <iframe
                   src={m.embed_url}
                   className="h-full w-full border-0"
-                  allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                  allow="autoplay; encrypted-media; fullscreen; picture-in-picture; screen-wake-lock;"
                   allowFullScreen
                   title={m.title ?? "video"}
                 />

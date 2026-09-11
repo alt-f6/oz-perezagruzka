@@ -232,7 +232,7 @@ export function VideoPlayer({
       <iframe
         src={embedUrl}
         className="h-full w-full border-0"
-        allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+        allow="autoplay; encrypted-media; fullscreen; picture-in-picture; screen-wake-lock;"
         allowFullScreen
         title={title ?? "video"}
       />

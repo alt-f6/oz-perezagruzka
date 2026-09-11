@@ -161,6 +161,37 @@ describe("ScheduleClient", () => {
     expect(within(card).getByText("Без преподавателя")).toBeInTheDocument();
   });
 
+  it("shows the group's CURRENT teacher, not the session's stale teacherId snapshot, when the group was reassigned", () => {
+    // Mirrors production reports of a schedule card showing an old/admin
+    // teacher for a lesson whose group has since been reassigned: the
+    // ClassSession row itself still carries the old teacherId, but the
+    // group's live teacherId (surfaced via the `groups` prop) is current.
+    const groupsWithReassignedTeacher = [
+      { id: "g1", name: "Олимпиада права", teacherId: "t2" },
+    ];
+    const teachersRoster = [
+      { id: "t1", fullName: "Главный администратор" },
+      { id: "t2", fullName: "Алёна Алексеевна Бычкова" },
+    ];
+    const lesson = makeLesson({
+      id: "s1",
+      teacherId: "t1",
+      teacher: { fullName: "Главный администратор" },
+      group: { id: "g1", name: "Олимпиада права" },
+    });
+    render(
+      <ScheduleClient
+        lessons={[lesson]}
+        groups={groupsWithReassignedTeacher}
+        teachers={teachersRoster}
+      />,
+    );
+
+    const card = screen.getByTestId("session-block-s1");
+    expect(within(card).getByText("Алёна Алексеевна Бычкова")).toBeInTheDocument();
+    expect(within(card).queryByText("Главный администратор")).not.toBeInTheDocument();
+  });
+
   it("shows the assigned teacher's name on a week-view session card", async () => {
     const user = userEvent.setup();
     const lesson = makeLesson({

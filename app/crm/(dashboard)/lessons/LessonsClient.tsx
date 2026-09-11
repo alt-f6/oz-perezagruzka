@@ -35,11 +35,23 @@ function sessionLabel(lesson: ClassSessionWithGroup): string {
   return lesson.group?.name ?? lesson.student?.fullName ?? "Индивидуальное занятие";
 }
 
-// Every ClassSession.teacherId is a required, non-nullable field in the
-// schema, so a missing teacher here only ever means the relation wasn't
-// loaded or the referenced user was removed — not a normal data state. The
-// fallback keeps that edge case visible instead of rendering a blank line.
-function getTeacherLabel(lesson: ClassSessionWithGroup): string {
+// A GROUP session's own teacherId is a snapshot taken at creation time and
+// only re-synced onto still-scheduled sessions when the group is reassigned
+// (see assignTeacherToGroup/updateGroup) -- a session created before some
+// past reassignment, or touched by a path that predates that sync, can carry
+// a stale teacherId. The group's CURRENT teacher (teacherNameById, keyed off
+// lesson.group.teacherId) is always the source of truth for what's actually
+// displayed; the session's own teacher relation is only a fallback for
+// INDIVIDUAL sessions (no group) or a group with no teacher assigned.
+function getTeacherLabel(
+  lesson: ClassSessionWithGroup,
+  teacherNameById: Map<string, string>,
+): string {
+  const liveTeacherId = lesson.group?.teacherId;
+  if (liveTeacherId) {
+    const liveName = teacherNameById.get(liveTeacherId);
+    if (liveName) return liveName;
+  }
   return lesson.teacher?.fullName ?? "Без преподавателя";
 }
 
@@ -83,6 +95,11 @@ export function LessonsClient({
   const [lessons, setLessons] = useState(initialLessons);
   const [nextCursor, setNextCursor] = useState(initialNextCursor);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const teacherNameById = useMemo(
+    () => new Map(teachers.map((t) => [t.id, t.fullName])),
+    [teachers],
+  );
 
   const loadMore = async () => {
     if (!nextCursor || isLoadingMore) return;
@@ -235,9 +252,13 @@ export function LessonsClient({
   const dialogCopy = (() => {
     if (!cancelCandidate) return { title: "", message: "" };
     if (cancelCandidate.kind === "single") {
+      const target = lessons.find((l) => l.id === cancelCandidate.lessonId);
+      const isPastLesson = target ? new Date(target.scheduledAt) <= new Date() : false;
       return {
         title: "Отменить занятие?",
-        message: "Прошедшие занятия затронуты не будут.",
+        message: isPastLesson
+          ? "Занятие уже прошло. Отмена уберёт его из расписания и списка занятий."
+          : "Прошедшие занятия затронуты не будут.",
       };
     }
     if (cancelCandidate.kind === "series") {
@@ -363,7 +384,7 @@ export function LessonsClient({
                     </p>
                     <span className="badge-info mt-1 gap-1 px-1.5 py-0 text-[11px]">
                       <GraduationCap size={12} className="shrink-0" />
-                      {getTeacherLabel(lesson)}
+                      {getTeacherLabel(lesson, teacherNameById)}
                     </span>
                   </div>
                 </div>
@@ -383,7 +404,7 @@ export function LessonsClient({
                       <Repeat size={16} />
                     </button>
                   )}
-                  {!isCancelled && isFuture && (
+                  {!isCancelled && (
                     <button
                       type="button"
                       onClick={() => setCancelCandidate({ kind: "single", lessonId: lesson.id })}

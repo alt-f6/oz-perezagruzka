@@ -101,6 +101,29 @@ describe("LessonsClient", () => {
     expect(actionsMock.bulkCancelSessions).toHaveBeenCalledWith({ sessionIds: ["a"] });
   });
 
+  it("shows the per-lesson cancel button for a PAST lesson too, and calls deleteLesson on confirm", async () => {
+    // Operators often only discover a mis-scheduled lesson after it's
+    // already passed; the trash button used to only render for future
+    // lessons, blocking exactly that case.
+    const user = userEvent.setup();
+    actionsMock.deleteLesson.mockResolvedValue({});
+
+    render(
+      <LessonsClient
+        initialLessons={[
+          makeLesson({ id: "past_1", scheduledAt: new Date(Date.now() - 3_600_000).toISOString() }),
+        ]}
+        initialNextCursor={null}
+        groups={groups}
+      />,
+    );
+
+    await user.click(screen.getByTitle("Отменить занятие"));
+    await user.click(screen.getByRole("button", { name: "Отменить" }));
+
+    expect(actionsMock.deleteLesson).toHaveBeenCalledWith("past_1");
+  });
+
   it("shows a 'cancel remaining series' button only for lessons with a recurrenceGroupId", () => {
     render(
       <LessonsClient
@@ -167,6 +190,34 @@ describe("LessonsClient", () => {
     );
 
     expect(screen.getByText("Без преподавателя")).toBeInTheDocument();
+  });
+
+  it("shows the group's CURRENT teacher, not the session's stale teacherId snapshot, when the group was reassigned", () => {
+    // Mirrors production reports of a lesson row showing an old/admin teacher
+    // for a session whose group has since been reassigned: the ClassSession
+    // row itself still carries the old teacherId/teacher relation, but the
+    // group's live teacherId (embedded in lesson.group.teacherId) is current.
+    render(
+      <LessonsClient
+        initialLessons={[
+          makeLesson({
+            id: "l1",
+            teacherId: "t1",
+            teacher: { fullName: "Главный администратор" },
+            group: { id: "g1", name: "Олимпиада права", teacherId: "t2" },
+          }),
+        ]}
+        initialNextCursor={null}
+        groups={[{ id: "g1", name: "Олимпиада права", teacherId: "t2" }]}
+        teachers={[
+          { id: "t1", fullName: "Главный администратор" },
+          { id: "t2", fullName: "Алёна Алексеевна Бычкова" },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("Алёна Алексеевна Бычкова")).toBeInTheDocument();
+    expect(screen.queryByText("Главный администратор")).not.toBeInTheDocument();
   });
 
   it("renders the row date pinned to Moscow time, not the ambient/browser timezone", () => {

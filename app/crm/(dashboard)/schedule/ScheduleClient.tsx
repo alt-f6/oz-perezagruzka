@@ -84,11 +84,27 @@ function getSessionLabel(lesson: ScheduleLesson): string {
   return "Индивидуальное занятие";
 }
 
-// Every ClassSession.teacherId is a required, non-nullable field in the
-// schema, so a missing teacher here only ever means the relation wasn't
-// loaded or the referenced user was removed — not a normal data state. The
-// fallback keeps that edge case visible instead of rendering a blank line.
-function getTeacherLabel(lesson: ScheduleLesson): string {
+// A GROUP session's own teacherId is a snapshot taken at creation time and
+// only re-synced onto still-scheduled sessions when the group is reassigned
+// (see assignTeacherToGroup/updateGroup) -- a session created before some
+// past reassignment, or touched by a path that predates that sync, can carry
+// a stale teacherId even though the group itself now points at a different
+// teacher. The group's CURRENT teacher (via groupTeacherById/teacherNameById,
+// keyed off lesson.groupId) is always the source of truth for what's
+// displayed; the session's own teacher relation is only a fallback for
+// INDIVIDUAL sessions (no group) or a group with no teacher assigned.
+function getTeacherLabel(
+  lesson: ScheduleLesson,
+  groupTeacherById: Map<string, string | null | undefined>,
+  teacherNameById: Map<string, string>,
+): string {
+  const liveTeacherId = lesson.groupId
+    ? groupTeacherById.get(lesson.groupId)
+    : null;
+  if (liveTeacherId) {
+    const liveName = teacherNameById.get(liveTeacherId);
+    if (liveName) return liveName;
+  }
   return lesson.teacher?.fullName ?? "Без преподавателя";
 }
 
@@ -241,6 +257,19 @@ export function ScheduleClient({
     }
     return map;
   }, [groups]);
+
+  const groupTeacherById = useMemo(() => {
+    const map = new Map<string, string | null | undefined>();
+    for (const group of groups) {
+      map.set(group.id, group.teacherId);
+    }
+    return map;
+  }, [groups]);
+
+  const teacherNameById = useMemo(
+    () => new Map(teachers.map((t) => [t.id, t.fullName])),
+    [teachers],
+  );
 
   const studentOptions = useMemo(() => {
     const q = studentQuery.trim().toLowerCase();
@@ -557,7 +586,7 @@ export function ScheduleClient({
                     </p>
                     <span className="badge-info mt-0.5 w-full gap-1 truncate px-1.5 py-0 text-[11px]">
                       <GraduationCap size={12} className="shrink-0" />
-                      {getTeacherLabel(lesson)}
+                      {getTeacherLabel(lesson, groupTeacherById, teacherNameById)}
                     </span>
                     {lesson.isTrial && (
                       <span className="badge-warning mt-0.5 w-full gap-1 truncate px-1.5 py-0 text-[11px]">
@@ -620,7 +649,7 @@ export function ScheduleClient({
                           </p>
                           <span className="badge-info mt-0.5 w-full gap-1 truncate px-1.5 py-0 text-[11px]">
                             <GraduationCap size={12} className="shrink-0" />
-                            {getTeacherLabel(lesson)}
+                            {getTeacherLabel(lesson, groupTeacherById, teacherNameById)}
                           </span>
                           {lesson.isTrial && (
                             <span className="badge-warning mt-0.5 w-full gap-1 truncate px-1.5 py-0 text-[11px]">
@@ -683,7 +712,7 @@ export function ScheduleClient({
                         scheduledAt: lesson.scheduledAt,
                         durationMinutes: lesson.durationMinutes,
                       })}{" "}
-                      · {getTeacherLabel(lesson)}
+                      · {getTeacherLabel(lesson, groupTeacherById, teacherNameById)}
                     </p>
                   ))}
                   {items.length > 2 && (

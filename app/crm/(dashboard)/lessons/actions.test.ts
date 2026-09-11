@@ -493,7 +493,7 @@ describe("deleteLesson", () => {
   it("soft-cancels a future scheduled session instead of deleting it", async () => {
     dbMock.classSession.findUnique.mockResolvedValue({
       status: "scheduled",
-      scheduledAt: new Date(Date.now() + 86_400_000),
+      _count: { attendance: 0 },
     });
     dbMock.classSession.update.mockResolvedValue({});
 
@@ -506,10 +506,29 @@ describe("deleteLesson", () => {
     expect(result.error).toBeUndefined();
   });
 
-  it("refuses to cancel a session already in the past", async () => {
+  it("also cancels a session already in the past, as long as no attendance was recorded yet", async () => {
+    // A lesson entered by mistake (duplicate, wrong group/date) is often only
+    // noticed after it's passed -- an operator must still be able to pull it
+    // out of the schedule as long as it never got billed.
     dbMock.classSession.findUnique.mockResolvedValue({
       status: "scheduled",
-      scheduledAt: new Date(Date.now() - 86_400_000),
+      _count: { attendance: 0 },
+    });
+    dbMock.classSession.update.mockResolvedValue({});
+
+    const result = await deleteLesson("session_1");
+
+    expect(dbMock.classSession.update).toHaveBeenCalledWith({
+      where: { id: "session_1" },
+      data: { status: "cancelled" },
+    });
+    expect(result.error).toBeUndefined();
+  });
+
+  it("refuses to cancel a session that already has attendance recorded, to protect billing/salary history", async () => {
+    dbMock.classSession.findUnique.mockResolvedValue({
+      status: "scheduled",
+      _count: { attendance: 2 },
     });
 
     const result = await deleteLesson("session_1");
@@ -521,7 +540,7 @@ describe("deleteLesson", () => {
   it("refuses to cancel a session that is already cancelled", async () => {
     dbMock.classSession.findUnique.mockResolvedValue({
       status: "cancelled",
-      scheduledAt: new Date(Date.now() + 86_400_000),
+      _count: { attendance: 0 },
     });
 
     const result = await deleteLesson("session_1");

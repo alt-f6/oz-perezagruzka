@@ -304,15 +304,29 @@ export async function createLesson(
 export async function deleteLesson(lessonId: string): Promise<ActionResult> {
   await requireRole(["ADMIN", "MANAGER"]);
 
+  // No scheduledAt/future restriction here on purpose: a lesson that was
+  // entered by mistake (duplicate, wrong group, wrong date) is often only
+  // noticed after it's already passed, and an operator must still be able to
+  // pull it out of the schedule. What DOES stay guarded is attendance: once a
+  // session has any Attendance rows, cancelling it would silently orphan
+  // billing/salary history (BillingService.markAttendanceAndCharge already
+  // ran), so that case is blocked instead of allowed to corrupt those
+  // records.
   const session = await db.classSession.findUnique({
     where: { id: lessonId },
-    select: { status: true, scheduledAt: true },
+    select: { status: true, _count: { select: { attendance: true } } },
   });
   if (!session) {
     return { error: "Занятие не найдено" };
   }
-  if (session.status !== "scheduled" || new Date(session.scheduledAt) <= new Date()) {
-    return { error: "Можно отменить только предстоящее запланированное занятие" };
+  if (session.status !== "scheduled") {
+    return { error: "Занятие уже отменено" };
+  }
+  if (session._count.attendance > 0) {
+    return {
+      error:
+        "У занятия уже отмечена посещаемость — отмена недоступна, чтобы не исказить начисления",
+    };
   }
 
   try {

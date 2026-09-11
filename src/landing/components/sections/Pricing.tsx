@@ -107,6 +107,13 @@ export default function Pricing() {
             </p>
 
             <a
+              href="#faq-guarantee"
+              className="mt-3 inline-flex min-h-[44px] items-center text-sm font-semibold text-brand-700 underline decoration-brand-300 decoration-2 underline-offset-4 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+            >
+              Подробные условия гарантии →
+            </a>
+
+            <a
               href="#readiness-map"
               onClick={() => reachGoal("cta_analysis_click")}
               className="mt-8 flex min-h-[60px] items-center justify-center rounded-2xl bg-brand-600 px-6 text-center text-lg font-bold text-white shadow-md shadow-brand-900/20 transition-all duration-300 hover:-translate-y-1 hover:bg-brand-700 hover:shadow-lg active:scale-98"

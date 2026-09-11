@@ -703,33 +703,41 @@ export default function ReadinessMapWizard() {
               render directly over this row without the extra clearance.
               256px matches the worst-case banner footprint documented in
               FloatingContacts.tsx's bottom-64 comment. */}
-          <div className="mt-8 flex items-center justify-between border-t border-ink-100 pt-6 pb-64 sm:pb-0">
-            <button
-              type="button"
-              onClick={goBack}
-              disabled={stepIndex === 0}
-              className="min-h-[44px] flex items-center rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm font-bold text-ink-700 transition-all duration-200 hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:opacity-0"
-            >
-              Назад
-            </button>
-            <motion.button
-              type="button"
-              onClick={goNext}
-              whileHover={prefersReducedMotion ? undefined : { scale: 1.02, y: -3 }}
-              whileTap={{ scale: 0.95 }}
-              className={`group relative flex min-h-[44px] items-center gap-2 overflow-hidden rounded-2xl px-8 py-4 font-black text-sm transition-colors duration-300 focus-visible:outline-none focus-visible:ring-offset-2 ${
-                isLastStep
-                  ? "bg-brand-600 text-white shadow-md shadow-brand-600/25 hover:bg-brand-700 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-brand-300"
-                  : "bg-brand-600 text-white shadow-md shadow-brand-900/20 hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-400"
-              }`}
-            >
-              {isLastStep ? "Получить карту" : "Далее"}
-              <ArrowRight
-                className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1"
-                strokeWidth={2.5}
-                aria-hidden
-              />
-            </motion.button>
+          <div className="mt-8 border-t border-ink-100 pt-6 pb-64 sm:pb-0">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={goBack}
+                disabled={stepIndex === 0}
+                className="min-h-[44px] flex items-center rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm font-bold text-ink-700 transition-all duration-200 hover:bg-ink-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:opacity-0"
+              >
+                Назад
+              </button>
+              <motion.button
+                type="button"
+                onClick={goNext}
+                whileHover={prefersReducedMotion ? undefined : { scale: 1.02, y: -3 }}
+                whileTap={{ scale: 0.95 }}
+                className={`group relative flex min-h-[44px] items-center gap-2 overflow-hidden rounded-2xl px-8 py-4 font-black text-sm transition-colors duration-300 focus-visible:outline-none focus-visible:ring-offset-2 ${
+                  isLastStep
+                    ? "bg-brand-600 text-white shadow-md shadow-brand-600/25 hover:bg-brand-700 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-brand-300"
+                    : "bg-brand-600 text-white shadow-md shadow-brand-900/20 hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-400"
+                }`}
+              >
+                {isLastStep ? "Получить карту" : "Далее"}
+                <ArrowRight
+                  className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1"
+                  strokeWidth={2.5}
+                  aria-hidden
+                />
+              </motion.button>
+            </div>
+            {isLastStep && (
+              <p className="mt-3 text-center text-xs text-ink-500 md:text-sm">
+                ⚡ Перезвоним в течение 15 минут (ежедневно с 09:00 до 21:00) — ваша заявка не
+                потеряется
+              </p>
+            )}
           </div>
 
         </div>

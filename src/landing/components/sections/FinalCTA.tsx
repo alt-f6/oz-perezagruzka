@@ -45,6 +45,10 @@ export default function FinalCTA() {
               >
                 Записаться на бесплатный разбор
               </motion.a>
+              <p className="text-xs text-white/70 md:text-sm">
+                ⚡ Перезвоним в течение 15 минут (ежедневно с 09:00 до 21:00) — ваша заявка не
+                потеряется
+              </p>
             </div>
           </div>
         </motion.div>

@@ -156,7 +156,7 @@ export default function YandexReviews() {
           >
             <span className="text-yandex-red">5.0</span>
             <span className="tracking-tight text-yandex-yellow">★★★★★</span>
-            <span className="text-ink-500">на Яндекс.Картах</span>
+            <span className="text-ink-500">(70+ отзывов) на Яндекс.Картах</span>
           </a>
 
           <h2 className="mt-5 font-bold tracking-tight text-ink-900">

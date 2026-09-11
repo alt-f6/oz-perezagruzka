@@ -152,6 +152,10 @@ export function ContactForm({ leadId, ctaLabel }: ContactFormProps) {
         </button>
       </div>
 
+      <p className="-mt-1 text-xs text-ink-500 md:text-sm">
+        ⚡ Перезвоним в течение 15 минут (ежедневно с 09:00 до 21:00) — ваша заявка не потеряется
+      </p>
+
       <LegalCheckbox
         checked={consent}
         onChange={(value) => {

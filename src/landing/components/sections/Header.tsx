@@ -3,6 +3,10 @@
 import { useState } from "react";
 import { NAV_LINKS } from "@/landing/lib/navigation";
 import { reachGoal } from "@/landing/lib/analytics";
+import { CONTACT_PHONE } from "@/landing/lib/legal";
+
+const CONTACT_PHONE_HREF = `tel:+${CONTACT_PHONE.replace(/\D/g, "")}`;
+const RESPONSE_TIME_NOTE = "Перезвоним за 15 минут (ежедневно с 09:00 до 21:00)";
 
 export default function Header() {
   const [open, setOpen] = useState(false);
@@ -28,6 +32,18 @@ export default function Header() {
             </a>
           ))}
         </nav>
+
+        <div className="group/phone relative hidden shrink-0 lg:block">
+          <a
+            href={CONTACT_PHONE_HREF}
+            className="whitespace-nowrap rounded text-sm font-bold text-ink-900 transition-colors hover:text-[#0055FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+          >
+            {CONTACT_PHONE}
+          </a>
+          <span className="pointer-events-none absolute right-0 top-full z-10 mt-1.5 whitespace-nowrap rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-md transition-opacity duration-150 group-hover/phone:opacity-100 group-focus-within/phone:opacity-100">
+            {RESPONSE_TIME_NOTE}
+          </span>
+        </div>
 
         <a
           href="#readiness-map"
@@ -92,6 +108,16 @@ export default function Header() {
             >
               Записаться на бесплатный разбор
             </a>
+
+            <div className="mt-3 flex flex-col items-center gap-1 text-center">
+              <a
+                href={CONTACT_PHONE_HREF}
+                className="rounded text-sm font-bold text-ink-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+              >
+                {CONTACT_PHONE}
+              </a>
+              <span className="text-xs text-ink-500">{RESPONSE_TIME_NOTE}</span>
+            </div>
           </div>
         </nav>
       </div>

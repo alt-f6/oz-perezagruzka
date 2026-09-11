@@ -66,6 +66,13 @@ export default function Hero() {
             ))}
           </ul>
 
+          <a
+            href="#faq-guarantee"
+            className="inline-flex min-h-[44px] items-center text-sm font-semibold text-brand-700 underline decoration-brand-300 decoration-2 underline-offset-4 transition-colors hover:text-brand-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
+          >
+            Подробные условия гарантии →
+          </a>
+
           <AnimatePresence mode="wait">
             <motion.div
               key={`sublist-${exam}`}

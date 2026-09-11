@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import Atmosphere from "@/landing/components/ui/Atmosphere";
 import Section from "@/landing/components/ui/Section";
@@ -13,6 +13,28 @@ export default function FAQ() {
   const prefersReducedMotion = useReducedMotion();
 
   const itemVariants = fadeInUp(prefersReducedMotion, 40);
+
+  // Deep-link support: other sections link to `#faq-<id>` (e.g. the
+  // guarantee terms link in Hero/Pricing) and expect that specific
+  // accordion item expanded and scrolled into view, not just the section.
+  // Client-only — reads window.location, so it must stay out of the render
+  // path to avoid an SSR/hydration mismatch.
+  useEffect(() => {
+    const openFromHash = () => {
+      const hash = window.location.hash.replace("#faq-", "");
+      if (!hash) return;
+      const index = FAQ_ITEMS.findIndex((item) => item.id === hash);
+      if (index === -1) return;
+      setOpenIndex(index);
+      requestAnimationFrame(() => {
+        document.getElementById(`faq-${hash}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    };
+
+    openFromHash();
+    window.addEventListener("hashchange", openFromHash);
+    return () => window.removeEventListener("hashchange", openFromHash);
+  }, []);
 
   return (
     <Section id="faq" className="scroll-mt-20" paddingOverride="py-16 md:py-24">
@@ -33,7 +55,13 @@ export default function FAQ() {
           className="flex flex-col gap-3.5"
         >
           {FAQ_ITEMS.map((item, index) => (
-            <motion.div key={item.question} variants={itemVariants} transition={{ type: "spring", stiffness: 90, damping: 18 }}>
+            <motion.div
+              key={item.question}
+              id={item.id ? `faq-${item.id}` : undefined}
+              variants={itemVariants}
+              transition={{ type: "spring", stiffness: 90, damping: 18 }}
+              className={item.id ? "scroll-mt-24" : undefined}
+            >
               <FaqAccordionItem
                 item={item}
                 isOpen={openIndex === index}

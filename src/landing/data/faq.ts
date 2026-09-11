@@ -1,6 +1,10 @@
 export interface FaqItem {
   question: string;
   answer: string | string[];
+  // Stable anchor id for deep-linking (e.g. "#faq-guarantee") into a specific
+  // question from other sections. Optional — only items that are linked to
+  // from elsewhere need one.
+  id?: string;
 }
 
 export const FAQ_ITEMS: FaqItem[] = [
@@ -11,6 +15,7 @@ export const FAQ_ITEMS: FaqItem[] = [
   },
   {
     question: "Вы гарантируете конкретный балл на экзамене?",
+    id: "guarantee",
     answer:
       "Да, но не заранее и не всем подряд. После бесплатного разбора мы видим реальный разрыв. Если его можно закрыть — берём в группу и фиксируем целевой балл в договоре: не выводим ребёнка на него — возвращаем стоимость. Экзамен — наша зона ответственности, посещаемость и работа — зона семьи.",
   },

@@ -739,3 +739,103 @@ export async function getSubmissionFileUrl(
     };
   }
 }
+
+const HOMEWORK_FILE_MAX_SIZE_BYTES = 25 * 1024 * 1024;
+
+function safeHomeworkFileName(name: string): string {
+  return name.replace(/[^\w.\-]+/g, "_").slice(0, 120) || "file";
+}
+
+// Shared by getHomeworkUploadUrl and attachHomeworkFile: confirms the lesson
+// exists and, for a TEACHER, that they own it -- same ownership pattern as
+// setAttendance/loadSubmissionForGrading in this file.
+async function loadLessonForHomeworkUpload(
+  lessonId: string,
+  sessionUser: { id: string; role: string },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const lesson = await db.classSession.findUnique({
+    where: { id: lessonId },
+    select: { teacherId: true, group: { select: { teacherId: true } } },
+  });
+  if (!lesson) return { ok: false, error: "Занятие не найдено" };
+
+  if (sessionUser.role === "TEACHER") {
+    const owned = lesson.teacherId === sessionUser.id || lesson.group?.teacherId === sessionUser.id;
+    if (!owned) return { ok: false, error: "Занятие не принадлежит преподавателю" };
+  }
+
+  return { ok: true };
+}
+
+// Mints a presigned PUT URL so a teacher/admin can attach a student's
+// homework file directly from the CRM journal -- same key convention as the
+// student-side getSubmissionUploadUrl (app/crm/(student)/portal/actions.ts):
+// homework-submissions/{lessonId}/{studentId}/{uuid}-{safeName}.
+export async function getHomeworkUploadUrl(
+  lessonId: string,
+  studentId: string,
+  file: { name: string; mimeType: string; sizeBytes: number },
+): Promise<
+  | { error: string }
+  | { error?: undefined; uploadUrl: string; fileKey: string; fileName: string }
+> {
+  const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
+
+  const owned = await loadLessonForHomeworkUpload(lessonId, sessionUser);
+  if (!owned.ok) return { error: owned.error };
+
+  if (!Number.isFinite(file.sizeBytes) || file.sizeBytes <= 0) {
+    return { error: "Некорректный размер файла" };
+  }
+  if (file.sizeBytes > HOMEWORK_FILE_MAX_SIZE_BYTES) {
+    return { error: "Файл слишком большой (максимум 25 МБ)" };
+  }
+
+  const fileName = safeHomeworkFileName(file.name);
+  const fileKey = `homework-submissions/${lessonId}/${studentId}/${crypto.randomUUID()}-${fileName}`;
+
+  try {
+    const { signPutObject } = await import("@/lms/server/r2/signed");
+    const uploadUrl = await signPutObject(fileKey, file.mimeType);
+    return { uploadUrl, fileKey, fileName };
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Не удалось подготовить загрузку файла",
+    };
+  }
+}
+
+// Persists (or clears, with fileKey=null) the fileKey a teacher/admin just
+// uploaded. Upserts because a teacher may attach a file before the student
+// has ever submitted anything (no Submission row exists yet).
+export async function attachHomeworkFile(
+  lessonId: string,
+  studentId: string,
+  fileKey: string | null,
+): Promise<ActionResult> {
+  const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
+
+  const owned = await loadLessonForHomeworkUpload(lessonId, sessionUser);
+  if (!owned.ok) return { error: owned.error };
+
+  // IDOR guard: the only legitimate source of fileKey is getHomeworkUploadUrl,
+  // which always mints keys scoped to this exact prefix.
+  if (fileKey !== null && !fileKey.startsWith(`homework-submissions/${lessonId}/${studentId}/`)) {
+    return { error: "Некорректный ключ файла" };
+  }
+
+  try {
+    await db.submission.upsert({
+      where: { lessonId_studentId: { lessonId, studentId } },
+      update: { fileKey },
+      create: { lessonId, studentId, fileKey, status: "SUBMITTED" },
+    });
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Не удалось прикрепить файл",
+    };
+  }
+
+  revalidatePath(`/lessons/${lessonId}`);
+  return {};
+}

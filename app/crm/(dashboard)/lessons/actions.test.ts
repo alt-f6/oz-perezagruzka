@@ -20,7 +20,7 @@ const dbMock = vi.hoisted(() => ({
     updateMany: vi.fn(),
   },
   attendance: { update: vi.fn(), upsert: vi.fn() },
-  submission: { findUnique: vi.fn(), update: vi.fn() },
+  submission: { findUnique: vi.fn(), update: vi.fn(), upsert: vi.fn() },
   teacherAvailability: { findMany: vi.fn() },
   teacherPayout: { findFirst: vi.fn() },
   $transaction: vi.fn(),
@@ -32,6 +32,7 @@ const rbacMock = vi.hoisted(() => ({
 
 const r2Mock = vi.hoisted(() => ({
   signGetObject: vi.fn(),
+  signPutObject: vi.fn(),
 }));
 
 vi.mock("@/shared/lib/db", () => ({ db: dbMock }));
@@ -51,8 +52,16 @@ vi.mock("@/crm/lib/services/notification.service", () => ({
   getNotificationProvider: vi.fn(() => ({ sendDebtReminder: vi.fn() })),
 }));
 
-const { createLesson, deleteLesson, bulkCancelSessions, setAttendance, gradeSubmission, getSubmissionFileUrl } =
-  await import("./actions");
+const {
+  createLesson,
+  deleteLesson,
+  bulkCancelSessions,
+  setAttendance,
+  gradeSubmission,
+  getSubmissionFileUrl,
+  getHomeworkUploadUrl,
+  attachHomeworkFile,
+} = await import("./actions");
 
 const ADMIN = { id: "user_1", email: "a@a.com", role: "ADMIN" };
 
@@ -985,5 +994,147 @@ describe("getSubmissionFileUrl", () => {
 
     expect(result.error).toBeTruthy();
     expect(r2Mock.signGetObject).not.toHaveBeenCalled();
+  });
+});
+
+describe("getHomeworkUploadUrl", () => {
+  beforeEach(() => {
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "teacher_1",
+      group: null,
+    });
+  });
+
+  it("mints a presigned upload URL scoped to the lesson and student", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    r2Mock.signPutObject.mockResolvedValue("https://r2.example.com/put");
+
+    const result = await getHomeworkUploadUrl("lesson_1", "student_1", {
+      name: "hw.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 1024,
+    });
+
+    expect(result.error).toBeUndefined();
+    expect("uploadUrl" in result && result.uploadUrl).toBe("https://r2.example.com/put");
+    expect("fileKey" in result && result.fileKey).toMatch(
+      /^homework-submissions\/lesson_1\/student_1\/.+-hw\.pdf$/,
+    );
+  });
+
+  it("rejects a file over the 25 MB limit", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+
+    const result = await getHomeworkUploadUrl("lesson_1", "student_1", {
+      name: "big.zip",
+      mimeType: "application/zip",
+      sizeBytes: 26 * 1024 * 1024,
+    });
+
+    expect(result.error).toBeTruthy();
+    expect(r2Mock.signPutObject).not.toHaveBeenCalled();
+  });
+
+  it("blocks a TEACHER who doesn't own the lesson", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "someone_else",
+      group: null,
+    });
+
+    const result = await getHomeworkUploadUrl("lesson_1", "student_1", {
+      name: "hw.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 1024,
+    });
+
+    expect(result.error).toBeTruthy();
+    expect(r2Mock.signPutObject).not.toHaveBeenCalled();
+  });
+
+  it("returns a handled error when the lesson does not exist", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    dbMock.classSession.findUnique.mockResolvedValue(null);
+
+    const result = await getHomeworkUploadUrl("missing_lesson", "student_1", {
+      name: "hw.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 1024,
+    });
+
+    expect(result.error).toBeTruthy();
+  });
+});
+
+describe("attachHomeworkFile", () => {
+  beforeEach(() => {
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "teacher_1",
+      group: null,
+    });
+    dbMock.submission.upsert.mockResolvedValue({ id: "sub_1" });
+  });
+
+  it("upserts the submission's fileKey", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+
+    const result = await attachHomeworkFile(
+      "lesson_1",
+      "student_1",
+      "homework-submissions/lesson_1/student_1/abc-hw.pdf",
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(dbMock.submission.upsert).toHaveBeenCalledWith({
+      where: { lessonId_studentId: { lessonId: "lesson_1", studentId: "student_1" } },
+      update: { fileKey: "homework-submissions/lesson_1/student_1/abc-hw.pdf" },
+      create: {
+        lessonId: "lesson_1",
+        studentId: "student_1",
+        fileKey: "homework-submissions/lesson_1/student_1/abc-hw.pdf",
+        status: "SUBMITTED",
+      },
+    });
+  });
+
+  it("allows clearing the file with null", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+
+    const result = await attachHomeworkFile("lesson_1", "student_1", null);
+
+    expect(result.error).toBeUndefined();
+    expect(dbMock.submission.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ update: { fileKey: null } }),
+    );
+  });
+
+  it("rejects a fileKey that doesn't match the lesson/student prefix (IDOR guard)", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+
+    const result = await attachHomeworkFile(
+      "lesson_1",
+      "student_1",
+      "homework-submissions/other_lesson/other_student/abc-hw.pdf",
+    );
+
+    expect(result.error).toBeTruthy();
+    expect(dbMock.submission.upsert).not.toHaveBeenCalled();
+  });
+
+  it("blocks a TEACHER who doesn't own the lesson", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "someone_else",
+      group: null,
+    });
+
+    const result = await attachHomeworkFile(
+      "lesson_1",
+      "student_1",
+      "homework-submissions/lesson_1/student_1/abc-hw.pdf",
+    );
+
+    expect(result.error).toBeTruthy();
+    expect(dbMock.submission.upsert).not.toHaveBeenCalled();
   });
 });

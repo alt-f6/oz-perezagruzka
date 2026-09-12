@@ -13,9 +13,11 @@ import {
   type ClassSessionWithGroup,
   type MakeupLessonOption,
   type Student,
+  type Submission,
 } from "@/crm/lib/types";
 import { formatMoscowDate, formatMoscowTime } from "@/shared/lib/timezone";
 import { assignMakeupLesson, setAttendance } from "../actions";
+import { SubmissionFileCell } from "./SubmissionFileCell";
 
 const ATTENDANCE_STATUSES: { value: AttendanceStatus; label: string }[] = [
   { value: "PRESENT", label: "Был" },
@@ -42,12 +44,14 @@ export function AttendanceClient({
   lesson,
   students,
   attendance,
+  submissions,
   userRole,
   makeupOptions,
 }: {
   lesson: ClassSessionWithGroup;
   students: StudentWithTransactions[];
   attendance: AttendanceRecord[];
+  submissions: Submission[];
   userRole?: string;
   makeupOptions: MakeupLessonOption[];
 }) {
@@ -171,6 +175,7 @@ export function AttendanceClient({
                   <th>Посещаемость</th>
                   <th>Оценка</th>
                   <th>Домашнее задание</th>
+                  <th>Файл ДЗ</th>
                   <th>Комментарий</th>
                   <th>Отработка</th>
                   {!isTeacher && <th>Списание</th>}
@@ -266,6 +271,15 @@ export function AttendanceClient({
                             })
                           }
                           className="h-4 w-4 rounded border-slate-200 accent-accent"
+                        />
+                      </td>
+
+                      <td className="whitespace-nowrap">
+                        <SubmissionFileCell
+                          lessonId={lesson.id}
+                          studentId={student.id}
+                          submission={submissions.find((s) => s.studentId === student.id)}
+                          disabled={false}
                         />
                       </td>
 

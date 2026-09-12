@@ -16,6 +16,7 @@ vi.mock("@/shared/lib/db", () => ({
     classSession: { findUnique: vi.fn(), findMany: vi.fn().mockResolvedValue([]) },
     groupStudent: { findMany: vi.fn().mockResolvedValue([]) },
     attendance: { findMany: vi.fn().mockResolvedValue([]) },
+    submission: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
 

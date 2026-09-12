@@ -120,6 +120,18 @@ export interface MakeupLessonOption {
   group?: { id: string; name: string } | { id: string; name: string }[] | null;
 }
 
+export type SubmissionStatus = "SUBMITTED" | "GRADED" | "REJECTED" | "NEEDS_REVISION";
+
+export interface Submission {
+  id: string;
+  studentId: string;
+  content: string | null;
+  fileKey: string | null;
+  status: SubmissionStatus;
+  score: number | null;
+  teacherComment: string | null;
+}
+
 export interface StudentExamGoal {
   id: string;
   studentId: string;

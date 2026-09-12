@@ -38,6 +38,7 @@ describe("AttendanceClient", () => {
         lesson={{ ...baseLessonFixture, teacher: { fullName: "Иван Иванов" } }}
         students={[]}
         attendance={[]}
+        submissions={[]}
         makeupOptions={[]}
       />,
     );
@@ -51,6 +52,7 @@ describe("AttendanceClient", () => {
         lesson={{ ...baseLessonFixture, teacher: null }}
         students={[]}
         attendance={[]}
+        submissions={[]}
         makeupOptions={[]}
       />,
     );
@@ -64,6 +66,7 @@ describe("AttendanceClient", () => {
         lesson={{ ...baseLessonFixture, scheduledAt: BOUNDARY_INSTANT }}
         students={[]}
         attendance={[]}
+        submissions={[]}
         makeupOptions={[]}
       />,
     );
@@ -100,6 +103,7 @@ describe("AttendanceClient", () => {
         lesson={baseLessonFixture}
         students={[student]}
         attendance={attendance}
+        submissions={[]}
         makeupOptions={makeupOptions}
       />,
     );
@@ -138,6 +142,7 @@ describe("AttendanceClient", () => {
         lesson={baseLessonFixture}
         students={[student]}
         attendance={attendance}
+        submissions={[]}
         makeupOptions={[]}
       />,
     );

@@ -36,6 +36,23 @@ const pastLessonFixture: ClassSessionWithGroup = {
   scheduledAt: "2020-01-01T12:00:00.000Z",
 };
 
+// Started 30 minutes ago with a 60-minute duration -- still ongoing, so it
+// must NOT be locked even for a TEACHER (boundary is end time, not start
+// time).
+const ongoingLessonFixture: ClassSessionWithGroup = {
+  ...baseLessonFixture,
+  scheduledAt: new Date(Date.now() - 30 * 60_000).toISOString(),
+  durationMinutes: 60,
+};
+
+// Started 90 minutes ago with a 60-minute duration -- concluded 30 minutes
+// ago, so it must be locked for a TEACHER.
+const concludedLessonFixture: ClassSessionWithGroup = {
+  ...baseLessonFixture,
+  scheduledAt: new Date(Date.now() - 90 * 60_000).toISOString(),
+  durationMinutes: 60,
+};
+
 describe("AttendanceClient", () => {
   it("shows the assigned teacher's name in the lesson header", () => {
     render(
@@ -190,7 +207,7 @@ describe("AttendanceClient", () => {
     );
 
     expect(
-      screen.getByText("Редактирование прошедших уроков доступно только администратору"),
+      screen.getByText("Редактирование прошедших занятий доступно только администратору"),
     ).toBeInTheDocument();
   });
 
@@ -207,7 +224,7 @@ describe("AttendanceClient", () => {
     );
 
     expect(
-      screen.queryByText("Редактирование прошедших уроков доступно только администратору"),
+      screen.queryByText("Редактирование прошедших занятий доступно только администратору"),
     ).not.toBeInTheDocument();
   });
 
@@ -227,7 +244,41 @@ describe("AttendanceClient", () => {
     );
 
     expect(
-      screen.queryByText("Редактирование прошедших уроков доступно только администратору"),
+      screen.queryByText("Редактирование прошедших занятий доступно только администратору"),
     ).not.toBeInTheDocument();
+  });
+
+  it("does NOT show the locked-editing notice for a TEACHER on a lesson still in progress (started 30min ago, 60min duration)", () => {
+    render(
+      <AttendanceClient
+        lesson={ongoingLessonFixture}
+        students={[]}
+        attendance={[]}
+        submissions={[]}
+        userRole="TEACHER"
+        makeupOptions={[]}
+      />,
+    );
+
+    expect(
+      screen.queryByText("Редактирование прошедших занятий доступно только администратору"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the locked-editing notice for a TEACHER on a lesson that concluded 30min ago (started 90min ago, 60min duration)", () => {
+    render(
+      <AttendanceClient
+        lesson={concludedLessonFixture}
+        students={[]}
+        attendance={[]}
+        submissions={[]}
+        userRole="TEACHER"
+        makeupOptions={[]}
+      />,
+    );
+
+    expect(
+      screen.getByText("Редактирование прошедших занятий доступно только администратору"),
+    ).toBeInTheDocument();
   });
 });

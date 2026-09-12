@@ -61,13 +61,15 @@ export function AttendanceClient({
   const isTeacher = userRole === "TEACHER";
 
   // Past-lesson lock (mirrors the server-side guard in ../actions.ts): once
-  // a lesson's start time has passed, only ADMIN may keep editing
-  // attendance/grades/homework -- a TEACHER can still edit anything still
-  // in the future. "Past" is derived the same way LessonsClient.tsx does.
-  const isPastLesson = new Date(lesson.scheduledAt) <= new Date();
+  // a lesson has actually concluded (start + duration), only ADMIN may keep
+  // editing attendance/grades/homework -- a TEACHER can still edit anything
+  // still in progress or in the future.
+  const isPastLesson =
+    new Date(lesson.scheduledAt).getTime() + lesson.durationMinutes * 60_000 <=
+    new Date().getTime();
   const canEdit = userRole === "ADMIN" || !isPastLesson;
   const EDIT_LOCKED_MESSAGE =
-    "Редактирование прошедших уроков доступно только администратору";
+    "Редактирование прошедших занятий доступно только администратору";
 
   const recordFor = (studentId: string) =>
     attendance.find((record) => record.studentId === studentId);

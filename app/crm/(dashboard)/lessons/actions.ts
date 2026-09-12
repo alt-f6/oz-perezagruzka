@@ -25,6 +25,19 @@ import { createLogger } from "@/shared/lib/logger";
 const log = createLogger("lessons.actions");
 
 /**
+ * A lesson is only "past" once it has actually finished -- attendance,
+ * grading, and homework are routine journal work done during or right after
+ * the lesson, so locking a TEACHER out at the *start* time would remove
+ * their ability to record any of that for the very lesson they're teaching.
+ * Every past-lesson guard in this file must use this (never bare
+ * scheduledAt) so the boundary is consistently end-of-lesson, not
+ * start-of-lesson.
+ */
+function isLessonConcluded(scheduledAt: Date, durationMinutes: number): boolean {
+  return new Date(scheduledAt).getTime() + durationMinutes * 60_000 <= Date.now();
+}
+
+/**
  * A lesson-creation request that lands (partly) outside the teacher's declared
  * working hours. createLesson returns this instead of persisting when the
  * operator hasn't yet acknowledged it, so an ADMIN/MANAGER can override — but
@@ -452,16 +465,24 @@ export async function setAttendance(
 
   const lesson = await db.classSession.findUnique({
     where: { id: lessonId },
-    select: { teacherId: true, scheduledAt: true, group: { select: { teacherId: true } } },
+    select: {
+      teacherId: true,
+      scheduledAt: true,
+      durationMinutes: true,
+      group: { select: { teacherId: true } },
+    },
   });
   if (!lesson) {
     return { error: "Занятие не найдено" };
   }
 
-  // Past-lesson lock: once a lesson's start time has passed, only ADMIN may
-  // keep editing attendance/grades/homework -- a TEACHER can still edit
-  // anything still in the future.
-  if (sessionUser.role !== "ADMIN" && new Date(lesson.scheduledAt) <= new Date()) {
+  // Past-lesson lock: once a lesson has actually concluded (start +
+  // duration), only ADMIN may keep editing attendance/grades/homework -- a
+  // TEACHER can still edit anything still in progress or in the future.
+  if (
+    sessionUser.role !== "ADMIN" &&
+    isLessonConcluded(lesson.scheduledAt, lesson.durationMinutes)
+  ) {
     return { error: "Редактирование прошедших занятий доступно только администратору" };
   }
 
@@ -585,6 +606,7 @@ export async function assignMakeupLesson(values: {
           groupId: true,
           teacherId: true,
           scheduledAt: true,
+          durationMinutes: true,
           group: { select: { teacherId: true } },
         },
       },
@@ -595,12 +617,12 @@ export async function assignMakeupLesson(values: {
   }
 
   // Past-lesson lock: assigning a makeup for an absence on a lesson that has
-  // already happened is still "editing" that lesson's attendance -- only
-  // ADMIN may do so once it's in the past.
+  // already concluded is still "editing" that lesson's attendance -- only
+  // ADMIN may do so once it's finished.
   if (
     sessionUser.role !== "ADMIN" &&
     attendance.classSession?.scheduledAt &&
-    new Date(attendance.classSession.scheduledAt) <= new Date()
+    isLessonConcluded(attendance.classSession.scheduledAt, attendance.classSession.durationMinutes)
   ) {
     return { error: "Редактирование прошедших занятий доступно только администратору" };
   }
@@ -662,6 +684,7 @@ type SubmissionForGrading = {
   lessonId: string;
   fileKey: string | null;
   scheduledAt: Date;
+  durationMinutes: number;
 };
 
 async function loadSubmissionForGrading(
@@ -674,7 +697,14 @@ async function loadSubmissionForGrading(
       id: true,
       lessonId: true,
       fileKey: true,
-      lesson: { select: { teacherId: true, scheduledAt: true, group: { select: { teacherId: true } } } },
+      lesson: {
+        select: {
+          teacherId: true,
+          scheduledAt: true,
+          durationMinutes: true,
+          group: { select: { teacherId: true } },
+        },
+      },
     },
   });
   if (!submission) return { ok: false, error: "Работа не найдена" };
@@ -695,6 +725,7 @@ async function loadSubmissionForGrading(
       lessonId: submission.lessonId,
       fileKey: submission.fileKey,
       scheduledAt: submission.lesson.scheduledAt,
+      durationMinutes: submission.lesson.durationMinutes,
     },
   };
 }
@@ -717,8 +748,11 @@ export async function gradeSubmission(values: {
 
   // Past-lesson lock: grading is editing, not viewing (that's
   // getSubmissionFileUrl, which never checks this) -- only ADMIN may grade
-  // once the lesson has already happened.
-  if (sessionUser.role !== "ADMIN" && new Date(result.submission.scheduledAt) <= new Date()) {
+  // once the lesson has already concluded.
+  if (
+    sessionUser.role !== "ADMIN" &&
+    isLessonConcluded(result.submission.scheduledAt, result.submission.durationMinutes)
+  ) {
     return { error: "Редактирование прошедших занятий доступно только администратору" };
   }
 
@@ -792,13 +826,18 @@ async function loadLessonForHomeworkUpload(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const lesson = await db.classSession.findUnique({
     where: { id: lessonId },
-    select: { teacherId: true, scheduledAt: true, group: { select: { teacherId: true } } },
+    select: {
+      teacherId: true,
+      scheduledAt: true,
+      durationMinutes: true,
+      group: { select: { teacherId: true } },
+    },
   });
   if (!lesson) return { ok: false, error: "Занятие не найдено" };
 
   // Past-lesson lock: attaching/replacing a homework file is editing -- only
-  // ADMIN may do so once the lesson has already happened.
-  if (sessionUser.role !== "ADMIN" && new Date(lesson.scheduledAt) <= new Date()) {
+  // ADMIN may do so once the lesson has already concluded.
+  if (sessionUser.role !== "ADMIN" && isLessonConcluded(lesson.scheduledAt, lesson.durationMinutes)) {
     return { ok: false, error: "Редактирование прошедших занятий доступно только администратору" };
   }
 

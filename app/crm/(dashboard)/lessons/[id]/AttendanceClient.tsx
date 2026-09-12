@@ -60,6 +60,15 @@ export function AttendanceClient({
 
   const isTeacher = userRole === "TEACHER";
 
+  // Past-lesson lock (mirrors the server-side guard in ../actions.ts): once
+  // a lesson's start time has passed, only ADMIN may keep editing
+  // attendance/grades/homework -- a TEACHER can still edit anything still
+  // in the future. "Past" is derived the same way LessonsClient.tsx does.
+  const isPastLesson = new Date(lesson.scheduledAt) <= new Date();
+  const canEdit = userRole === "ADMIN" || !isPastLesson;
+  const EDIT_LOCKED_MESSAGE =
+    "Редактирование прошедших уроков доступно только администратору";
+
   const recordFor = (studentId: string) =>
     attendance.find((record) => record.studentId === studentId);
 
@@ -158,6 +167,12 @@ export function AttendanceClient({
         </div>
       </div>
 
+      {!canEdit && (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+          {EDIT_LOCKED_MESSAGE}
+        </p>
+      )}
+
       {students.length === 0 ? (
         <div className="empty-state bg-white">
           {lesson.group
@@ -222,7 +237,8 @@ export function AttendanceClient({
                       <td className="whitespace-nowrap">
                         <select
                           value={currentStatus}
-                          disabled={isBusy}
+                          disabled={isBusy || !canEdit}
+                          title={!canEdit ? EDIT_LOCKED_MESSAGE : undefined}
                           onChange={(e) =>
                             updateAttendanceData(student.id, {
                               status: e.target.value as AttendanceStatus,
@@ -241,7 +257,8 @@ export function AttendanceClient({
                       <td className="whitespace-nowrap">
                         <select
                           value={currentGrade}
-                          disabled={isBusy}
+                          disabled={isBusy || !canEdit}
+                          title={!canEdit ? EDIT_LOCKED_MESSAGE : undefined}
                           onChange={(e) =>
                             updateAttendanceData(student.id, {
                               grade: e.target.value
@@ -264,7 +281,8 @@ export function AttendanceClient({
                         <input
                           type="checkbox"
                           checked={currentHomeworkCompleted}
-                          disabled={isBusy}
+                          disabled={isBusy || !canEdit}
+                          title={!canEdit ? EDIT_LOCKED_MESSAGE : undefined}
                           onChange={(e) =>
                             updateAttendanceData(student.id, {
                               homeworkCompleted: e.target.checked,
@@ -279,7 +297,7 @@ export function AttendanceClient({
                           lessonId={lesson.id}
                           studentId={student.id}
                           submission={submissions.find((s) => s.studentId === student.id)}
-                          disabled={false}
+                          disabled={!canEdit}
                         />
                       </td>
 
@@ -287,7 +305,8 @@ export function AttendanceClient({
                         <input
                           type="text"
                           value={commentDrafts[student.id] ?? record?.comment ?? ""}
-                          disabled={isBusy}
+                          disabled={isBusy || !canEdit}
+                          title={!canEdit ? EDIT_LOCKED_MESSAGE : undefined}
                           placeholder="Комментарий..."
                           onChange={(e) =>
                             setCommentDrafts((prev) => ({
@@ -333,7 +352,8 @@ export function AttendanceClient({
                               <div className="flex items-center gap-1.5">
                                 <select
                                   value={makeupSelection[record.id] ?? ""}
-                                  disabled={busyMakeupId === record.id}
+                                  disabled={busyMakeupId === record.id || !canEdit}
+                                  title={!canEdit ? EDIT_LOCKED_MESSAGE : undefined}
                                   onChange={(e) =>
                                     setMakeupSelection((prev) => ({
                                       ...prev,
@@ -357,7 +377,8 @@ export function AttendanceClient({
                                 </select>
                                 <button
                                   type="button"
-                                  disabled={busyMakeupId === record.id}
+                                  disabled={busyMakeupId === record.id || !canEdit}
+                                  title={!canEdit ? EDIT_LOCKED_MESSAGE : undefined}
                                   onClick={() =>
                                     handleAssignMakeup(
                                       record.id,

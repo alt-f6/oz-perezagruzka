@@ -213,16 +213,19 @@ describe("createLesson", () => {
     expect(dbMock.classSession.createMany).not.toHaveBeenCalled();
   });
 
-  it("schedules an individual lesson without a group, using the chosen teacher and session price", async () => {
-    dbMock.student.findFirst.mockResolvedValue({ id: "22222222-2222-4222-8222-222222222222" });
+  it("resolves an individual lesson's price from the student's last individual session", async () => {
+    dbMock.student.findFirst.mockResolvedValue({
+      id: "22222222-2222-4222-8222-222222222222",
+      fullName: "Иванов Иван",
+    });
     dbMock.user.findFirst.mockResolvedValue({ id: "33333333-3333-4333-8333-333333333333" });
+    dbMock.classSession.findFirst.mockResolvedValue({ pricePerLesson: 1500 });
     dbMock.classSession.createMany.mockResolvedValue({ count: 1 });
 
     const result = await createLesson({
       type: "INDIVIDUAL",
       studentId: "22222222-2222-4222-8222-222222222222",
       teacherId: "33333333-3333-4333-8333-333333333333",
-      pricePerLesson: "1500",
       date: "2026-09-01",
       time: "15:00",
       durationMinutes: 60,
@@ -232,7 +235,6 @@ describe("createLesson", () => {
     });
 
     expect(result?.error).toBeUndefined();
-    // No group lookup for an individual lesson.
     expect(dbMock.group.findUnique).not.toHaveBeenCalled();
     expect(dbMock.classSession.createMany).toHaveBeenCalledWith({
       data: [
@@ -245,6 +247,61 @@ describe("createLesson", () => {
           durationMinutes: 60,
         }),
       ],
+    });
+  });
+
+  it("returns a missingPriceWarning and does not create when the student has no individual lesson price history", async () => {
+    dbMock.student.findFirst.mockResolvedValue({
+      id: "22222222-2222-4222-8222-222222222222",
+      fullName: "Иванов Иван",
+    });
+    dbMock.user.findFirst.mockResolvedValue({ id: "33333333-3333-4333-8333-333333333333" });
+    dbMock.classSession.findFirst.mockResolvedValue(null);
+
+    const result = await createLesson({
+      type: "INDIVIDUAL",
+      studentId: "22222222-2222-4222-8222-222222222222",
+      teacherId: "33333333-3333-4333-8333-333333333333",
+      date: "2026-09-01",
+      time: "15:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+    });
+
+    expect("missingPriceWarning" in result && result.missingPriceWarning).toEqual({
+      studentId: "22222222-2222-4222-8222-222222222222",
+      studentName: "Иванов Иван",
+    });
+    expect(dbMock.classSession.createMany).not.toHaveBeenCalled();
+  });
+
+  it("creates at 0 ₽ once acknowledgeMissingPrice is set", async () => {
+    dbMock.student.findFirst.mockResolvedValue({
+      id: "22222222-2222-4222-8222-222222222222",
+      fullName: "Иванов Иван",
+    });
+    dbMock.user.findFirst.mockResolvedValue({ id: "33333333-3333-4333-8333-333333333333" });
+    dbMock.classSession.findFirst.mockResolvedValue(null);
+    dbMock.classSession.createMany.mockResolvedValue({ count: 1 });
+
+    const result = await createLesson({
+      type: "INDIVIDUAL",
+      studentId: "22222222-2222-4222-8222-222222222222",
+      teacherId: "33333333-3333-4333-8333-333333333333",
+      date: "2026-09-01",
+      time: "15:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+      acknowledgeMissingPrice: true,
+    });
+
+    expect(result?.error).toBeUndefined();
+    expect(dbMock.classSession.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ pricePerLesson: 0 })],
     });
   });
 

@@ -211,22 +211,6 @@ export function LessonFormFields({
               <p className="field-error">{errors.teacherId.message}</p>
             )}
           </div>
-
-          <div>
-            <label className="label">Стоимость занятия, ₽ (необязательно; укажите сниженную цену для пробного занятия)</label>
-            <input
-              type="number"
-              min={0}
-              step="0.01"
-              placeholder="0"
-              disabled={isSubmitting}
-              {...register("pricePerLesson")}
-              className="input"
-            />
-            {errors.pricePerLesson && (
-              <p className="field-error">{errors.pricePerLesson.message}</p>
-            )}
-          </div>
         </>
       )}
 

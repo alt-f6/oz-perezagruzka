@@ -19,6 +19,7 @@ import {
   type Occurrence,
 } from "@/crm/lib/lessonOccurrences";
 import { collectUnavailableOccurrences } from "@/crm/lib/services/availability.service";
+import { getLastIndividualLessonPrice } from "@/crm/lib/services/abonement.service";
 import { createLogger } from "@/shared/lib/logger";
 
 const log = createLogger("lessons.actions");
@@ -45,10 +46,23 @@ export interface ClosedPayoutWarning {
   occurrences: { scheduledAt: string; label: string }[];
 }
 
+/**
+ * Surfaced when an INDIVIDUAL lesson is being created for a student with no
+ * prior individual-lesson price on record (no Student rate field or subject
+ * rate table exists -- "last individual lesson price" IS the personal
+ * rate, per getLastIndividualLessonPrice). The operator must explicitly
+ * confirm proceeding at 0 ₽ -- price is never silently guessed.
+ */
+export interface MissingPriceWarning {
+  studentId: string;
+  studentName: string;
+}
+
 export type CreateLessonResult =
   | { error: string }
   | {
       error?: undefined;
+      missingPriceWarning?: MissingPriceWarning;
       availabilityWarning?: LessonAvailabilityWarning;
       closedPayoutWarning?: ClosedPayoutWarning;
     };
@@ -139,7 +153,7 @@ export async function createLesson(
     const [student, teacher] = await Promise.all([
       db.student.findFirst({
         where: { id: studentId, deletedAt: null },
-        select: { id: true },
+        select: { id: true, fullName: true },
       }),
       db.user.findFirst({
         where: { id: chosenTeacherId, role: "TEACHER" },
@@ -153,14 +167,24 @@ export async function createLesson(
       return { error: "Преподаватель не найден" };
     }
 
+    // Auto-resolve the per-lesson price server-side -- the client never
+    // supplies it. No Student rate field or subject-rate table exists, so
+    // the student's most recent individual-lesson price IS the resolved
+    // rate; a student with no such history requires an explicit operator
+    // acknowledgement before the lesson is created at 0 ₽.
+    const resolvedPrice = await getLastIndividualLessonPrice(studentId);
+    if (resolvedPrice === null && !parsed.data.acknowledgeMissingPrice) {
+      return {
+        missingPriceWarning: { studentId, studentName: student.fullName },
+      };
+    }
+
     teacherId = chosenTeacherId;
     sessionLink = {
       type: "INDIVIDUAL",
       groupId: null,
       studentId,
-      pricePerLesson: parsed.data.pricePerLesson
-        ? Number(parsed.data.pricePerLesson)
-        : null,
+      pricePerLesson: resolvedPrice ?? 0,
       isTrial: parsed.data.isTrial ?? false,
     };
   } else {

@@ -88,6 +88,12 @@ export function LessonsClient({
     occurrences: { scheduledAt: string; label: string }[];
     values: LessonValues;
   } | null>(null);
+  // Set when createLesson reports the chosen student has no individual-lesson
+  // price history; the operator must explicitly confirm creating at 0 ₽.
+  const [missingPriceWarning, setMissingPriceWarning] = useState<{
+    studentName: string;
+    values: LessonValues;
+  } | null>(null);
   const [overriding, setOverriding] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [cancelCandidate, setCancelCandidate] = useState<CancelCandidate | null>(null);
@@ -142,15 +148,26 @@ export function LessonsClient({
   // whichever soft warning the operator just confirmed.
   const submitCreate = async (
     values: LessonValues,
-    ack: { unavailable?: boolean; closedPayout?: boolean } = {},
+    ack: { unavailable?: boolean; closedPayout?: boolean; missingPrice?: boolean } = {},
   ): Promise<boolean> => {
     const result = await createLesson({
       ...values,
       ...(ack.unavailable ? { acknowledgeUnavailable: true } : {}),
       ...(ack.closedPayout ? { acknowledgeClosedPayout: true } : {}),
+      ...(ack.missingPrice ? { acknowledgeMissingPrice: true } : {}),
     });
     if (result?.error) {
       showToast(result.error, "error");
+      return false;
+    }
+    // missingPriceWarning is checked before the other two: createLesson
+    // returns it from inside the INDIVIDUAL branch, before occurrences are
+    // even expanded, so it's always the first warning surfaced.
+    if ("missingPriceWarning" in result && result.missingPriceWarning) {
+      setMissingPriceWarning({
+        studentName: result.missingPriceWarning.studentName,
+        values,
+      });
       return false;
     }
     // Closed-payout is checked before availability server-side, so surface it
@@ -205,6 +222,19 @@ export function LessonsClient({
     try {
       const created = await submitCreate(closedPayoutWarning.values, { closedPayout: true });
       if (created) setClosedPayoutWarning(null);
+    } catch {
+      showToast("Не удалось создать занятие", "error");
+    } finally {
+      setOverriding(false);
+    }
+  };
+
+  const confirmOverrideMissingPrice = async () => {
+    if (!missingPriceWarning) return;
+    setOverriding(true);
+    try {
+      const created = await submitCreate(missingPriceWarning.values, { missingPrice: true });
+      if (created) setMissingPriceWarning(null);
     } catch {
       showToast("Не удалось создать занятие", "error");
     } finally {
@@ -519,6 +549,23 @@ export function LessonsClient({
         }
         onConfirm={confirmOverrideClosedPayout}
         onClose={() => setClosedPayoutWarning(null)}
+      />
+
+      <ConfirmDialog
+        open={missingPriceWarning !== null}
+        danger
+        title="У ученика нет истории цены"
+        confirmLabel="Создать с ценой 0 ₽"
+        busy={overriding}
+        message={
+          <span>
+            Для ученика «{missingPriceWarning?.studentName}» ещё нет ни одного
+            индивидуального занятия с ценой — стоимость нового занятия будет
+            установлена в 0 ₽. Скорректировать её можно позже.
+          </span>
+        }
+        onConfirm={confirmOverrideMissingPrice}
+        onClose={() => setMissingPriceWarning(null)}
       />
     </div>
   );

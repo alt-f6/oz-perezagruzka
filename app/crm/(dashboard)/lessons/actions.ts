@@ -19,9 +19,23 @@ import {
   type Occurrence,
 } from "@/crm/lib/lessonOccurrences";
 import { collectUnavailableOccurrences } from "@/crm/lib/services/availability.service";
+import { getLastIndividualLessonPrice } from "@/crm/lib/services/abonement.service";
 import { createLogger } from "@/shared/lib/logger";
 
 const log = createLogger("lessons.actions");
+
+/**
+ * A lesson is only "past" once it has actually finished -- attendance,
+ * grading, and homework are routine journal work done during or right after
+ * the lesson, so locking a TEACHER out at the *start* time would remove
+ * their ability to record any of that for the very lesson they're teaching.
+ * Every past-lesson guard in this file must use this (never bare
+ * scheduledAt) so the boundary is consistently end-of-lesson, not
+ * start-of-lesson.
+ */
+function isLessonConcluded(scheduledAt: Date, durationMinutes: number): boolean {
+  return new Date(scheduledAt).getTime() + durationMinutes * 60_000 <= Date.now();
+}
 
 /**
  * A lesson-creation request that lands (partly) outside the teacher's declared
@@ -45,10 +59,23 @@ export interface ClosedPayoutWarning {
   occurrences: { scheduledAt: string; label: string }[];
 }
 
+/**
+ * Surfaced when an INDIVIDUAL lesson is being created for a student with no
+ * prior individual-lesson price on record (no Student rate field or subject
+ * rate table exists -- "last individual lesson price" IS the personal
+ * rate, per getLastIndividualLessonPrice). The operator must explicitly
+ * confirm proceeding at 0 ₽ -- price is never silently guessed.
+ */
+export interface MissingPriceWarning {
+  studentId: string;
+  studentName: string;
+}
+
 export type CreateLessonResult =
   | { error: string }
   | {
       error?: undefined;
+      missingPriceWarning?: MissingPriceWarning;
       availabilityWarning?: LessonAvailabilityWarning;
       closedPayoutWarning?: ClosedPayoutWarning;
     };
@@ -139,7 +166,7 @@ export async function createLesson(
     const [student, teacher] = await Promise.all([
       db.student.findFirst({
         where: { id: studentId, deletedAt: null },
-        select: { id: true },
+        select: { id: true, fullName: true },
       }),
       db.user.findFirst({
         where: { id: chosenTeacherId, role: "TEACHER" },
@@ -153,14 +180,24 @@ export async function createLesson(
       return { error: "Преподаватель не найден" };
     }
 
+    // Auto-resolve the per-lesson price server-side -- the client never
+    // supplies it. No Student rate field or subject-rate table exists, so
+    // the student's most recent individual-lesson price IS the resolved
+    // rate; a student with no such history requires an explicit operator
+    // acknowledgement before the lesson is created at 0 ₽.
+    const resolvedPrice = await getLastIndividualLessonPrice(studentId);
+    if (resolvedPrice === null && !parsed.data.acknowledgeMissingPrice) {
+      return {
+        missingPriceWarning: { studentId, studentName: student.fullName },
+      };
+    }
+
     teacherId = chosenTeacherId;
     sessionLink = {
       type: "INDIVIDUAL",
       groupId: null,
       studentId,
-      pricePerLesson: parsed.data.pricePerLesson
-        ? Number(parsed.data.pricePerLesson)
-        : null,
+      pricePerLesson: resolvedPrice ?? 0,
       isTrial: parsed.data.isTrial ?? false,
     };
   } else {
@@ -428,10 +465,25 @@ export async function setAttendance(
 
   const lesson = await db.classSession.findUnique({
     where: { id: lessonId },
-    select: { teacherId: true, group: { select: { teacherId: true } } },
+    select: {
+      teacherId: true,
+      scheduledAt: true,
+      durationMinutes: true,
+      group: { select: { teacherId: true } },
+    },
   });
   if (!lesson) {
     return { error: "Занятие не найдено" };
+  }
+
+  // Past-lesson lock: once a lesson has actually concluded (start +
+  // duration), only ADMIN may keep editing attendance/grades/homework -- a
+  // TEACHER can still edit anything still in progress or in the future.
+  if (
+    sessionUser.role !== "ADMIN" &&
+    isLessonConcluded(lesson.scheduledAt, lesson.durationMinutes)
+  ) {
+    return { error: "Редактирование прошедших занятий доступно только администратору" };
   }
 
   if (sessionUser.role === "TEACHER") {
@@ -550,13 +602,31 @@ export async function assignMakeupLesson(values: {
       classSessionId: true,
       status: true,
       classSession: {
-        select: { groupId: true, teacherId: true, group: { select: { teacherId: true } } },
+        select: {
+          groupId: true,
+          teacherId: true,
+          scheduledAt: true,
+          durationMinutes: true,
+          group: { select: { teacherId: true } },
+        },
       },
     },
   });
   if (!attendance) {
     return { error: "Запись посещаемости не найдена" };
   }
+
+  // Past-lesson lock: assigning a makeup for an absence on a lesson that has
+  // already concluded is still "editing" that lesson's attendance -- only
+  // ADMIN may do so once it's finished.
+  if (
+    sessionUser.role !== "ADMIN" &&
+    attendance.classSession?.scheduledAt &&
+    isLessonConcluded(attendance.classSession.scheduledAt, attendance.classSession.durationMinutes)
+  ) {
+    return { error: "Редактирование прошедших занятий доступно только администратору" };
+  }
+
   const ownedByTeacher =
     attendance.classSession?.teacherId === sessionUser.id ||
     attendance.classSession?.group?.teacherId === sessionUser.id;
@@ -613,6 +683,8 @@ type SubmissionForGrading = {
   id: string;
   lessonId: string;
   fileKey: string | null;
+  scheduledAt: Date;
+  durationMinutes: number;
 };
 
 async function loadSubmissionForGrading(
@@ -625,7 +697,14 @@ async function loadSubmissionForGrading(
       id: true,
       lessonId: true,
       fileKey: true,
-      lesson: { select: { teacherId: true, group: { select: { teacherId: true } } } },
+      lesson: {
+        select: {
+          teacherId: true,
+          scheduledAt: true,
+          durationMinutes: true,
+          group: { select: { teacherId: true } },
+        },
+      },
     },
   });
   if (!submission) return { ok: false, error: "Работа не найдена" };
@@ -641,7 +720,13 @@ async function loadSubmissionForGrading(
 
   return {
     ok: true,
-    submission: { id: submission.id, lessonId: submission.lessonId, fileKey: submission.fileKey },
+    submission: {
+      id: submission.id,
+      lessonId: submission.lessonId,
+      fileKey: submission.fileKey,
+      scheduledAt: submission.lesson.scheduledAt,
+      durationMinutes: submission.lesson.durationMinutes,
+    },
   };
 }
 
@@ -660,6 +745,16 @@ export async function gradeSubmission(values: {
 
   const result = await loadSubmissionForGrading(parsed.data.submissionId, sessionUser);
   if (!result.ok) return { error: result.error };
+
+  // Past-lesson lock: grading is editing, not viewing (that's
+  // getSubmissionFileUrl, which never checks this) -- only ADMIN may grade
+  // once the lesson has already concluded.
+  if (
+    sessionUser.role !== "ADMIN" &&
+    isLessonConcluded(result.submission.scheduledAt, result.submission.durationMinutes)
+  ) {
+    return { error: "Редактирование прошедших занятий доступно только администратору" };
+  }
 
   const updateData: {
     status: SubmissionStatus;
@@ -714,4 +809,115 @@ export async function getSubmissionFileUrl(
       error: err instanceof Error ? err.message : "Не удалось открыть файл",
     };
   }
+}
+
+const HOMEWORK_FILE_MAX_SIZE_BYTES = 25 * 1024 * 1024;
+
+function safeHomeworkFileName(name: string): string {
+  return name.replace(/[^\w.\-]+/g, "_").slice(0, 120) || "file";
+}
+
+// Shared by getHomeworkUploadUrl and attachHomeworkFile: confirms the lesson
+// exists and, for a TEACHER, that they own it -- same ownership pattern as
+// setAttendance/loadSubmissionForGrading in this file.
+async function loadLessonForHomeworkUpload(
+  lessonId: string,
+  sessionUser: { id: string; role: string },
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const lesson = await db.classSession.findUnique({
+    where: { id: lessonId },
+    select: {
+      teacherId: true,
+      scheduledAt: true,
+      durationMinutes: true,
+      group: { select: { teacherId: true } },
+    },
+  });
+  if (!lesson) return { ok: false, error: "Занятие не найдено" };
+
+  // Past-lesson lock: attaching/replacing a homework file is editing -- only
+  // ADMIN may do so once the lesson has already concluded.
+  if (sessionUser.role !== "ADMIN" && isLessonConcluded(lesson.scheduledAt, lesson.durationMinutes)) {
+    return { ok: false, error: "Редактирование прошедших занятий доступно только администратору" };
+  }
+
+  if (sessionUser.role === "TEACHER") {
+    const owned = lesson.teacherId === sessionUser.id || lesson.group?.teacherId === sessionUser.id;
+    if (!owned) return { ok: false, error: "Занятие не принадлежит преподавателю" };
+  }
+
+  return { ok: true };
+}
+
+// Mints a presigned PUT URL so a teacher/admin can attach a student's
+// homework file directly from the CRM journal -- same key convention as the
+// student-side getSubmissionUploadUrl (app/crm/(student)/portal/actions.ts):
+// homework-submissions/{lessonId}/{studentId}/{uuid}-{safeName}.
+export async function getHomeworkUploadUrl(
+  lessonId: string,
+  studentId: string,
+  file: { name: string; mimeType: string; sizeBytes: number },
+): Promise<
+  | { error: string }
+  | { error?: undefined; uploadUrl: string; fileKey: string; fileName: string }
+> {
+  const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
+
+  const owned = await loadLessonForHomeworkUpload(lessonId, sessionUser);
+  if (!owned.ok) return { error: owned.error };
+
+  if (!Number.isFinite(file.sizeBytes) || file.sizeBytes <= 0) {
+    return { error: "Некорректный размер файла" };
+  }
+  if (file.sizeBytes > HOMEWORK_FILE_MAX_SIZE_BYTES) {
+    return { error: "Файл слишком большой (максимум 25 МБ)" };
+  }
+
+  const fileName = safeHomeworkFileName(file.name);
+  const fileKey = `homework-submissions/${lessonId}/${studentId}/${crypto.randomUUID()}-${fileName}`;
+
+  try {
+    const { signPutObject } = await import("@/lms/server/r2/signed");
+    const uploadUrl = await signPutObject(fileKey, file.mimeType);
+    return { uploadUrl, fileKey, fileName };
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Не удалось подготовить загрузку файла",
+    };
+  }
+}
+
+// Persists (or clears, with fileKey=null) the fileKey a teacher/admin just
+// uploaded. Upserts because a teacher may attach a file before the student
+// has ever submitted anything (no Submission row exists yet).
+export async function attachHomeworkFile(
+  lessonId: string,
+  studentId: string,
+  fileKey: string | null,
+): Promise<ActionResult> {
+  const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
+
+  const owned = await loadLessonForHomeworkUpload(lessonId, sessionUser);
+  if (!owned.ok) return { error: owned.error };
+
+  // IDOR guard: the only legitimate source of fileKey is getHomeworkUploadUrl,
+  // which always mints keys scoped to this exact prefix.
+  if (fileKey !== null && !fileKey.startsWith(`homework-submissions/${lessonId}/${studentId}/`)) {
+    return { error: "Некорректный ключ файла" };
+  }
+
+  try {
+    await db.submission.upsert({
+      where: { lessonId_studentId: { lessonId, studentId } },
+      update: { fileKey },
+      create: { lessonId, studentId, fileKey, status: "SUBMITTED" },
+    });
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Не удалось прикрепить файл",
+    };
+  }
+
+  revalidatePath(`/lessons/${lessonId}`);
+  return {};
 }

@@ -34,6 +34,31 @@ describe("remainingLessonsFor", () => {
   });
 });
 
+describe("getLastIndividualLessonPrice", () => {
+  it("returns the price of the most recent non-trial individual session", async () => {
+    dbMock.classSession.findFirst.mockResolvedValue({ pricePerLesson: 1500 });
+    const { getLastIndividualLessonPrice } = await import("./abonement.service");
+
+    const result = await getLastIndividualLessonPrice("student_1");
+
+    expect(result).toBe(1500);
+    expect(dbMock.classSession.findFirst).toHaveBeenCalledWith({
+      where: { studentId: "student_1", type: "INDIVIDUAL", pricePerLesson: { not: null }, isTrial: false },
+      orderBy: { scheduledAt: "desc" },
+      select: { pricePerLesson: true },
+    });
+  });
+
+  it("returns null when the student has no individual lesson history", async () => {
+    dbMock.classSession.findFirst.mockResolvedValue(null);
+    const { getLastIndividualLessonPrice } = await import("./abonement.service");
+
+    const result = await getLastIndividualLessonPrice("student_1");
+
+    expect(result).toBeNull();
+  });
+});
+
 describe("computeMinGroupRemainingLessons", () => {
   it("returns the lowest figure across groups against the SAME shared balance (not split)", () => {
     // 1000₽ shared balance: group A costs 500 (2 left), group B costs 1000 (1 left).

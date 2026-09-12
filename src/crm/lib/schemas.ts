@@ -188,24 +188,8 @@ export const lessonSchema = z
     // Required for INDIVIDUAL sessions (validated below); ignored for GROUP.
     studentId: z.uuid().optional().or(z.literal("")),
     teacherId: z.uuid().optional().or(z.literal("")),
-    // Optional per-lesson charge for INDIVIDUAL sessions. Kept as a string (the
-    // raw HTML number-input value) so the zod input and output types stay equal
-    // for react-hook-form; the action coerces it to a number. "" means "unset".
-    pricePerLesson: z
-      .string()
-      .optional()
-      .or(z.literal(""))
-      .refine(
-        (v) => {
-          if (!v) return true;
-          const n = Number(v);
-          return Number.isFinite(n) && n >= 0 && n <= 1_000_000;
-        },
-        { message: "Некорректная цена (0–1 000 000)" },
-      ),
     // "Пробное занятие" toggle -- available on both GROUP and INDIVIDUAL
-    // lessons; only INDIVIDUAL lessons additionally expose a discounted
-    // pricePerLesson override (see LessonFormFields.tsx).
+    // lessons.
     isTrial: z.boolean().optional(),
     date: z.string().min(1, { message: "Укажите дату" }),
     time: z.string().min(1, { message: "Укажите время" }),
@@ -225,6 +209,11 @@ export const lessonSchema = z
     // period is already closed for the resolved teacher. Absent/false =>
     // createLesson surfaces the closed-payout warning instead of persisting.
     acknowledgeClosedPayout: z.boolean().optional(),
+    // Set true only after the operator explicitly confirmed creating an
+    // INDIVIDUAL lesson for a student with no prior individual-lesson price
+    // history — createLesson otherwise surfaces a missing-price warning
+    // instead of persisting at an unconfirmed 0 ₽.
+    acknowledgeMissingPrice: z.boolean().optional(),
   })
   // An absent `type` is treated as GROUP, so GROUP validation fires unless the
   // caller explicitly chose INDIVIDUAL.

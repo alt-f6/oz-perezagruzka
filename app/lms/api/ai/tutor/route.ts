@@ -2,6 +2,7 @@ import { streamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 
 import { requireRole } from "@/shared/lib/rbac";
+import { hasTutorAccess } from "@/lms/server/access/has-tutor-access";
 import { createLogger } from "@/shared/lib/logger";
 import {
   tutorRequestSchema,
@@ -27,10 +28,21 @@ const CHAT_TIMEOUT_MS = 30_000;
 
 export async function POST(req: Request) {
   // Student/teacher feature (admins bypass for support/QA).
+  let user: Awaited<ReturnType<typeof requireRole>>;
   try {
-    await requireRole(["STUDENT", "TEACHER"], { adminBypass: true });
+    user = await requireRole(["STUDENT", "TEACHER"], { adminBypass: true });
   } catch {
     return Response.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  if (user.role === "STUDENT") {
+    const allowed = await hasTutorAccess(user.id);
+    if (!allowed) {
+      return Response.json(
+        { error: "Доступ к ИИ-репетитору не назначен" },
+        { status: 403 },
+      );
+    }
   }
 
   const rawBody: unknown = await req.json().catch(() => null);

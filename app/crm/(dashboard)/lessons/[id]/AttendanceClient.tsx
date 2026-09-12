@@ -13,9 +13,11 @@ import {
   type ClassSessionWithGroup,
   type MakeupLessonOption,
   type Student,
+  type Submission,
 } from "@/crm/lib/types";
 import { formatMoscowDate, formatMoscowTime } from "@/shared/lib/timezone";
 import { assignMakeupLesson, setAttendance } from "../actions";
+import { SubmissionFileCell } from "./SubmissionFileCell";
 
 const ATTENDANCE_STATUSES: { value: AttendanceStatus; label: string }[] = [
   { value: "PRESENT", label: "Был" },
@@ -42,12 +44,14 @@ export function AttendanceClient({
   lesson,
   students,
   attendance,
+  submissions,
   userRole,
   makeupOptions,
 }: {
   lesson: ClassSessionWithGroup;
   students: StudentWithTransactions[];
   attendance: AttendanceRecord[];
+  submissions: Submission[];
   userRole?: string;
   makeupOptions: MakeupLessonOption[];
 }) {
@@ -55,6 +59,17 @@ export function AttendanceClient({
   const [busyStudentId, setBusyStudentId] = useState<string | null>(null);
 
   const isTeacher = userRole === "TEACHER";
+
+  // Past-lesson lock (mirrors the server-side guard in ../actions.ts): once
+  // a lesson has actually concluded (start + duration), only ADMIN may keep
+  // editing attendance/grades/homework -- a TEACHER can still edit anything
+  // still in progress or in the future.
+  const isPastLesson =
+    new Date(lesson.scheduledAt).getTime() + lesson.durationMinutes * 60_000 <=
+    new Date().getTime();
+  const canEdit = userRole === "ADMIN" || !isPastLesson;
+  const EDIT_LOCKED_MESSAGE =
+    "Редактирование прошедших занятий доступно только администратору";
 
   const recordFor = (studentId: string) =>
     attendance.find((record) => record.studentId === studentId);
@@ -154,6 +169,12 @@ export function AttendanceClient({
         </div>
       </div>
 
+      {!canEdit && (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+          {EDIT_LOCKED_MESSAGE}
+        </p>
+      )}
+
       {students.length === 0 ? (
         <div className="empty-state bg-white">
           {lesson.group
@@ -171,6 +192,7 @@ export function AttendanceClient({
                   <th>Посещаемость</th>
                   <th>Оценка</th>
                   <th>Домашнее задание</th>
+                  <th>Файл ДЗ</th>
                   <th>Комментарий</th>
                   <th>Отработка</th>
                   {!isTeacher && <th>Списание</th>}
@@ -217,7 +239,8 @@ export function AttendanceClient({
                       <td className="whitespace-nowrap">
                         <select
                           value={currentStatus}
-                          disabled={isBusy}
+                          disabled={isBusy || !canEdit}
+                          title={!canEdit ? EDIT_LOCKED_MESSAGE : undefined}
                           onChange={(e) =>
                             updateAttendanceData(student.id, {
                               status: e.target.value as AttendanceStatus,
@@ -236,7 +259,8 @@ export function AttendanceClient({
                       <td className="whitespace-nowrap">
                         <select
                           value={currentGrade}
-                          disabled={isBusy}
+                          disabled={isBusy || !canEdit}
+                          title={!canEdit ? EDIT_LOCKED_MESSAGE : undefined}
                           onChange={(e) =>
                             updateAttendanceData(student.id, {
                               grade: e.target.value
@@ -259,7 +283,8 @@ export function AttendanceClient({
                         <input
                           type="checkbox"
                           checked={currentHomeworkCompleted}
-                          disabled={isBusy}
+                          disabled={isBusy || !canEdit}
+                          title={!canEdit ? EDIT_LOCKED_MESSAGE : undefined}
                           onChange={(e) =>
                             updateAttendanceData(student.id, {
                               homeworkCompleted: e.target.checked,
@@ -269,11 +294,21 @@ export function AttendanceClient({
                         />
                       </td>
 
+                      <td className="whitespace-nowrap">
+                        <SubmissionFileCell
+                          lessonId={lesson.id}
+                          studentId={student.id}
+                          submission={submissions.find((s) => s.studentId === student.id)}
+                          disabled={!canEdit}
+                        />
+                      </td>
+
                       <td>
                         <input
                           type="text"
                           value={commentDrafts[student.id] ?? record?.comment ?? ""}
-                          disabled={isBusy}
+                          disabled={isBusy || !canEdit}
+                          title={!canEdit ? EDIT_LOCKED_MESSAGE : undefined}
                           placeholder="Комментарий..."
                           onChange={(e) =>
                             setCommentDrafts((prev) => ({
@@ -319,7 +354,8 @@ export function AttendanceClient({
                               <div className="flex items-center gap-1.5">
                                 <select
                                   value={makeupSelection[record.id] ?? ""}
-                                  disabled={busyMakeupId === record.id}
+                                  disabled={busyMakeupId === record.id || !canEdit}
+                                  title={!canEdit ? EDIT_LOCKED_MESSAGE : undefined}
                                   onChange={(e) =>
                                     setMakeupSelection((prev) => ({
                                       ...prev,
@@ -343,7 +379,8 @@ export function AttendanceClient({
                                 </select>
                                 <button
                                   type="button"
-                                  disabled={busyMakeupId === record.id}
+                                  disabled={busyMakeupId === record.id || !canEdit}
+                                  title={!canEdit ? EDIT_LOCKED_MESSAGE : undefined}
                                   onClick={() =>
                                     handleAssignMakeup(
                                       record.id,

@@ -31,6 +31,28 @@ const baseLessonFixture: ClassSessionWithGroup = {
   group: { id: "g1", name: "Группа 1", teacherId: "t1" },
 };
 
+const pastLessonFixture: ClassSessionWithGroup = {
+  ...baseLessonFixture,
+  scheduledAt: "2020-01-01T12:00:00.000Z",
+};
+
+// Started 30 minutes ago with a 60-minute duration -- still ongoing, so it
+// must NOT be locked even for a TEACHER (boundary is end time, not start
+// time).
+const ongoingLessonFixture: ClassSessionWithGroup = {
+  ...baseLessonFixture,
+  scheduledAt: new Date(Date.now() - 30 * 60_000).toISOString(),
+  durationMinutes: 60,
+};
+
+// Started 90 minutes ago with a 60-minute duration -- concluded 30 minutes
+// ago, so it must be locked for a TEACHER.
+const concludedLessonFixture: ClassSessionWithGroup = {
+  ...baseLessonFixture,
+  scheduledAt: new Date(Date.now() - 90 * 60_000).toISOString(),
+  durationMinutes: 60,
+};
+
 describe("AttendanceClient", () => {
   it("shows the assigned teacher's name in the lesson header", () => {
     render(
@@ -38,6 +60,7 @@ describe("AttendanceClient", () => {
         lesson={{ ...baseLessonFixture, teacher: { fullName: "Иван Иванов" } }}
         students={[]}
         attendance={[]}
+        submissions={[]}
         makeupOptions={[]}
       />,
     );
@@ -51,6 +74,7 @@ describe("AttendanceClient", () => {
         lesson={{ ...baseLessonFixture, teacher: null }}
         students={[]}
         attendance={[]}
+        submissions={[]}
         makeupOptions={[]}
       />,
     );
@@ -64,6 +88,7 @@ describe("AttendanceClient", () => {
         lesson={{ ...baseLessonFixture, scheduledAt: BOUNDARY_INSTANT }}
         students={[]}
         attendance={[]}
+        submissions={[]}
         makeupOptions={[]}
       />,
     );
@@ -100,6 +125,7 @@ describe("AttendanceClient", () => {
         lesson={baseLessonFixture}
         students={[student]}
         attendance={attendance}
+        submissions={[]}
         makeupOptions={makeupOptions}
       />,
     );
@@ -138,6 +164,7 @@ describe("AttendanceClient", () => {
         lesson={baseLessonFixture}
         students={[student]}
         attendance={attendance}
+        submissions={[]}
         makeupOptions={[]}
       />,
     );
@@ -146,5 +173,112 @@ describe("AttendanceClient", () => {
     expect(
       screen.queryByText(/Группа 3 · 23\.08\.2026/),
     ).not.toBeInTheDocument();
+  });
+
+  it("disables the attendance status select for a TEACHER on a past lesson", () => {
+    const student = { id: "s1", fullName: "Петров Петр", phone: null };
+    render(
+      <AttendanceClient
+        lesson={pastLessonFixture}
+        students={[student]}
+        attendance={[]}
+        submissions={[]}
+        userRole="TEACHER"
+        makeupOptions={[]}
+      />,
+    );
+
+    // Row order is status select, then grade select (makeup select only
+    // renders for an EXCUSED record, which this fixture has none of) --
+    // the first combobox is always the status select.
+    expect(screen.getAllByRole("combobox")[0]).toBeDisabled();
+  });
+
+  it("shows the locked-editing notice for a TEACHER on a past lesson", () => {
+    render(
+      <AttendanceClient
+        lesson={pastLessonFixture}
+        students={[]}
+        attendance={[]}
+        submissions={[]}
+        userRole="TEACHER"
+        makeupOptions={[]}
+      />,
+    );
+
+    expect(
+      screen.getByText("Редактирование прошедших занятий доступно только администратору"),
+    ).toBeInTheDocument();
+  });
+
+  it("does NOT show the locked-editing notice for an ADMIN on a past lesson", () => {
+    render(
+      <AttendanceClient
+        lesson={pastLessonFixture}
+        students={[]}
+        attendance={[]}
+        submissions={[]}
+        userRole="ADMIN"
+        makeupOptions={[]}
+      />,
+    );
+
+    expect(
+      screen.queryByText("Редактирование прошедших занятий доступно только администратору"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does NOT show the locked-editing notice for a TEACHER on a future lesson", () => {
+    // Explicit far-future date, not baseLessonFixture's fixed 2026-09-01 --
+    // that date is already in the past by the time this plan is executed,
+    // which would make this "future lesson" case flaky.
+    render(
+      <AttendanceClient
+        lesson={{ ...baseLessonFixture, scheduledAt: "2099-01-01T12:00:00.000Z" }}
+        students={[]}
+        attendance={[]}
+        submissions={[]}
+        userRole="TEACHER"
+        makeupOptions={[]}
+      />,
+    );
+
+    expect(
+      screen.queryByText("Редактирование прошедших занятий доступно только администратору"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does NOT show the locked-editing notice for a TEACHER on a lesson still in progress (started 30min ago, 60min duration)", () => {
+    render(
+      <AttendanceClient
+        lesson={ongoingLessonFixture}
+        students={[]}
+        attendance={[]}
+        submissions={[]}
+        userRole="TEACHER"
+        makeupOptions={[]}
+      />,
+    );
+
+    expect(
+      screen.queryByText("Редактирование прошедших занятий доступно только администратору"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the locked-editing notice for a TEACHER on a lesson that concluded 30min ago (started 90min ago, 60min duration)", () => {
+    render(
+      <AttendanceClient
+        lesson={concludedLessonFixture}
+        students={[]}
+        attendance={[]}
+        submissions={[]}
+        userRole="TEACHER"
+        makeupOptions={[]}
+      />,
+    );
+
+    expect(
+      screen.getByText("Редактирование прошедших занятий доступно только администратору"),
+    ).toBeInTheDocument();
   });
 });

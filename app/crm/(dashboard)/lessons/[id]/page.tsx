@@ -6,6 +6,7 @@ import type {
   ClassSessionWithGroup,
   MakeupLessonOption,
   Student,
+  Submission,
 } from "@/crm/lib/types";
 import { AttendanceClient } from "./AttendanceClient";
 
@@ -62,7 +63,7 @@ export default async function LessonDetailPage({
     notFound();
   }
 
-  const [groupStudents, attendance, makeupOptions] = await Promise.all([
+  const [groupStudents, attendance, makeupOptions, submissions] = await Promise.all([
     // INDIVIDUAL sessions have no group roster; the single student is joined
     // directly on the session and merged in below.
     lesson.groupId
@@ -118,6 +119,18 @@ export default async function LessonDetailPage({
         group: { select: { id: true, name: true } },
       },
     }),
+    db.submission.findMany({
+      where: { lessonId: id },
+      select: {
+        id: true,
+        studentId: true,
+        content: true,
+        fileKey: true,
+        status: true,
+        score: true,
+        teacherComment: true,
+      },
+    }),
   ]);
 
   const rosterStudents =
@@ -147,6 +160,7 @@ export default async function LessonDetailPage({
       lesson={lesson as unknown as ClassSessionWithGroup}
       students={students}
       attendance={attendanceWithMakeup as unknown as AttendanceRecord[]}
+      submissions={submissions as unknown as Submission[]}
       userRole={sessionUser.role}
       makeupOptions={makeupOptions as unknown as MakeupLessonOption[]}
     />

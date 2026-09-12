@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Header from "@/landing/components/sections/Header";
 import ExamToggle from "@/landing/components/ui/ExamToggle";
 import Hero from "@/landing/components/sections/Hero";
+import BudgetVsPaidEGE from "@/landing/components/sections/BudgetVsPaidEGE";
 import Solution from "@/landing/components/sections/Solution";
+import WhyOgeMatters from "@/landing/components/sections/WhyOgeMatters";
 import StudentCarousel from "@/landing/components/sections/StudentCarousel";
 import YandexReviews from "@/landing/components/sections/YandexReviews";
 import Pricing from "@/landing/components/sections/Pricing";
@@ -117,7 +119,9 @@ export default function Home() {
         {/* Контентная часть */}
         <div className="relative z-10">
           <Hero />
+          <BudgetVsPaidEGE />
           <Solution />
+          <WhyOgeMatters />
           <StudentCarousel />
           <YandexReviews />
           <Pricing />

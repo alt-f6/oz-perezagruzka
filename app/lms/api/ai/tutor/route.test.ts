@@ -6,6 +6,9 @@ const loadCoreMock = vi.fn();
 const loadTocMock = vi.fn();
 const loadTopicMock = vi.fn();
 
+const dbMock = vi.hoisted(() => ({ assignment: { count: vi.fn() } }));
+vi.mock("@/shared/lib/db", () => ({ db: dbMock }));
+
 vi.mock("@/shared/lib/rbac", () => ({
   requireRole: (...args: unknown[]) => requireRoleMock(...args),
 }));
@@ -44,6 +47,7 @@ const userMessage = {
 beforeEach(() => {
   vi.clearAllMocks();
   requireRoleMock.mockResolvedValue({ id: "student_1", role: "STUDENT" });
+  dbMock.assignment.count.mockResolvedValue(1);
   loadCoreMock.mockResolvedValue("CORE_PROMPT");
   loadTocMock.mockResolvedValue("TOC_CONTENT");
   loadTopicMock.mockResolvedValue("TOPIC_MATERIAL");
@@ -72,6 +76,33 @@ describe("POST /api/ai/tutor", () => {
       expect.arrayContaining(["TEACHER"]),
       expect.anything(),
     );
+  });
+
+  it("returns 403 for a STUDENT with no tutor assignment", async () => {
+    requireRoleMock.mockResolvedValue({ id: "student_1", role: "STUDENT" });
+    dbMock.assignment.count.mockResolvedValue(0);
+
+    const res = await POST(makeRequest({ topicCode: "1.5", messages: [userMessage] }));
+
+    expect(res.status).toBe(403);
+    expect(streamTextMock).not.toHaveBeenCalled();
+  });
+
+  it("allows a STUDENT with an active assignment", async () => {
+    requireRoleMock.mockResolvedValue({ id: "student_1", role: "STUDENT" });
+    dbMock.assignment.count.mockResolvedValue(1);
+
+    const res = await POST(makeRequest({ topicCode: "1.5", messages: [userMessage] }));
+
+    expect(res.status).not.toBe(403);
+  });
+
+  it("does not check assignments for a TEACHER", async () => {
+    requireRoleMock.mockResolvedValue({ id: "teacher_1", role: "TEACHER" });
+
+    await POST(makeRequest({ topicCode: "1.5", messages: [userMessage] }));
+
+    expect(dbMock.assignment.count).not.toHaveBeenCalled();
   });
 
   it("rejects a non-whitelisted topic code with HTTP 400", async () => {

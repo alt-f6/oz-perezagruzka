@@ -452,10 +452,17 @@ export async function setAttendance(
 
   const lesson = await db.classSession.findUnique({
     where: { id: lessonId },
-    select: { teacherId: true, group: { select: { teacherId: true } } },
+    select: { teacherId: true, scheduledAt: true, group: { select: { teacherId: true } } },
   });
   if (!lesson) {
     return { error: "Занятие не найдено" };
+  }
+
+  // Past-lesson lock: once a lesson's start time has passed, only ADMIN may
+  // keep editing attendance/grades/homework -- a TEACHER can still edit
+  // anything still in the future.
+  if (sessionUser.role !== "ADMIN" && new Date(lesson.scheduledAt) <= new Date()) {
+    return { error: "Редактирование прошедших занятий доступно только администратору" };
   }
 
   if (sessionUser.role === "TEACHER") {
@@ -574,13 +581,30 @@ export async function assignMakeupLesson(values: {
       classSessionId: true,
       status: true,
       classSession: {
-        select: { groupId: true, teacherId: true, group: { select: { teacherId: true } } },
+        select: {
+          groupId: true,
+          teacherId: true,
+          scheduledAt: true,
+          group: { select: { teacherId: true } },
+        },
       },
     },
   });
   if (!attendance) {
     return { error: "Запись посещаемости не найдена" };
   }
+
+  // Past-lesson lock: assigning a makeup for an absence on a lesson that has
+  // already happened is still "editing" that lesson's attendance -- only
+  // ADMIN may do so once it's in the past.
+  if (
+    sessionUser.role !== "ADMIN" &&
+    attendance.classSession?.scheduledAt &&
+    new Date(attendance.classSession.scheduledAt) <= new Date()
+  ) {
+    return { error: "Редактирование прошедших занятий доступно только администратору" };
+  }
+
   const ownedByTeacher =
     attendance.classSession?.teacherId === sessionUser.id ||
     attendance.classSession?.group?.teacherId === sessionUser.id;
@@ -637,6 +661,7 @@ type SubmissionForGrading = {
   id: string;
   lessonId: string;
   fileKey: string | null;
+  scheduledAt: Date;
 };
 
 async function loadSubmissionForGrading(
@@ -649,7 +674,7 @@ async function loadSubmissionForGrading(
       id: true,
       lessonId: true,
       fileKey: true,
-      lesson: { select: { teacherId: true, group: { select: { teacherId: true } } } },
+      lesson: { select: { teacherId: true, scheduledAt: true, group: { select: { teacherId: true } } } },
     },
   });
   if (!submission) return { ok: false, error: "Работа не найдена" };
@@ -665,7 +690,12 @@ async function loadSubmissionForGrading(
 
   return {
     ok: true,
-    submission: { id: submission.id, lessonId: submission.lessonId, fileKey: submission.fileKey },
+    submission: {
+      id: submission.id,
+      lessonId: submission.lessonId,
+      fileKey: submission.fileKey,
+      scheduledAt: submission.lesson.scheduledAt,
+    },
   };
 }
 
@@ -684,6 +714,13 @@ export async function gradeSubmission(values: {
 
   const result = await loadSubmissionForGrading(parsed.data.submissionId, sessionUser);
   if (!result.ok) return { error: result.error };
+
+  // Past-lesson lock: grading is editing, not viewing (that's
+  // getSubmissionFileUrl, which never checks this) -- only ADMIN may grade
+  // once the lesson has already happened.
+  if (sessionUser.role !== "ADMIN" && new Date(result.submission.scheduledAt) <= new Date()) {
+    return { error: "Редактирование прошедших занятий доступно только администратору" };
+  }
 
   const updateData: {
     status: SubmissionStatus;
@@ -755,9 +792,15 @@ async function loadLessonForHomeworkUpload(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const lesson = await db.classSession.findUnique({
     where: { id: lessonId },
-    select: { teacherId: true, group: { select: { teacherId: true } } },
+    select: { teacherId: true, scheduledAt: true, group: { select: { teacherId: true } } },
   });
   if (!lesson) return { ok: false, error: "Занятие не найдено" };
+
+  // Past-lesson lock: attaching/replacing a homework file is editing -- only
+  // ADMIN may do so once the lesson has already happened.
+  if (sessionUser.role !== "ADMIN" && new Date(lesson.scheduledAt) <= new Date()) {
+    return { ok: false, error: "Редактирование прошедших занятий доступно только администратору" };
+  }
 
   if (sessionUser.role === "TEACHER") {
     const owned = lesson.teacherId === sessionUser.id || lesson.group?.teacherId === sessionUser.id;

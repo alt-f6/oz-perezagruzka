@@ -19,10 +19,11 @@ const dbMock = vi.hoisted(() => ({
     findMany: vi.fn(),
     updateMany: vi.fn(),
   },
-  attendance: { update: vi.fn(), upsert: vi.fn() },
+  attendance: { findUnique: vi.fn(), update: vi.fn(), upsert: vi.fn() },
   submission: { findUnique: vi.fn(), update: vi.fn(), upsert: vi.fn() },
   teacherAvailability: { findMany: vi.fn() },
   teacherPayout: { findFirst: vi.fn() },
+  makeupLesson: { upsert: vi.fn() },
   $transaction: vi.fn(),
 }));
 
@@ -57,6 +58,7 @@ const {
   deleteLesson,
   bulkCancelSessions,
   setAttendance,
+  assignMakeupLesson,
   gradeSubmission,
   getSubmissionFileUrl,
   getHomeworkUploadUrl,
@@ -684,6 +686,7 @@ describe("setAttendance", () => {
   beforeEach(() => {
     dbMock.classSession.findUnique.mockResolvedValue({
       teacherId: "teacher_1",
+      scheduledAt: new Date(Date.now() + 86_400_000),
       group: { teacherId: "teacher_1" },
     });
     dbMock.attendance.update.mockResolvedValue({ id: "att_1" });
@@ -832,6 +835,83 @@ describe("setAttendance", () => {
     expect(result.error).toBeTruthy();
     markSpy.mockRestore();
   });
+
+  it("blocks a TEACHER from editing a past lesson's attendance", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "teacher_1",
+      scheduledAt: new Date(Date.now() - 86_400_000),
+      group: { teacherId: "teacher_1" },
+    });
+
+    const result = await setAttendance("lesson_1", "student_1", { grade: 5 });
+
+    expect(result.error).toMatch(/только администратору/);
+    expect(dbMock.attendance.update).not.toHaveBeenCalled();
+  });
+
+  it("allows an ADMIN to edit a past lesson's attendance", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "teacher_1",
+      scheduledAt: new Date(Date.now() - 86_400_000),
+      group: { teacherId: "teacher_1" },
+    });
+
+    const result = await setAttendance("lesson_1", "student_1", { grade: 5 });
+
+    expect(result.error).toBeUndefined();
+  });
+});
+
+const MAKEUP_ATTENDANCE_ID = "44444444-4444-4444-8444-444444444444";
+const MAKEUP_TARGET_LESSON_ID = "55555555-5555-4555-8555-555555555555";
+
+describe("assignMakeupLesson", () => {
+  beforeEach(() => {
+    // makeupSchema requires UUIDs for both ids (zod .uuid()), so this fixture
+    // -- unlike most others in this file -- can't use plain "att_1"-style ids.
+    dbMock.attendance.findUnique.mockResolvedValue({
+      id: MAKEUP_ATTENDANCE_ID,
+      classSessionId: "lesson_1",
+      status: "EXCUSED",
+      classSession: {
+        groupId: "group_1",
+        teacherId: "teacher_1",
+        scheduledAt: new Date(Date.now() - 86_400_000),
+        group: { teacherId: "teacher_1" },
+      },
+    });
+    dbMock.classSession.findUnique.mockResolvedValue({
+      id: MAKEUP_TARGET_LESSON_ID,
+      groupId: "group_2",
+      scheduledAt: new Date(Date.now() + 86_400_000),
+    });
+    dbMock.makeupLesson.upsert.mockResolvedValue({ id: "makeup_1" });
+  });
+
+  it("blocks a TEACHER from assigning a makeup for a past source lesson", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+
+    const result = await assignMakeupLesson({
+      attendanceId: MAKEUP_ATTENDANCE_ID,
+      targetLessonId: MAKEUP_TARGET_LESSON_ID,
+    });
+
+    expect(result.error).toMatch(/только администратору/);
+    expect(dbMock.makeupLesson.upsert).not.toHaveBeenCalled();
+  });
+
+  it("allows an ADMIN to assign a makeup for a past source lesson", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+
+    const result = await assignMakeupLesson({
+      attendanceId: MAKEUP_ATTENDANCE_ID,
+      targetLessonId: MAKEUP_TARGET_LESSON_ID,
+    });
+
+    expect(result.error).toBeUndefined();
+  });
 });
 
 describe("gradeSubmission", () => {
@@ -840,7 +920,7 @@ describe("gradeSubmission", () => {
       id: "11111111-1111-4111-8111-111111111111",
       lessonId: "lesson_1",
       fileKey: "homework-submissions/lesson_1/student_1/abc-file.pdf",
-      lesson: { teacherId: "teacher_1", group: null },
+      lesson: { teacherId: "teacher_1", scheduledAt: new Date(Date.now() + 86_400_000), group: null },
     });
     dbMock.submission.update.mockResolvedValue({ id: "11111111-1111-4111-8111-111111111111" });
   });
@@ -942,6 +1022,43 @@ describe("gradeSubmission", () => {
     expect(result.error).toMatch(/от 1 до 5/);
     expect(dbMock.submission.update).not.toHaveBeenCalled();
   });
+
+  it("blocks a TEACHER from grading a submission on a past lesson", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.submission.findUnique.mockResolvedValue({
+      id: "11111111-1111-4111-8111-111111111111",
+      lessonId: "lesson_1",
+      fileKey: null,
+      lesson: { teacherId: "teacher_1", scheduledAt: new Date(Date.now() - 86_400_000), group: null },
+    });
+
+    const result = await gradeSubmission({
+      submissionId: "11111111-1111-4111-8111-111111111111",
+      status: "GRADED",
+      score: 5,
+    });
+
+    expect(result.error).toMatch(/только администратору/);
+    expect(dbMock.submission.update).not.toHaveBeenCalled();
+  });
+
+  it("allows an ADMIN to grade a submission on a past lesson", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    dbMock.submission.findUnique.mockResolvedValue({
+      id: "11111111-1111-4111-8111-111111111111",
+      lessonId: "lesson_1",
+      fileKey: null,
+      lesson: { teacherId: "teacher_1", scheduledAt: new Date(Date.now() - 86_400_000), group: null },
+    });
+
+    const result = await gradeSubmission({
+      submissionId: "11111111-1111-4111-8111-111111111111",
+      status: "GRADED",
+      score: 5,
+    });
+
+    expect(result.error).toBeUndefined();
+  });
 });
 
 describe("getSubmissionFileUrl", () => {
@@ -995,12 +1112,28 @@ describe("getSubmissionFileUrl", () => {
     expect(result.error).toBeTruthy();
     expect(r2Mock.signGetObject).not.toHaveBeenCalled();
   });
+
+  it("allows viewing a past lesson's file regardless of role (view is not edit)", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.submission.findUnique.mockResolvedValue({
+      id: "11111111-1111-4111-8111-111111111111",
+      lessonId: "lesson_1",
+      fileKey: "homework-submissions/lesson_1/student_1/abc-file.pdf",
+      lesson: { teacherId: "teacher_1", scheduledAt: new Date(Date.now() - 86_400_000), group: null },
+    });
+    r2Mock.signGetObject.mockResolvedValue("https://r2.example.com/signed");
+
+    const result = await getSubmissionFileUrl("11111111-1111-4111-8111-111111111111");
+
+    expect(result.error).toBeUndefined();
+  });
 });
 
 describe("getHomeworkUploadUrl", () => {
   beforeEach(() => {
     dbMock.classSession.findUnique.mockResolvedValue({
       teacherId: "teacher_1",
+      scheduledAt: new Date(Date.now() + 86_400_000),
       group: null,
     });
   });
@@ -1064,12 +1197,31 @@ describe("getHomeworkUploadUrl", () => {
 
     expect(result.error).toBeTruthy();
   });
+
+  it("blocks a TEACHER from uploading homework for a past lesson", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "teacher_1",
+      scheduledAt: new Date(Date.now() - 86_400_000),
+      group: null,
+    });
+
+    const result = await getHomeworkUploadUrl("lesson_1", "student_1", {
+      name: "hw.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 1024,
+    });
+
+    expect(result.error).toMatch(/только администратору/);
+    expect(r2Mock.signPutObject).not.toHaveBeenCalled();
+  });
 });
 
 describe("attachHomeworkFile", () => {
   beforeEach(() => {
     dbMock.classSession.findUnique.mockResolvedValue({
       teacherId: "teacher_1",
+      scheduledAt: new Date(Date.now() + 86_400_000),
       group: null,
     });
     dbMock.submission.upsert.mockResolvedValue({ id: "sub_1" });
@@ -1135,6 +1287,24 @@ describe("attachHomeworkFile", () => {
     );
 
     expect(result.error).toBeTruthy();
+    expect(dbMock.submission.upsert).not.toHaveBeenCalled();
+  });
+
+  it("blocks a TEACHER from attaching a homework file to a past lesson", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "teacher_1",
+      scheduledAt: new Date(Date.now() - 86_400_000),
+      group: null,
+    });
+
+    const result = await attachHomeworkFile(
+      "lesson_1",
+      "student_1",
+      "homework-submissions/lesson_1/student_1/abc-hw.pdf",
+    );
+
+    expect(result.error).toMatch(/только администратору/);
     expect(dbMock.submission.upsert).not.toHaveBeenCalled();
   });
 });

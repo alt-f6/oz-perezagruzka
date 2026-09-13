@@ -113,8 +113,8 @@ export function LessonAudioManager({ lessonId }: { lessonId: string }) {
     }
 
     setPickerError(null);
-    await upload(file);
-    clearSelectedFile();
+    const succeeded = await upload(file);
+    if (succeeded) clearSelectedFile();
   }
 
   return (

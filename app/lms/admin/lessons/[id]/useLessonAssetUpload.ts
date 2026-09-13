@@ -125,7 +125,7 @@ export function useLessonAssetUpload(lessonId: string, kind: LessonAssetKind) {
         const presignJson = await presignRes.json().catch(() => null);
         if (!presignRes.ok || !presignJson?.ok || !presignJson?.uploadUrl || !presignJson?.assetId) {
           setError(presignJson?.message || presignJson?.error || "upload_failed");
-          return;
+          return false;
         }
 
         assetId = String(presignJson.assetId);
@@ -141,14 +141,16 @@ export function useLessonAssetUpload(lessonId: string, kind: LessonAssetKind) {
         if (!completeRes.ok || !completeJson?.ok) {
           setError(completeJson?.message || completeJson?.error || "upload_failed");
           if (assetId) await cleanupOrphan(assetId);
-          return;
+          return false;
         }
 
         await refresh();
         setUploadedFileName(file.name);
+        return true;
       } catch (err) {
         if (assetId) await cleanupOrphan(assetId);
         setError(err instanceof Error ? err.message : "upload_failed");
+        return false;
       } finally {
         setUploading(false);
         setProgress(0);

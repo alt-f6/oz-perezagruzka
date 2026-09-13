@@ -11,19 +11,67 @@ import { fadeInUp } from "@/landing/components/ui/motion";
 // rewrite for any path with a file extension (see isStaticAssetPath), so
 // static assets are served from their literal public/ path -- the "landing"
 // segment must be included here.
+// objectPosition tunes the object-cover crop per photo: portrait/full-body
+// shots need the crop anchored to the top (object-top) so heads and held
+// signs stay in frame instead of a center-crop chopping off the head; wide
+// landscape shots only need a small upward bias since faces already sit
+// near the vertical center.
 const GALLERY_CARDS = [
-  { file: "photo_2023-06-19_11-11-03.jpg", alt: "Ученики «Перезагрузки» на занятии" },
-  { file: "photo_2023-06-19_11-11-04.jpg", alt: "Ученики «Перезагрузки» готовятся к экзамену" },
-  { file: "photo_2023-06-19_11-11-07.jpg", alt: "Занятие в классе «Перезагрузки»" },
-  { file: "photo_2023-06-19_11-11-11.jpg", alt: "Ученики «Перезагрузки» за групповой работой" },
-  { file: "photo_2023-06-19_11-11-16.jpg", alt: "Преподаватель «Перезагрузки» объясняет тему у доски" },
-  { file: "photo_2023-06-19_11-18-54.jpg", alt: "Ученики «Перезагрузки» на уроке" },
-  { file: "photo_2023-06-19_11-18-57.jpg", alt: "Ученица «Перезагрузки» решает задание" },
-  { file: "photo_2023-06-19_11-19-47.jpg", alt: "Ученики «Перезагрузки» обсуждают задачу" },
-  { file: "photo_2023-06-19_11-19-50.jpg", alt: "Занятие в мини-группе «Перезагрузки»" },
-  { file: "photo_2023-06-19_11-19-56.jpg", alt: "Ученики «Перезагрузки» с учебными материалами" },
-  { file: "photo_2023-06-19_11-20-02.jpg", alt: "Ученик «Перезагрузки» на индивидуальном занятии" },
-  { file: "photo_2023-06-19_11-20-25.jpg", alt: "Ученики «Перезагрузки» после занятия" },
+  {
+    file: "photo_2023-06-19_11-11-03.jpg",
+    alt: "Ученики «Перезагрузки» на занятии",
+    objectPosition: "object-[center_20%]",
+  },
+  {
+    file: "photo_2023-06-19_11-11-04.jpg",
+    alt: "Ученики «Перезагрузки» готовятся к экзамену",
+    objectPosition: "object-[center_15%]",
+  },
+  {
+    file: "photo_2023-06-19_11-11-07.jpg",
+    alt: "Занятие в классе «Перезагрузки»",
+    objectPosition: "object-top",
+  },
+  {
+    file: "photo_2023-06-19_11-11-11.jpg",
+    alt: "Ученики «Перезагрузки» за групповой работой",
+    objectPosition: "object-top",
+  },
+  {
+    file: "photo_2023-06-19_11-11-16.jpg",
+    alt: "Преподаватель «Перезагрузки» объясняет тему у доски",
+    objectPosition: "object-[center_15%]",
+  },
+  {
+    file: "photo_2023-06-19_11-18-54.jpg",
+    alt: "Ученики «Перезагрузки» на уроке",
+    objectPosition: "object-top",
+  },
+  {
+    file: "photo_2023-06-19_11-19-47.jpg",
+    alt: "Ученики «Перезагрузки» обсуждают задачу",
+    objectPosition: "object-top",
+  },
+  {
+    file: "photo_2023-06-19_11-19-50.jpg",
+    alt: "Занятие в мини-группе «Перезагрузки»",
+    objectPosition: "object-top",
+  },
+  {
+    file: "photo_2023-06-19_11-19-56.jpg",
+    alt: "Ученики «Перезагрузки» с учебными материалами",
+    objectPosition: "object-top",
+  },
+  {
+    file: "photo_2023-06-19_11-20-02.jpg",
+    alt: "Ученик «Перезагрузки» на индивидуальном занятии",
+    objectPosition: "object-top",
+  },
+  {
+    file: "photo_2023-06-19_11-20-25.jpg",
+    alt: "Ученики «Перезагрузки» после занятия",
+    objectPosition: "object-[center_15%]",
+  },
   {
     file: "photo_2026-08-23_11-24-55.jpg",
     alt: "Ученица «Перезагрузки» готовится к экзамену с учебниками",
@@ -32,6 +80,7 @@ const GALLERY_CARDS = [
   {
     file: "photo_2026-08-23_11-25-16.jpg",
     alt: "Ученики «Перезагрузки» на занятии у доски с надписью «Перезагрузка»",
+    objectPosition: "object-[center_20%]",
   },
 ];
 
@@ -133,7 +182,7 @@ export default function StudentCarousel() {
             ref={trackRef}
             role="region"
             aria-label="Фотографии учеников «Перезагрузки»"
-            className="flex snap-x snap-mandatory gap-6 overflow-x-auto scrollbar-none pb-6 pt-2"
+            className="flex snap-x snap-mandatory gap-6 overflow-x-auto scrollbar-none px-4 pb-6 pt-2 sm:px-6"
           >
             {GALLERY_CARDS.map((card) => (
               <div

@@ -9,10 +9,17 @@ import { fadeInUp, staggerContainer } from "@/landing/components/ui/motion";
 
 // TODO: баллы и фразы — временный правдоподобный текст, придуман для запуска блока.
 // Заменить на реальные данные педагогов, как только они будут собраны.
+//
+// All source photos are portrait headshots with the face/hair near the top
+// of the frame, so object-cover's default center-crop chops off foreheads
+// once the tall source is cropped down to the card's aspect-[4/3] box.
+// object-top anchors the crop to the top instead, keeping the whole head in
+// frame and trimming shoulders/chest from the bottom.
 const TEACHERS = [
   {
     name: "Алиса Егорова",
     photo: "/landing/photos/teachers/alice_rus_lang.jpg",
+    photoPosition: "object-top",
     subject: "РУССКИЙ ЯЗЫК · ОГЭ И ЕГЭ",
     score: "82",
     scoreLabel: "средний балл группы на ЕГЭ в 2025 г.",
@@ -22,6 +29,7 @@ const TEACHERS = [
   {
     name: "Елизавета Балдина",
     photo: "/landing/photos/teachers/elizaveta_balding.jpg",
+    photoPosition: "object-top",
     subject: "МАТЕМАТИКА · ОГЭ И ЕГЭ",
     score: "91",
     scoreLabel: "средний результат на профильном ЕГЭ",
@@ -31,6 +39,7 @@ const TEACHERS = [
   {
     name: "Ирина Соколова",
     photo: "/landing/photos/teachers/irina_geography.jpg",
+    photoPosition: "object-top",
     subject: "ГЕОГРАФИЯ · ОГЭ",
     score: "4,6",
     scoreLabel: "средний балл группы в 2025 г.",
@@ -40,6 +49,7 @@ const TEACHERS = [
   {
     name: "Наталья Волкова",
     photo: "/landing/photos/teachers/natalia_chemistry.jpg",
+    photoPosition: "object-top",
     subject: "ХИМИЯ · ЕГЭ",
     score: "78",
     scoreLabel: "средний результат на ЕГЭ",
@@ -48,6 +58,7 @@ const TEACHERS = [
   {
     name: "Оксана Кузнецова",
     photo: "/landing/photos/teachers/oksana.jpg",
+    photoPosition: "object-top",
     subject: "ЛИТЕРАТУРА · ОГЭ И ЕГЭ",
     score: "9 из 10 на 4 и 5",
     scoreLabel: "сдали на 4 и 5",
@@ -56,6 +67,7 @@ const TEACHERS = [
   {
     name: "Сергей Фофанов",
     photo: "/landing/photos/teachers/sergey_fofanov.jpg",
+    photoPosition: "object-top",
     subject: "ФИЗИКА · ЕГЭ",
     score: "86",
     scoreLabel: "средний балл на ЕГЭ в 2025 г.",
@@ -167,7 +179,7 @@ export default function TeachersCarousel() {
             initial={prefersReducedMotion ? undefined : "hidden"}
             whileInView="show"
             viewport={{ once: true, margin: "-80px" }}
-            className="flex snap-x snap-mandatory gap-6 overflow-x-auto scrollbar-none pb-6 pt-2"
+            className="flex snap-x snap-mandatory gap-6 overflow-x-auto scrollbar-none px-4 pb-6 pt-2 sm:px-6"
           >
             {TEACHERS.map((teacher) => (
               <motion.div
@@ -176,13 +188,13 @@ export default function TeachersCarousel() {
                 transition={{ type: "spring", stiffness: 90, damping: 18 }}
                 className="w-[82vw] shrink-0 snap-center overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-sm transition-shadow hover:shadow-md sm:w-[360px]"
               >
-                <div className="relative h-56 w-full">
+                <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-[20px]">
                   <Image
                     src={teacher.photo}
                     alt={`${teacher.name} — преподаватель «Перезагрузки»`}
                     fill
                     sizes="(max-width: 768px) 82vw, 360px"
-                    className="rounded-t-[20px] object-cover"
+                    className={`object-cover ${teacher.photoPosition}`}
                   />
                 </div>
 

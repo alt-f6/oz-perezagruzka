@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
 import { requireAuth } from "@/lms/server/auth/require-auth";
-import { signGetObject } from "@/lms/server/r2/signed";
-import { buildInlineContentDisposition } from "@/lms/lib/lesson-assets";
+import { signLessonAssetGetUrl } from "@/lms/server/r2/signed";
 import { canViewLesson } from "@/lms/server/access/can-view-lesson";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { enforceRateLimit } from "@/lms/server/http/rate-limit";
@@ -63,9 +62,10 @@ export const GET = withApiErrors(async (_req: NextRequest, ctx: Ctx) => {
   }
 
   try {
-    const url = await signGetObject(row.storageKey, {
-      responseContentType: row.mimeType || "application/octet-stream",
-      responseContentDisposition: buildInlineContentDisposition(row.originalName || `asset-${assetId}`),
+    const url = await signLessonAssetGetUrl({
+      storageKey: row.storageKey,
+      mimeType: row.mimeType || "application/octet-stream",
+      originalName: row.originalName || `asset-${assetId}`,
     });
     return NextResponse.json({ ok: true, url });
   } catch (error) {

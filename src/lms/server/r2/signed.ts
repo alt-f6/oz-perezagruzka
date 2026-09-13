@@ -1,6 +1,7 @@
 import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { r2, R2_BUCKET } from "@/lms/server/r2/client";
+import { buildInlineContentDisposition } from "@/lms/lib/lesson-assets";
 
 function readPositiveInt(raw: string | undefined, fallback: number) {
   const parsed = Number(raw);
@@ -41,6 +42,13 @@ export async function signGetObject(
     ResponseContentDisposition: options?.responseContentDisposition,
   });
   return getSignedUrl(r2, cmd, { expiresIn: R2_VIEW_TTL_SECONDS });
+}
+
+export async function signLessonAssetGetUrl(asset: { storageKey: string; mimeType: string; originalName: string }) {
+  return signGetObject(asset.storageKey, {
+    responseContentType: asset.mimeType,
+    responseContentDisposition: buildInlineContentDisposition(asset.originalName),
+  });
 }
 
 export async function headObject(key: string) {

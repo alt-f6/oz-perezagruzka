@@ -1,8 +1,10 @@
 import { db } from "@/shared/lib/db";
 
-// Lesson admin UX is flat (no course/module picker anywhere), but the unified
-// schema requires every Lesson to belong to a Module -> Course. This houses
-// all lessons under one implicit course/module so the flat UX is unchanged.
+// Lesson admin UX historically had no course/module picker, so every lesson
+// landed in one implicit course/module (renamed to "Месяц 1: Вводный" by
+// scripts/lms/migrate-default-module-to-month-one.ts once modules become a
+// first-class admin concept — see Task 8). This stays as the fallback used
+// when a lesson is created without an explicit moduleId.
 const DEFAULT_COURSE_TITLE = "Общий курс";
 const DEFAULT_MODULE_TITLE = "Уроки";
 

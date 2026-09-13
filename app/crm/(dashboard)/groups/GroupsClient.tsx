@@ -264,16 +264,16 @@ export function GroupsClient({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
+    <div className="min-w-0 w-full space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="page-title">Группы</h1>
           <p className="page-subtitle">
             Учебные потоки, составы и стоимость занятий
           </p>
         </div>
         {!isTeacher && (
-          <button onClick={() => setIsModalOpen(true)} className="btn-primary">
+          <button onClick={() => setIsModalOpen(true)} className="btn-primary shrink-0">
             <Plus size={16} /> Добавить группу
           </button>
         )}
@@ -287,19 +287,19 @@ export function GroupsClient({
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {optimisticGroups.map((group) => (
           <div
             key={group.id}
-            className="card card-hover flex flex-col justify-between p-5"
+            className="card card-hover flex min-w-0 flex-col justify-between p-5"
           >
-            <div>
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="text-base font-semibold tracking-tight text-slate-900">
+            <div className="min-w-0">
+              <div className="flex min-w-0 items-start justify-between gap-3">
+                <h3 className="min-w-0 truncate text-base font-semibold tracking-tight text-slate-900">
                   {group.name}
                 </h3>
                 {!isTeacher && (
-                  <div className="-mr-1.5 -mt-1 flex items-center gap-1">
+                  <div className="-mr-1.5 -mt-1 flex shrink-0 items-center gap-1">
                     <button
                       onClick={() => setEditGroup(group)}
                       className="icon-btn"

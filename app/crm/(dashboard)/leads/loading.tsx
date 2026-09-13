@@ -2,7 +2,7 @@ import { SkeletonPageHeader, SkeletonCardList } from "@/crm/components/boundarie
 
 export default function LeadsLoading() {
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 w-full space-y-6">
       <SkeletonPageHeader />
       <div className="flex items-start gap-4 overflow-x-auto pb-4">
         {Array.from({ length: 5 }, (_, i) => (

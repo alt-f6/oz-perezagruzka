@@ -140,7 +140,7 @@ export function AttendanceClient({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 w-full space-y-6">
       <NextLink
         href="/lessons"
         className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 transition-colors hover:text-slate-900"

@@ -36,7 +36,7 @@ export default async function LeadsPage() {
   }, initialColumns);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 w-full space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="page-title">Воронка продаж</h1>

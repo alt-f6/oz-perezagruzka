@@ -2,7 +2,7 @@ import { SkeletonPageHeader, SkeletonCardList } from "@/crm/components/boundarie
 
 export default function StaffLoading() {
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 w-full space-y-6">
       <SkeletonPageHeader />
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <SkeletonCardList count={6} />

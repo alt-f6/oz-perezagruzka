@@ -75,7 +75,7 @@ export function StaffClient({ initialStaff }: { initialStaff: User[] }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 w-full space-y-6">
       <div>
         <h1 className="page-title">Сотрудники</h1>
         <p className="page-subtitle">Роли и уровни доступа команды</p>

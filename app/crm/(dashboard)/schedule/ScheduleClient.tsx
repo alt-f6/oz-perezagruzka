@@ -350,7 +350,7 @@ export function ScheduleClient({
   const currentMonth = selected.getMonth();
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 w-full space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h1 className="page-title">Расписание занятий</h1>

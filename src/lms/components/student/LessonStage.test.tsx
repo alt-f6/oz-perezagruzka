@@ -48,3 +48,62 @@ describe("LessonStage — presentation assets", () => {
     expect(screen.getByText(/Для этого урока пока нет видео или PDF/i)).toBeInTheDocument();
   });
 });
+
+describe("LessonStage — audio assets", () => {
+  it("renders an 'Аудио' tab and the AudioPlayer when an audio asset is passed", () => {
+    render(
+      <LessonStage
+        lessonId="lesson_1"
+        studentId="student_1"
+        studentEmail="student1@example.com"
+        media={[]}
+        pdfs={[]}
+        presentations={[{ id: "pres_1", title: "Урок 1", url: "/courses/math/01.html", order: 1 }]}
+        audio={[{ id: "audio_1", title: "Подкаст 1", order: 1 }]}
+        initialPosition={0}
+      />
+    );
+
+    expect(screen.getByRole("tab", { name: /Подкаст 1/i })).toBeInTheDocument();
+  });
+});
+
+describe("LessonStage — homework scaffold", () => {
+  it("renders the homework block when homeworkTask is present", () => {
+    render(
+      <LessonStage
+        lessonId="lesson_1"
+        studentId="student_1"
+        studentEmail="student1@example.com"
+        media={[]}
+        pdfs={[]}
+        presentations={[
+          { id: "pres_1", title: "Урок 1", url: "/courses/math-ege-base/01_Vychisleniya.html", order: 1 },
+        ]}
+        homeworkTask="Решить номера 1-10 из учебника."
+        initialPosition={0}
+      />
+    );
+
+    expect(screen.getByText("Домашнее задание")).toBeInTheDocument();
+    expect(screen.getByText("Решить номера 1-10 из учебника.")).toBeInTheDocument();
+  });
+
+  it("does not render the homework block when homeworkTask is absent", () => {
+    render(
+      <LessonStage
+        lessonId="lesson_1"
+        studentId="student_1"
+        studentEmail="student1@example.com"
+        media={[]}
+        pdfs={[]}
+        presentations={[
+          { id: "pres_1", title: "Урок 1", url: "/courses/math-ege-base/01_Vychisleniya.html", order: 1 },
+        ]}
+        initialPosition={0}
+      />
+    );
+
+    expect(screen.queryByText("Домашнее задание")).not.toBeInTheDocument();
+  });
+});

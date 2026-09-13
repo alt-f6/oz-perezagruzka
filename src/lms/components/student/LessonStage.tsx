@@ -1,22 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileText, Presentation, Video } from "lucide-react";
+import { FileText, Headphones, Presentation, Video } from "lucide-react";
 
 import { cn } from "@/shared/lib/utils";
 import { VideoPlayer } from "@/lms/components/student/VideoPlayer";
 import { PdfViewer } from "@/lms/components/student/PdfViewer";
+import { AudioPlayer } from "@/lms/components/student/AudioPlayer";
 import { MediaErrorBoundary } from "@/lms/components/student/MediaErrorBoundary";
 import { syncPlaybackPosition } from "../../../../app/lms/student/lessons/[id]/actions";
 
 type MediaRow = { id: string; title: string | null; embed_url: string; provider: string; order: number };
 type PdfRow = { id: string; title: string | null; order: number };
 export type PresentationRow = { id: string; title: string | null; url: string; order: number };
+export type AudioRow = { id: string; title: string | null; order: number };
 
 type StageAsset =
   | { kind: "video"; id: string; title: string | null; embedUrl: string; provider: string }
   | { kind: "pdf"; id: string; title: string | null }
-  | { kind: "presentation"; id: string; title: string | null; url: string };
+  | { kind: "presentation"; id: string; title: string | null; url: string }
+  | { kind: "audio"; id: string; title: string | null };
 
 type Props = {
   lessonId: string;
@@ -25,6 +28,8 @@ type Props = {
   media: MediaRow[];
   pdfs: PdfRow[];
   presentations?: PresentationRow[];
+  audio?: AudioRow[];
+  homeworkTask?: string | null;
   initialPosition: number;
 };
 
@@ -35,6 +40,8 @@ export function LessonStage({
   media,
   pdfs,
   presentations = [],
+  audio = [],
+  homeworkTask = null,
   initialPosition,
 }: Props) {
   const assets: StageAsset[] = [
@@ -47,6 +54,7 @@ export function LessonStage({
     })),
     ...pdfs.map((p) => ({ kind: "pdf" as const, id: p.id, title: p.title })),
     ...presentations.map((p) => ({ kind: "presentation" as const, id: p.id, title: p.title, url: p.url })),
+    ...audio.map((a) => ({ kind: "audio" as const, id: a.id, title: a.title })),
   ];
 
   const [activeIndex, setActiveIndex] = useState(0);
@@ -61,8 +69,17 @@ export function LessonStage({
 
   if (assets.length === 0) {
     return (
-      <div className="flex aspect-video w-full items-center justify-center rounded-2xl border border-border bg-card/40 text-sm text-muted-foreground">
-        Для этого урока пока нет видео или PDF.
+      <div className="flex flex-col gap-3">
+        <div className="flex aspect-video w-full items-center justify-center rounded-2xl border border-border bg-card/40 text-sm text-muted-foreground">
+          Для этого урока пока нет видео или PDF.
+        </div>
+        {homeworkTask ? (
+          <div className="rounded-2xl border border-dashed border-border bg-card/30 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Домашнее задание</p>
+            <p className="mt-2 whitespace-pre-wrap text-sm">{homeworkTask}</p>
+            <p className="mt-3 text-xs text-muted-foreground">Отправка файлов появится в следующем этапе.</p>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -84,7 +101,9 @@ export function LessonStage({
                   : "Видео"
                 : asset.kind === "pdf"
                   ? "PDF"
-                  : "Презентация");
+                  : asset.kind === "audio"
+                    ? "Аудио"
+                    : "Презентация");
 
             return (
               <button
@@ -105,6 +124,8 @@ export function LessonStage({
                   <Video className="size-3.5" aria-hidden="true" />
                 ) : asset.kind === "pdf" ? (
                   <FileText className="size-3.5" aria-hidden="true" />
+                ) : asset.kind === "audio" ? (
+                  <Headphones className="size-3.5" aria-hidden="true" />
                 ) : (
                   <Presentation className="size-3.5" aria-hidden="true" />
                 )}
@@ -136,6 +157,16 @@ export function LessonStage({
                   void syncPlaybackPosition(lessonId, page);
                 }}
               />
+            ) : active.kind === "audio" ? (
+              <AudioPlayer
+                lessonId={lessonId}
+                assetId={active.id}
+                title={active.title}
+                initialPositionSeconds={activeIndex === 0 ? initialPosition : 0}
+                onPositionChange={(s) => {
+                  void syncPlaybackPosition(lessonId, s);
+                }}
+              />
             ) : (
               <div className="w-full h-full min-h-[85vh] rounded-2xl overflow-hidden bg-white shadow-sm">
                 <iframe
@@ -151,6 +182,14 @@ export function LessonStage({
           </div>
         </MediaErrorBoundary>
       </div>
+
+      {homeworkTask ? (
+        <div className="mt-4 rounded-2xl border border-dashed border-border bg-card/30 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Домашнее задание</p>
+          <p className="mt-2 whitespace-pre-wrap text-sm">{homeworkTask}</p>
+          <p className="mt-3 text-xs text-muted-foreground">Отправка файлов появится в следующем этапе.</p>
+        </div>
+      ) : null}
     </div>
   );
 }

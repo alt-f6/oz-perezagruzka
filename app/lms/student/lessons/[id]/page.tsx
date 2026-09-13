@@ -48,6 +48,7 @@ export default async function StudentLessonPage({ params }: Props) {
       order: true,
       practiceLinkUrl: true,
       practiceLinkLabel: true,
+      homeworkTask: true,
       module: { select: { courseId: true } },
     },
   });
@@ -71,6 +72,12 @@ export default async function StudentLessonPage({ params }: Props) {
 
   const pdfs = await db.lessonAsset.findMany({
     where: { lessonId, kind: "pdf", isPublic: true },
+    orderBy: [{ order: "asc" }, { id: "asc" }],
+    select: { id: true, title: true, order: true },
+  });
+
+  const audioAssets = await db.lessonAsset.findMany({
+    where: { lessonId, kind: "audio", isPublic: true },
     orderBy: [{ order: "asc" }, { id: "asc" }],
     select: { id: true, title: true, order: true },
   });
@@ -177,6 +184,8 @@ export default async function StudentLessonPage({ params }: Props) {
         }))}
         presentations={presentations}
         pdfs={pdfs.map((p) => ({ id: p.id, title: p.title, order: p.order }))}
+        audio={audioAssets.map((a) => ({ id: a.id, title: a.title, order: a.order }))}
+        homeworkTask={lesson.homeworkTask}
         practiceLink={practiceLink}
         curriculum={curriculum}
         initialCompleted={Boolean(progress?.completedAt)}

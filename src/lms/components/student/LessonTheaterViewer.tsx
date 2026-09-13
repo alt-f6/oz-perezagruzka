@@ -14,7 +14,7 @@ import {
   SheetTrigger,
 } from "@/shared/components/ui/sheet";
 import { CurriculumSidebar, type CurriculumModule } from "@/lms/components/student/CurriculumSidebar";
-import { LessonStage, type PresentationRow } from "@/lms/components/student/LessonStage";
+import { LessonStage, type PresentationRow, type AudioRow } from "@/lms/components/student/LessonStage";
 import { LessonCompletionToggle } from "@/lms/components/student/LessonCompletionToggle";
 
 type MediaRow = { id: string; title: string | null; embed_url: string; provider: string; order: number };
@@ -28,6 +28,8 @@ type Props = {
   media: MediaRow[];
   pdfs: PdfRow[];
   presentations?: PresentationRow[];
+  audio?: AudioRow[];
+  homeworkTask?: string | null;
   practiceLink: PracticeLink | null;
   curriculum: CurriculumModule[];
   initialCompleted: boolean;
@@ -42,6 +44,8 @@ export function LessonTheaterViewer({
   media,
   pdfs,
   presentations = [],
+  audio = [],
+  homeworkTask = null,
   practiceLink,
   curriculum,
   initialCompleted,
@@ -182,6 +186,8 @@ export function LessonTheaterViewer({
           media={media}
           pdfs={pdfs}
           presentations={presentations}
+          audio={audio}
+          homeworkTask={homeworkTask}
           initialPosition={initialPosition}
         />
 

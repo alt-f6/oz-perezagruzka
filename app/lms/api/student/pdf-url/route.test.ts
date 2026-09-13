@@ -149,4 +149,37 @@ describe("GET /api/student/pdf-url", () => {
     expect(res.status).toBe(200);
     expect(canViewLessonMock).not.toHaveBeenCalled();
   });
+
+  it("signs and returns a url for an audio asset (generalized alongside pdf)", async () => {
+    requireAuthMock.mockResolvedValue({ id: "stu-1", role: "STUDENT" });
+    findUniqueMock.mockResolvedValue({
+      ...PUBLIC_PDF_ROW,
+      kind: "audio",
+      mimeType: "audio/mpeg",
+      storageKey: "lessons/lesson-1/assets/asset-1-a.mp3",
+    });
+    canViewLessonMock.mockResolvedValue(true);
+    signGetObjectMock.mockResolvedValue("https://r2.example.com/signed-get-audio");
+    const { GET } = await import("./route");
+
+    const res = await GET(reqFor("asset-1"));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json).toEqual({ ok: true, url: "https://r2.example.com/signed-get-audio" });
+    expect(signGetObjectMock).toHaveBeenCalledWith("lessons/lesson-1/assets/asset-1-a.mp3", {
+      responseContentType: "audio/mpeg",
+      responseContentDisposition: "inline",
+    });
+  });
+
+  it("returns 400 for a presentation asset (served as static html, not a signed object)", async () => {
+    requireAuthMock.mockResolvedValue({ id: "stu-1", role: "STUDENT" });
+    findUniqueMock.mockResolvedValue({ ...PUBLIC_PDF_ROW, kind: "presentation" });
+    const { GET } = await import("./route");
+
+    const res = await GET(reqFor("asset-1"));
+
+    expect(res.status).toBe(400);
+  });
 });

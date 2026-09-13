@@ -11,11 +11,15 @@ import { fadeInUp } from "@/landing/components/ui/motion";
 // rewrite for any path with a file extension (see isStaticAssetPath), so
 // static assets are served from their literal public/ path -- the "landing"
 // segment must be included here.
-// objectPosition tunes the object-cover crop per photo: portrait/full-body
-// shots need the crop anchored to the top (object-top) so heads and held
-// signs stay in frame instead of a center-crop chopping off the head; wide
-// landscape shots only need a small upward bias since faces already sit
-// near the vertical center.
+// objectPosition tunes the object-cover crop per photo. The card box is
+// aspect-[4/3]; these source photos are much taller (portrait/full-body),
+// so only ~42-56% of each photo's height survives the crop no matter where
+// it's anchored. A flat object-top clips right above the head (there's
+// headroom/decor above it in every shot) and often cuts the crop off at
+// the chest, wasting most of the box on empty wall. Each percentage below
+// is hand-picked per photo (from its actual pixel dimensions and the head
+// position within it) to start the crop just above the hairline and run
+// as far down through the torso/held sign as the box height allows.
 const GALLERY_CARDS = [
   {
     file: "photo_2023-06-19_11-11-03.jpg",
@@ -30,12 +34,12 @@ const GALLERY_CARDS = [
   {
     file: "photo_2023-06-19_11-11-07.jpg",
     alt: "Занятие в классе «Перезагрузки»",
-    objectPosition: "object-top",
+    objectPosition: "object-[center_32%]",
   },
   {
     file: "photo_2023-06-19_11-11-11.jpg",
     alt: "Ученики «Перезагрузки» за групповой работой",
-    objectPosition: "object-top",
+    objectPosition: "object-[center_27%]",
   },
   {
     file: "photo_2023-06-19_11-11-16.jpg",
@@ -45,27 +49,27 @@ const GALLERY_CARDS = [
   {
     file: "photo_2023-06-19_11-18-54.jpg",
     alt: "Ученики «Перезагрузки» на уроке",
-    objectPosition: "object-top",
+    objectPosition: "object-[center_27%]",
   },
   {
     file: "photo_2023-06-19_11-19-47.jpg",
     alt: "Ученики «Перезагрузки» обсуждают задачу",
-    objectPosition: "object-top",
+    objectPosition: "object-[center_19%]",
   },
   {
     file: "photo_2023-06-19_11-19-50.jpg",
     alt: "Занятие в мини-группе «Перезагрузки»",
-    objectPosition: "object-top",
+    objectPosition: "object-[center_16%]",
   },
   {
     file: "photo_2023-06-19_11-19-56.jpg",
     alt: "Ученики «Перезагрузки» с учебными материалами",
-    objectPosition: "object-top",
+    objectPosition: "object-[center_22%]",
   },
   {
     file: "photo_2023-06-19_11-20-02.jpg",
     alt: "Ученик «Перезагрузки» на индивидуальном занятии",
-    objectPosition: "object-top",
+    objectPosition: "object-[center_38%]",
   },
   {
     file: "photo_2023-06-19_11-20-25.jpg",

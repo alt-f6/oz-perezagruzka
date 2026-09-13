@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 
 const requireAuthMock = vi.fn();
 const findUniqueMock = vi.fn();
-const signGetObjectMock = vi.fn();
+const signLessonAssetGetUrlMock = vi.fn();
 const canViewLessonMock = vi.fn();
 const enforceRateLimitMock = vi.fn();
 
@@ -16,7 +16,7 @@ vi.mock("@/shared/lib/db", () => ({
   },
 }));
 vi.mock("@/lms/server/r2/signed", () => ({
-  signGetObject: (...args: unknown[]) => signGetObjectMock(...args),
+  signLessonAssetGetUrl: (...args: unknown[]) => signLessonAssetGetUrlMock(...args),
 }));
 vi.mock("@/lms/server/access/can-view-lesson", () => ({
   canViewLesson: (...args: unknown[]) => canViewLessonMock(...args),
@@ -45,7 +45,7 @@ describe("GET /api/assets/[id]/signed-url", () => {
   beforeEach(() => {
     requireAuthMock.mockReset();
     findUniqueMock.mockReset();
-    signGetObjectMock.mockReset();
+    signLessonAssetGetUrlMock.mockReset();
     canViewLessonMock.mockReset();
     enforceRateLimitMock.mockReset();
     enforceRateLimitMock.mockResolvedValue(undefined);
@@ -92,7 +92,7 @@ describe("GET /api/assets/[id]/signed-url", () => {
 
     expect(res.status).toBe(409);
     expect(json).toEqual({ ok: false, error: "asset_not_completed" });
-    expect(signGetObjectMock).not.toHaveBeenCalled();
+    expect(signLessonAssetGetUrlMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 for a STUDENT when the asset is not public", async () => {
@@ -122,7 +122,7 @@ describe("GET /api/assets/[id]/signed-url", () => {
     requireAuthMock.mockResolvedValue({ id: "stu-1", role: "STUDENT" });
     findUniqueMock.mockResolvedValue(COMPLETE_PUBLIC_ROW);
     canViewLessonMock.mockResolvedValue(true);
-    signGetObjectMock.mockResolvedValue("https://r2.example.com/signed-get");
+    signLessonAssetGetUrlMock.mockResolvedValue("https://r2.example.com/signed-get");
     const { GET } = await import("./route");
 
     const res = await GET(req, ctxFor("asset-1"));
@@ -130,12 +130,17 @@ describe("GET /api/assets/[id]/signed-url", () => {
 
     expect(res.status).toBe(200);
     expect(json).toEqual({ ok: true, url: "https://r2.example.com/signed-get" });
+    expect(signLessonAssetGetUrlMock).toHaveBeenCalledWith({
+      storageKey: COMPLETE_PUBLIC_ROW.storageKey,
+      mimeType: COMPLETE_PUBLIC_ROW.mimeType,
+      originalName: COMPLETE_PUBLIC_ROW.originalName,
+    });
   });
 
   it("signs and returns a url for ADMIN without consulting canViewLesson", async () => {
     requireAuthMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
     findUniqueMock.mockResolvedValue({ ...COMPLETE_PUBLIC_ROW, isPublic: false });
-    signGetObjectMock.mockResolvedValue("https://r2.example.com/signed-get");
+    signLessonAssetGetUrlMock.mockResolvedValue("https://r2.example.com/signed-get");
     const { GET } = await import("./route");
 
     const res = await GET(req, ctxFor("asset-1"));
@@ -149,7 +154,7 @@ describe("GET /api/assets/[id]/signed-url", () => {
   it("returns 502 when signing fails", async () => {
     requireAuthMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
     findUniqueMock.mockResolvedValue(COMPLETE_PUBLIC_ROW);
-    signGetObjectMock.mockRejectedValue(new Error("r2 down"));
+    signLessonAssetGetUrlMock.mockRejectedValue(new Error("r2 down"));
     const { GET } = await import("./route");
 
     const res = await GET(req, ctxFor("asset-1"));

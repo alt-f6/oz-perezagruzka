@@ -1,6 +1,6 @@
 // src/lms/components/student/CurriculumSidebar.test.tsx
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 
 // CurriculumSidebar calls useRouter() unconditionally; mock it the same way
 // LessonTheaterViewer.test.tsx and app/lms/student/layout.test.tsx do.
@@ -52,6 +52,12 @@ describe("CurriculumSidebar", () => {
 
   it("does not render locked lessons as clickable links", () => {
     render(<CurriculumSidebar modules={modules} currentLessonId="l1" />);
+    // mod-2 is not the current lesson's module, so it starts collapsed;
+    // expand it by clicking its header before inspecting its lesson row.
+    const module2Header = screen.getByText("Месяц 2").closest("button");
+    expect(module2Header).not.toBeNull();
+    fireEvent.click(module2Header as HTMLButtonElement);
+
     const lockedLessonRow = screen.getByText("Урок 3").closest("button, div");
     expect(lockedLessonRow?.tagName.toLowerCase()).not.toBe("button");
   });

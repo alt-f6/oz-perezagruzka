@@ -46,10 +46,12 @@ export function CurriculumSidebar({ modules, currentLessonId, onNavigate }: Prop
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [pendingId, setPendingId] = useState<string | null>(null);
-  // All modules start expanded (so a locked module's lessons — and their lock
-  // state — are visible up front); the current lesson's module is always
-  // included even if this ever changes to a narrower default.
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(modules.map((m) => m.id)));
+  // Only the module containing the current lesson starts expanded; all other
+  // modules start collapsed so real multi-month courses don't open with every
+  // module expanded at once.
+  const [expanded, setExpanded] = useState<Set<string>>(
+    () => new Set(modules.filter((m) => m.lessons.some((l) => l.id === currentLessonId)).map((m) => m.id))
+  );
 
   function toggle(moduleId: string) {
     setExpanded((prev) => {

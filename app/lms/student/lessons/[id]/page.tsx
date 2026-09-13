@@ -164,7 +164,12 @@ export default async function StudentLessonPage({ params }: Props) {
       title: module.title,
       locked,
       lockReason,
-      unlocksAt: unlocksAt ? unlocksAt.toISOString() : null,
+      // When there's no active enrollment yet, computeModuleUnlockStatus was
+      // called with a new Date(0) (1970) fallback enrollment date, so any
+      // drip-based unlocksAt it returns is meaningless here. Null it out
+      // explicitly -- the UI only renders unlocksAt for lockReason "drip" /
+      // "fixed_date" / "unpublished", which never applies in this branch.
+      unlocksAt: !moduleEnrolled ? null : unlocksAt ? unlocksAt.toISOString() : null,
       lessons,
     };
   });

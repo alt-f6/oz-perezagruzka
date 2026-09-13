@@ -64,9 +64,12 @@ describe("useLessonAssetUpload", () => {
     await waitFor(() => expect(result.current.assets).toHaveLength(0));
 
     const file = new File(["x"], "f.mp3", { type: "audio/mpeg" });
+    let uploadResult: boolean | undefined;
     await act(async () => {
-      await result.current.upload(file);
+      uploadResult = await result.current.upload(file);
     });
+
+    expect(uploadResult).toBe(true);
 
     const presignCall = fetchMock.mock.calls.find(([url]) => String(url).includes("presign"));
     expect(presignCall).toBeTruthy();
@@ -91,10 +94,12 @@ describe("useLessonAssetUpload", () => {
     await waitFor(() => expect(result.current.assets).toHaveLength(0));
 
     const file = new File(["x"], "big.pdf", { type: "application/pdf" });
+    let uploadResult: boolean | undefined;
     await act(async () => {
-      await result.current.upload(file);
+      uploadResult = await result.current.upload(file);
     });
 
+    expect(uploadResult).toBe(false);
     expect(result.current.error).toBe("file too large");
   });
 

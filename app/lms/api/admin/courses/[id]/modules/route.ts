@@ -39,6 +39,10 @@ export const POST = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
   const unlockAfterDays = unlockMode === "DRIP_ENROLLMENT" ? Number(body.unlockAfterDays ?? 0) : null;
   const unlockAt = unlockMode === "FIXED_DATE" && body.unlockAt ? new Date(String(body.unlockAt)) : null;
 
+  if (unlockAfterDays !== null && (!Number.isInteger(unlockAfterDays) || unlockAfterDays < 0)) {
+    return NextResponse.json({ ok: false, error: "invalid_unlock_after_days" }, { status: 400 });
+  }
+
   if (unlockMode === "FIXED_DATE" && (!unlockAt || Number.isNaN(unlockAt.getTime()))) {
     return NextResponse.json({ ok: false, error: "invalid_unlock_at" }, { status: 400 });
   }

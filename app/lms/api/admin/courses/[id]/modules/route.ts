@@ -45,7 +45,7 @@ export const POST = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
 
   const max = await db.module.aggregate({ where: { courseId }, _max: { order: true } });
 
-  const module = await db.module.create({
+  const createdModule = await db.module.create({
     data: {
       courseId,
       title,
@@ -58,5 +58,5 @@ export const POST = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
     select: { id: true, title: true, order: true, unlockMode: true },
   });
 
-  return NextResponse.json({ ok: true, module });
+  return NextResponse.json({ ok: true, module: createdModule });
 });

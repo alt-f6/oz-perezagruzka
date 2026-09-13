@@ -13,7 +13,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/shared/components/ui/sheet";
-import { CurriculumSidebar, type CurriculumLesson } from "@/lms/components/student/CurriculumSidebar";
+import { CurriculumSidebar, type CurriculumModule } from "@/lms/components/student/CurriculumSidebar";
 import { LessonStage, type PresentationRow } from "@/lms/components/student/LessonStage";
 import { LessonCompletionToggle } from "@/lms/components/student/LessonCompletionToggle";
 
@@ -29,7 +29,7 @@ type Props = {
   pdfs: PdfRow[];
   presentations?: PresentationRow[];
   practiceLink: PracticeLink | null;
-  curriculum: CurriculumLesson[];
+  curriculum: CurriculumModule[];
   initialCompleted: boolean;
   initialPosition: number;
   children?: ReactNode;
@@ -87,9 +87,10 @@ export function LessonTheaterViewer({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [theaterMode, setTheaterMode]);
 
-  const currentIndex = curriculum.findIndex((l) => l.id === lesson.id);
+  const allLessons = curriculum.flatMap((m) => m.lessons);
+  const currentIndex = allLessons.findIndex((l) => l.id === lesson.id);
   const positionLabel =
-    currentIndex >= 0 ? `Урок ${currentIndex + 1} из ${curriculum.length}` : null;
+    currentIndex >= 0 ? `Урок ${currentIndex + 1} из ${allLessons.length}` : null;
 
   return (
     <div className="mx-auto flex max-w-6xl gap-6 px-6 py-8">
@@ -103,7 +104,7 @@ export function LessonTheaterViewer({
           <p className="px-3 pb-2 pt-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
             Учебный план
           </p>
-          <CurriculumSidebar lessons={curriculum} currentLessonId={lesson.id} />
+          <CurriculumSidebar modules={curriculum} currentLessonId={lesson.id} />
         </div>
       </aside>
 
@@ -122,7 +123,7 @@ export function LessonTheaterViewer({
                   <SheetTitle>Учебный план</SheetTitle>
                 </SheetHeader>
                 <CurriculumSidebar
-                  lessons={curriculum}
+                  modules={curriculum}
                   currentLessonId={lesson.id}
                   onNavigate={() => setMobileSidebarOpen(false)}
                 />

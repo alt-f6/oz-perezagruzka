@@ -6,9 +6,10 @@ import { requireAuth } from "@/lms/server/auth/require-auth";
 import { roleHome } from "@/lms/server/auth/types";
 import { db } from "@/shared/lib/db";
 import { canViewLesson } from "@/lms/server/access/can-view-lesson";
+import { computeModuleUnlockStatus } from "@/lms/server/access/module-unlock";
 import { LessonTheaterViewer } from "@/lms/components/student/LessonTheaterViewer";
 import { LessonViewerSkeleton } from "@/lms/components/student/LessonViewerSkeleton";
-import type { CurriculumLesson } from "@/lms/components/student/CurriculumSidebar";
+import type { CurriculumModule, CurriculumLesson } from "@/lms/components/student/CurriculumSidebar";
 import { StudentLessonMessages } from "./StudentLessonMessages";
 
 type Props = { params: Promise<{ id: string }> };
@@ -47,6 +48,7 @@ export default async function StudentLessonPage({ params }: Props) {
       order: true,
       practiceLinkUrl: true,
       practiceLinkLabel: true,
+      module: { select: { courseId: true } },
     },
   });
 
@@ -78,22 +80,87 @@ export default async function StudentLessonPage({ params }: Props) {
     select: { completedAt: true, lastPositionSeconds: true },
   });
 
-  const curriculumLessons = await db.lesson.findMany({
-    where: { isPublished: true, assignments: { some: { studentId: user.id } } },
-    include: {
-      assignments: { where: { studentId: user.id } },
-      progress: { where: { studentId: user.id } },
-    },
-    orderBy: [{ order: "asc" }, { id: "asc" }],
-  });
+  const courseId = lesson.module?.courseId ?? null;
 
-  const curriculum: CurriculumLesson[] = curriculumLessons.map((row) => ({
-    id: row.id,
-    title: row.title,
-    order: row.order,
-    assigned: row.assignments.length > 0,
-    completedAt: row.progress[0]?.completedAt ? row.progress[0].completedAt.toISOString() : null,
-  }));
+  const [courseModules, enrollment] = await Promise.all([
+    courseId
+      ? db.module.findMany({
+          where: { courseId },
+          orderBy: [{ order: "asc" }, { id: "asc" }],
+          select: {
+            id: true,
+            title: true,
+            isPublished: true,
+            unlockMode: true,
+            unlockAfterDays: true,
+            unlockAt: true,
+            lessons: {
+              where: { isPublished: true },
+              orderBy: [{ order: "asc" }, { id: "asc" }],
+              select: {
+                id: true,
+                title: true,
+                order: true,
+                assignments: { where: { studentId: user.id }, select: { id: true } },
+                progress: { where: { studentId: user.id }, select: { completedAt: true } },
+                media: { where: { kind: "video" }, select: { id: true }, take: 1 },
+                assets: { where: { kind: { in: ["audio", "pdf", "presentation"] } }, select: { kind: true }, take: 1 },
+              },
+            },
+          },
+        })
+      : Promise.resolve([]),
+    courseId
+      ? db.enrollment.findUnique({ where: { studentId_courseId: { studentId: user.id, courseId } } })
+      : Promise.resolve(null),
+  ]);
+
+  const curriculum: CurriculumModule[] = courseModules.map((module) => {
+    const { unlocked, unlocksAt } = computeModuleUnlockStatus(
+      {
+        unlockMode: module.unlockMode,
+        unlockAfterDays: module.unlockAfterDays,
+        unlockAt: module.unlockAt,
+      },
+      enrollment?.enrolledAt ?? new Date(0)
+    );
+
+    const moduleEnrolled = Boolean(enrollment && enrollment.status === "ACTIVE");
+
+    const { locked, lockReason }: { locked: boolean; lockReason: CurriculumModule["lockReason"] } = !module.isPublished
+      ? { locked: true, lockReason: "unpublished" }
+      : !moduleEnrolled
+        ? { locked: true, lockReason: null }
+        : {
+            locked: !unlocked,
+            lockReason: unlocked ? null : module.unlockMode === "DRIP_ENROLLMENT" ? "drip" : module.unlockMode === "FIXED_DATE" ? "fixed_date" : null,
+          };
+
+    const moduleUnlockedAndPublished = module.isPublished && moduleEnrolled && unlocked;
+
+    const lessons: CurriculumLesson[] = module.lessons.map((row) => {
+      const format: CurriculumLesson["format"] =
+        row.media.length > 0 ? "video" : row.assets.length > 0 && row.assets[0].kind === "audio" ? "audio" : row.assets.length > 0 ? "presentation" : "text";
+
+      return {
+        id: row.id,
+        title: row.title,
+        order: row.order,
+        assigned: row.assignments.length > 0 || moduleUnlockedAndPublished,
+        completedAt: row.progress[0]?.completedAt ? row.progress[0].completedAt.toISOString() : null,
+        format,
+      };
+    });
+
+    return {
+      id: module.id,
+      title: module.title,
+      locked,
+      lockReason,
+      unlocksAt: unlocksAt ? unlocksAt.toISOString() : null,
+      lessons,
+    };
+  });
 
   return (
     <Suspense fallback={<LessonViewerSkeleton />}>

@@ -3,11 +3,15 @@
 // a MAX messenger button (env-gated like the old WhatsApp/Telegram buttons
 // it replaces). z-40 keeps both below the cookie banner's z-50.
 //
+// Buttons are smaller on mobile (h-14/56px) than desktop (sm:h-20/80px) --
+// at 80px they sat on top of card headings while scrolling narrow layouts.
+//
 // bottom-64 (256px) on mobile clears ConsentBanner.tsx's real worst-case
-// footprint — see that file's own sizing comment for the full budget. Buttons
-// are 80px (h-20 w-20); the second stacks +96px above the first (80px
-// button + 16px gap): bottom-[22rem] (352px) / sm:bottom-[7.5rem] (120px)
-// once the banner switches to its shorter flex-row layout at sm: and above.
+// footprint — see that file's own sizing comment for the full budget. The
+// second button stacks above the first (56px button + 16px gap):
+// bottom-[20.5rem] (328px) / sm:bottom-[7.5rem] (120px, 80px button + 16px
+// gap over the desktop phone button's sm:bottom-6) once the banner switches
+// to its shorter flex-row layout at sm: and above.
 const PHONE_NUMBER = "+79527025050";
 const MAX_URL = process.env.NEXT_PUBLIC_MAX_URL || "https://max.ru";
 
@@ -18,10 +22,10 @@ export default function FloatingContacts() {
         href={`tel:${PHONE_NUMBER}`}
         aria-label="Позвонить"
         title="Позвонить"
-        className="group fixed bottom-64 right-4 z-40 flex h-20 w-20 items-center justify-center rounded-full bg-[#0055FF] text-white shadow-xl shadow-ink-900/20 transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#0055FF] sm:bottom-6"
+        className="group fixed bottom-64 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#0055FF] text-white shadow-xl shadow-ink-900/20 transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#0055FF] sm:bottom-6 sm:h-20 sm:w-20"
       >
         <span className="pointer-events-none absolute inset-0 rounded-full bg-[#0055FF]/50 opacity-0 group-hover:animate-ping group-hover:opacity-100" />
-        <PhoneIcon className="relative h-9 w-9" />
+        <PhoneIcon className="relative h-6 w-6 sm:h-9 sm:w-9" />
         <span className="pointer-events-none absolute right-full mr-3 whitespace-nowrap rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
           Позвонить
         </span>
@@ -33,11 +37,11 @@ export default function FloatingContacts() {
         rel="noopener noreferrer"
         aria-label="Написать в MAX"
         title="Чат в MAX"
-        className="group fixed bottom-[22rem] right-4 z-40 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[#5B42F3] to-[#0055FF] text-white shadow-xl shadow-ink-900/20 transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#5B42F3] sm:bottom-[7.5rem]"
+        className="group fixed bottom-[20.5rem] right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[#5B42F3] to-[#0055FF] text-white shadow-xl shadow-ink-900/20 transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#5B42F3] sm:bottom-[7.5rem] sm:h-20 sm:w-20"
       >
         <span className="flex flex-col items-center leading-none">
-          <MaxIcon className="h-6 w-6" />
-          <span className="mt-0.5 text-[10px] font-black tracking-wide">MAX</span>
+          <MaxIcon className="h-4 w-4 sm:h-6 sm:w-6" />
+          <span className="mt-0.5 text-[8px] font-black tracking-wide sm:text-[10px]">MAX</span>
         </span>
         <span className="pointer-events-none absolute right-full mr-3 whitespace-nowrap rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white opacity-0 shadow-md transition-opacity duration-150 group-hover:opacity-100">
           Чат в MAX

@@ -40,6 +40,18 @@ enum SubmissionStatus {
   NEEDS_REVISION
 }
 
+enum ModuleUnlockMode {
+  MANUAL
+  DRIP_ENROLLMENT
+  FIXED_DATE
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  SUSPENDED
+  COMPLETED
+}
+
 enum PaymentIntentStatus {
   PENDING
   SUCCEEDED
@@ -649,11 +661,16 @@ model Course {
 }
 
 model Module {
-  id        String   @id @default(uuid())
-  courseId  String
-  title     String
-  order     Int      @default(0)
-  createdAt DateTime @default(now())
+  id              String           @id @default(uuid())
+  courseId        String
+  title           String
+  description     String?
+  order           Int              @default(0)
+  isPublished     Boolean          @default(true)
+  unlockMode      ModuleUnlockMode @default(MANUAL)
+  unlockAfterDays Int?
+  unlockAt        DateTime?
+  createdAt       DateTime         @default(now())
 
   course  Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   lessons Lesson[]
@@ -677,6 +694,8 @@ model Lesson {
   videoPosterUrl    String?
   practiceLinkUrl   String?
   practiceLinkLabel String?
+  presentationEmbedUrl String?
+  homeworkTask      String?
   createdAt         DateTime @default(now())
 
   module      Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
@@ -726,16 +745,18 @@ model LessonMedia {
 }
 
 model Enrollment {
-  id          String    @id @default(uuid())
+  id          String           @id @default(uuid())
   studentId   String
   courseId    String
-  enrolledAt  DateTime  @default(now())
+  status      EnrollmentStatus @default(ACTIVE)
+  enrolledAt  DateTime         @default(now())
   completedAt DateTime?
 
   student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, courseId])
+  @@index([courseId, status])
 }
 
 model LessonProgress {

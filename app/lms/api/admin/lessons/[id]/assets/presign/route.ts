@@ -4,7 +4,7 @@ import { requireRole } from "@/shared/lib/rbac";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { signPutObject } from "@/lms/server/r2/signed";
 import { enforceRateLimit } from "@/lms/server/http/rate-limit";
-import { LESSON_ASSET_MAX_SIZE_BYTES, LESSON_ASSET_PDF_MIME } from "@/lms/lib/lesson-assets";
+import { LESSON_ASSET_MAX_SIZE_BYTES, LESSON_ASSET_KIND_CONFIG, isKnownLessonAssetKind } from "@/lms/lib/lesson-assets";
 import { createLogger } from "@/shared/lib/logger";
 
 export const runtime = "nodejs";
@@ -41,17 +41,25 @@ export const POST = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
   }
 
   const body = await req.json().catch(() => ({}));
-  const originalName = safeName(String(body.filename || "file.pdf"));
+  const kindInput = String(body.kind || "pdf").trim().toLowerCase();
+  const kind = isKnownLessonAssetKind(kindInput) ? kindInput : null;
+
+  if (!kind) {
+    return NextResponse.json({ ok: false, error: "unknown_kind" }, { status: 400 });
+  }
+
+  const config = LESSON_ASSET_KIND_CONFIG[kind];
+  const originalName = safeName(String(body.filename || `file.${kind === "audio" ? "mp3" : "pdf"}`));
   const title = String(body.title || "").trim() || titleFromFilename(originalName);
-  const mimeType = String(body.mimeType || LESSON_ASSET_PDF_MIME).trim().toLowerCase();
+  const mimeType = String(body.mimeType || config.mime).trim().toLowerCase();
   const sizeBytes = Number(body.sizeBytes || 0);
 
   if (!originalName) {
     return NextResponse.json({ ok: false, error: "bad filename" }, { status: 400 });
   }
 
-  if (mimeType !== LESSON_ASSET_PDF_MIME || !originalName.toLowerCase().endsWith(".pdf")) {
-    return NextResponse.json({ ok: false, error: "only pdf allowed" }, { status: 400 });
+  if (mimeType !== config.mime || !config.extension.test(originalName)) {
+    return NextResponse.json({ ok: false, error: `only ${kind} allowed` }, { status: 400 });
   }
 
   if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) {
@@ -84,7 +92,7 @@ export const POST = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
       const created = await tx.lessonAsset.create({
         data: {
           lessonId,
-          kind: "pdf",
+          kind,
           title,
           originalName,
           mimeType,

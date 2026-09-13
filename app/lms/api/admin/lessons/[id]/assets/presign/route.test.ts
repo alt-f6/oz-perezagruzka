@@ -172,4 +172,54 @@ describe("POST /api/admin/lessons/[id]/assets/presign", () => {
     expect(json).toEqual({ ok: false, error: "upload_url_generation_failed" });
     expect(lessonAssetDeleteMock).toHaveBeenCalledWith({ where: { id: "asset-1" } });
   });
+
+  it("accepts an audio/mpeg upload when kind=audio", async () => {
+    requireRoleMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    lessonFindUniqueMock.mockResolvedValue({ id: "lesson-1" });
+
+    const txAggregateMock = vi.fn().mockResolvedValue({ _max: { order: 0 } });
+    const txCreateMock = vi.fn().mockResolvedValue({ id: "asset-1" });
+    const txUpdateMock = vi.fn().mockResolvedValue({
+      id: "asset-1",
+      storageKey: "lessons/lesson-1/assets/asset-1-lesson-1-podcast.mp3",
+    });
+    transactionMock.mockImplementation(async (fn: (tx: unknown) => unknown) =>
+      fn({
+        lessonAsset: {
+          aggregate: txAggregateMock,
+          create: txCreateMock,
+          update: txUpdateMock,
+        },
+      })
+    );
+    signPutObjectMock.mockResolvedValue("https://r2.example.com/signed-put");
+    const { POST } = await import("./route");
+
+    const res = await POST(
+      makeReq({ kind: "audio", filename: "lesson-1-podcast.mp3", mimeType: "audio/mpeg", sizeBytes: 1_000_000 }),
+      ctxFor("lesson-1")
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.ok).toBe(true);
+    expect(txCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ kind: "audio" }) })
+    );
+  });
+
+  it("rejects a filename/mimeType mismatch for kind=audio (e.g. a .pdf sent as audio)", async () => {
+    requireRoleMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
+    const { POST } = await import("./route");
+
+    const res = await POST(
+      makeReq({ kind: "audio", filename: "not-audio.pdf", mimeType: "audio/mpeg", sizeBytes: 1000 }),
+      ctxFor("lesson-1")
+    );
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json).toEqual({ ok: false, error: "only audio allowed" });
+    expect(lessonFindUniqueMock).not.toHaveBeenCalled();
+  });
 });

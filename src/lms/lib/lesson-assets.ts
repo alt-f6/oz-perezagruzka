@@ -10,6 +10,19 @@ export const LESSON_ASSET_MAX_SIZE_BYTES = readPositiveIntEnv(
   25 * 1024 * 1024
 );
 
+export const LESSON_ASSET_KINDS = ["pdf", "audio", "presentation"] as const;
+export type LessonAssetKind = (typeof LESSON_ASSET_KINDS)[number];
+
+export const LESSON_ASSET_KIND_CONFIG: Record<LessonAssetKind, { mime: string; extension: RegExp }> = {
+  pdf: { mime: "application/pdf", extension: /\.pdf$/i },
+  audio: { mime: "audio/mpeg", extension: /\.mp3$/i },
+  presentation: { mime: "application/pdf", extension: /\.pdf$/i },
+};
+
+export function isKnownLessonAssetKind(value: unknown): value is LessonAssetKind {
+  return typeof value === "string" && (LESSON_ASSET_KINDS as readonly string[]).includes(value);
+}
+
 export function formatBytes(size: number) {
   if (!Number.isFinite(size) || size < 0) return "0 B";
 

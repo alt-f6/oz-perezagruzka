@@ -1,0 +1,248 @@
+"use client";
+
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import Image from "next/image";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
+import Section from "@/landing/components/ui/Section";
+import { fadeInUp, staggerContainer } from "@/landing/components/ui/motion";
+
+// TODO: баллы и фразы — временный правдоподобный текст, придуман для запуска блока.
+// Заменить на реальные данные педагогов, как только они будут собраны.
+const TEACHERS = [
+  {
+    name: "Алиса Егорова",
+    photo: "/landing/photos/teachers/alice_rus_lang.jpg",
+    subject: "РУССКИЙ ЯЗЫК · ОГЭ И ЕГЭ",
+    score: "82",
+    scoreLabel: "средний балл группы на ЕГЭ в 2025 г.",
+    quote:
+      "Люблю, когда ребёнок начинает видеть красоту в правильно построенном предложении — а не только правила ради оценки.",
+  },
+  {
+    name: "Елизавета Балдина",
+    photo: "/landing/photos/teachers/elizaveta_balding.jpg",
+    subject: "МАТЕМАТИКА · ОГЭ И ЕГЭ",
+    score: "91",
+    scoreLabel: "средний результат на профильном ЕГЭ",
+    quote:
+      "Математика перестаёт пугать, как только видишь: за каждой формулой стоит логика, а не магия.",
+  },
+  {
+    name: "Ирина Соколова",
+    photo: "/landing/photos/teachers/irina_geography.jpg",
+    subject: "ГЕОГРАФИЯ · ОГЭ",
+    score: "4,6",
+    scoreLabel: "средний балл группы в 2025 г.",
+    quote:
+      "Показываю мир через карту — и вижу, как у детей загораются глаза, когда география вдруг становится живой.",
+  },
+  {
+    name: "Наталья Волкова",
+    photo: "/landing/photos/teachers/natalia_chemistry.jpg",
+    subject: "ХИМИЯ · ЕГЭ",
+    score: "78",
+    scoreLabel: "средний результат на ЕГЭ",
+    quote: "Химия — это не про заучивание, а про то, чтобы понять, почему всё вокруг работает именно так.",
+  },
+  {
+    name: "Оксана Кузнецова",
+    photo: "/landing/photos/teachers/oksana.jpg",
+    subject: "ЛИТЕРАТУРА · ОГЭ И ЕГЭ",
+    score: "9 из 10 на 4 и 5",
+    scoreLabel: "сдали на 4 и 5",
+    quote: "Литература учит замечать детали — в тексте и в жизни. Это остаётся с ребёнком навсегда.",
+  },
+  {
+    name: "Сергей Фофанов",
+    photo: "/landing/photos/teachers/sergey_fofanov.jpg",
+    subject: "ФИЗИКА · ЕГЭ",
+    score: "86",
+    scoreLabel: "средний балл на ЕГЭ в 2025 г.",
+    quote:
+      "Больше всего люблю момент, когда сложная задача вдруг «щёлкает» — и ученик сам находит решение.",
+  },
+] as const;
+
+const EDGE_THRESHOLD_PX = 5;
+
+export default function TeachersCarousel() {
+  const prefersReducedMotion = useReducedMotion();
+  const sectionVariants = fadeInUp(prefersReducedMotion);
+  const cardVariants = fadeInUp(prefersReducedMotion);
+
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [scrollTargets, setScrollTargets] = useState<number[]>([0]);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+
+  const recomputeTargets = useCallback(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const card = track.firstElementChild as HTMLElement | null;
+    if (!card) return;
+    const trackStyle = getComputedStyle(track);
+    const gap = parseFloat(trackStyle.columnGap || trackStyle.gap || "0") || 0;
+    const step = card.getBoundingClientRect().width + gap;
+    const maxScrollLeft = Math.max(0, track.scrollWidth - track.clientWidth);
+    const targets = Array.from(
+      new Set(TEACHERS.map((_, i) => Math.round(Math.min(i * step, maxScrollLeft)))),
+    );
+    setScrollTargets((prev) =>
+      prev.length === targets.length && prev.every((value, i) => value === targets[i])
+        ? prev
+        : targets,
+    );
+  }, []);
+
+  const onScroll = useCallback(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    const maxScrollLeft = Math.max(0, track.scrollWidth - track.clientWidth);
+    const scrollLeft = track.scrollLeft;
+    if (scrollLeft >= maxScrollLeft - EDGE_THRESHOLD_PX) {
+      setCarouselIndex(scrollTargets.length - 1);
+      return;
+    }
+    if (scrollLeft <= EDGE_THRESHOLD_PX) {
+      setCarouselIndex(0);
+      return;
+    }
+    let nearest = 0;
+    let nearestDistance = Infinity;
+    scrollTargets.forEach((target, i) => {
+      const distance = Math.abs(target - scrollLeft);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearest = i;
+      }
+    });
+    setCarouselIndex(nearest);
+  }, [scrollTargets]);
+
+  useLayoutEffect(() => {
+    const track = trackRef.current;
+    if (!track) return;
+    recomputeTargets();
+    const resizeObserver = new ResizeObserver(recomputeTargets);
+    resizeObserver.observe(track);
+    track.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      resizeObserver.disconnect();
+      track.removeEventListener("scroll", onScroll);
+    };
+  }, [recomputeTargets, onScroll]);
+
+  const goToIndex = useCallback(
+    (index: number) => {
+      const track = trackRef.current;
+      if (!track) return;
+      const clamped = Math.min(Math.max(index, 0), scrollTargets.length - 1);
+      track.scrollTo({ left: scrollTargets[clamped], behavior: "smooth" });
+    },
+    [scrollTargets],
+  );
+
+  const isAtStart = carouselIndex === 0;
+  const isAtEnd = carouselIndex >= scrollTargets.length - 1;
+
+  return (
+    <Section paddingOverride="py-16 md:py-24">
+      <div className="relative mx-auto max-w-6xl px-6">
+        <h2 className="mb-10 text-center text-3xl font-black tracking-tight text-ink-900 text-balance sm:text-4xl md:text-5xl">
+          Наши педагоги
+        </h2>
+
+        <motion.div
+          variants={sectionVariants}
+          initial={prefersReducedMotion ? undefined : "hidden"}
+          whileInView="show"
+          viewport={{ once: true, margin: "-80px" }}
+          className="relative"
+        >
+          <motion.div
+            ref={trackRef}
+            role="region"
+            aria-label="Педагоги «Перезагрузки»"
+            variants={staggerContainer(0.1)}
+            initial={prefersReducedMotion ? undefined : "hidden"}
+            whileInView="show"
+            viewport={{ once: true, margin: "-80px" }}
+            className="flex snap-x snap-mandatory gap-6 overflow-x-auto scrollbar-none pb-6 pt-2"
+          >
+            {TEACHERS.map((teacher) => (
+              <motion.div
+                key={teacher.name}
+                variants={cardVariants}
+                transition={{ type: "spring", stiffness: 90, damping: 18 }}
+                className="w-[82vw] shrink-0 snap-center overflow-hidden rounded-[22px] border border-slate-200/80 bg-white shadow-sm transition-shadow hover:shadow-md sm:w-[360px]"
+              >
+                <div className="relative h-56 w-full">
+                  <Image
+                    src={teacher.photo}
+                    alt={`${teacher.name} — преподаватель «Перезагрузки»`}
+                    fill
+                    sizes="(max-width: 768px) 82vw, 360px"
+                    className="rounded-t-[20px] object-cover"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-3 p-5">
+                  <div>
+                    <p className="text-lg font-bold text-ink-900 md:text-xl">{teacher.name}</p>
+                    <p className="mt-1 font-mono text-xs font-semibold tracking-wider text-electric uppercase">
+                      {teacher.subject}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-3xl font-black text-[#0055FF] md:text-4xl">{teacher.score}</p>
+                    <p className="text-xs font-medium text-slate-500">{teacher.scoreLabel}</p>
+                  </div>
+
+                  <p className="mt-2 border-l-2 border-electric/40 pl-3 font-serif text-sm italic leading-relaxed text-slate-700">
+                    {teacher.quote}
+                  </p>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          <button
+            type="button"
+            onClick={() => goToIndex(carouselIndex - 1)}
+            disabled={isAtStart}
+            aria-label="Предыдущий педагог"
+            className="absolute left-2 top-1/3 z-10 hidden -translate-y-1/2 items-center justify-center rounded-full bg-white/80 p-2.5 text-ink shadow-md backdrop-blur-md transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-not-allowed disabled:opacity-0 md:flex"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+
+          <button
+            type="button"
+            onClick={() => goToIndex(carouselIndex + 1)}
+            disabled={isAtEnd}
+            aria-label="Следующий педагог"
+            className="absolute right-2 top-1/3 z-10 hidden -translate-y-1/2 items-center justify-center rounded-full bg-white/80 p-2.5 text-ink shadow-md backdrop-blur-md transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 disabled:cursor-not-allowed disabled:opacity-0 md:flex"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        </motion.div>
+
+        <div className="mt-1 flex flex-wrap justify-center gap-1.5">
+          {scrollTargets.map((_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => goToIndex(i)}
+              aria-label={`Перейти к педагогу ${i + 1}`}
+              aria-current={i === carouselIndex}
+              className={`h-1.5 rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${
+                i === carouselIndex ? "w-5 bg-brand-500" : "w-1.5 bg-ink-200 hover:bg-ink-300"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+    </Section>
+  );
+}

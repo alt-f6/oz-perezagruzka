@@ -5,6 +5,7 @@ import Hero from "@/landing/components/sections/Hero";
 import BudgetVsPaidEGE from "@/landing/components/sections/BudgetVsPaidEGE";
 import Solution from "@/landing/components/sections/Solution";
 import WhyOgeMatters from "@/landing/components/sections/WhyOgeMatters";
+import TeachersCarousel from "@/landing/components/sections/TeachersCarousel";
 import StudentCarousel from "@/landing/components/sections/StudentCarousel";
 import YandexReviews from "@/landing/components/sections/YandexReviews";
 import Pricing from "@/landing/components/sections/Pricing";
@@ -121,6 +122,7 @@ export default function Home() {
           <Hero />
           <BudgetVsPaidEGE />
           <Solution />
+          <TeachersCarousel />
           <WhyOgeMatters />
           <StudentCarousel />
           <YandexReviews />

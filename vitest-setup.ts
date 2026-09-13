@@ -26,4 +26,13 @@ if (typeof document !== "undefined") {
     }
     unobserve() {}
   } as any;
+
+  // Mock ResizeObserver for carousel components that recompute scroll
+  // snap targets when their track's size changes (e.g. TeachersCarousel).
+  global.ResizeObserver = class ResizeObserver {
+    constructor() {}
+    disconnect() {}
+    observe() {}
+    unobserve() {}
+  } as any;
 }

@@ -25,6 +25,8 @@ export type Lesson = {
   order: number;
   practice_link_url: string | null;
   practice_link_label: string | null;
+  presentation_embed_url: string | null;
+  homework_task: string | null;
   module_id: string;
 };
 
@@ -324,6 +326,34 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
               onChange={(e) => onChange({ ...lesson, practice_link_label: e.target.value })}
               disabled={!lesson.practice_link_url}
             />
+          </div>
+
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label htmlFor="lesson-presentation-embed">Presentation embed URL</Label>
+            <Input
+              id="lesson-presentation-embed"
+              type="url"
+              placeholder="https://docs.google.com/presentation/d/.../embed"
+              value={lesson.presentation_embed_url ?? ""}
+              onChange={(e) => onChange({ ...lesson, presentation_embed_url: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              For Google Slides / Miro / other iframe-embeddable slide decks. Leave empty if using an uploaded PDF
+              deck instead.
+            </p>
+          </div>
+
+          <div className="grid gap-1.5 sm:col-span-2">
+            <Label htmlFor="lesson-homework-task">Homework instructions (Markdown)</Label>
+            <Textarea
+              id="lesson-homework-task"
+              className="min-h-32"
+              value={lesson.homework_task ?? ""}
+              onChange={(e) => onChange({ ...lesson, homework_task: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Shown to the student as a homework scaffold. Submission/grading ships in Phase 2.
+            </p>
           </div>
         </div>
 

@@ -37,6 +37,8 @@ const lessonRow = (overrides: Partial<Record<string, unknown>> = {}) => ({
   isPublished: true,
   practiceLinkUrl: null,
   practiceLinkLabel: null,
+  presentationEmbedUrl: null,
+  homeworkTask: null,
   ...overrides,
 });
 
@@ -129,5 +131,49 @@ describe("PATCH /api/admin/lessons/[id]", () => {
 
     expect(res.status).toBe(400);
     expect(json.error).toBe("invalid_practice_link_url");
+  });
+
+  it("saves a trimmed presentation embed url and homework task", async () => {
+    updateMock.mockResolvedValue(
+      lessonRow({
+        presentationEmbedUrl: "https://docs.google.com/presentation/d/abc/embed",
+        homeworkTask: "Read chapter 1",
+      })
+    );
+    const { PATCH } = await import("./route");
+
+    const res = await PATCH(
+      patchRequest({
+        title: "Lesson 1",
+        presentation_embed_url: "  https://docs.google.com/presentation/d/abc/embed  ",
+        homework_task: "  Read chapter 1  ",
+      }),
+      makeCtx("lesson_1")
+    );
+    const json = await res.json();
+
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: "lesson_1" },
+      data: expect.objectContaining({
+        presentationEmbedUrl: "https://docs.google.com/presentation/d/abc/embed",
+        homeworkTask: "Read chapter 1",
+      }),
+    });
+    expect(json.ok).toBe(true);
+  });
+
+  it("clears both the presentation embed url and homework task when removed", async () => {
+    updateMock.mockResolvedValue(lessonRow());
+    const { PATCH } = await import("./route");
+
+    await PATCH(
+      patchRequest({ title: "Lesson 1", presentation_embed_url: "", homework_task: "" }),
+      makeCtx("lesson_1")
+    );
+
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: "lesson_1" },
+      data: expect.objectContaining({ presentationEmbedUrl: null, homeworkTask: null }),
+    });
   });
 });

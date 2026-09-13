@@ -2,30 +2,31 @@
 
 import type { ChangeEvent } from "react";
 import { useRef, useState } from "react";
-import { Eye, EyeOff, Trash2, Upload } from "lucide-react";
+import { Eye, EyeOff, Music, Trash2, Upload } from "lucide-react";
 
-import {
-  formatBytes,
-  isPdfFile,
-  LESSON_ASSET_MAX_SIZE_BYTES,
-  LESSON_ASSET_PDF_MIME,
-} from "@/lms/lib/lesson-assets";
+import { formatBytes, LESSON_ASSET_KIND_CONFIG, LESSON_ASSET_MAX_SIZE_BYTES } from "@/lms/lib/lesson-assets";
 import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/shared/components/ui/card";
 import { Progress } from "@/shared/components/ui/progress";
 import { useLessonAssetUpload } from "./useLessonAssetUpload";
 
+const AUDIO_MIME = LESSON_ASSET_KIND_CONFIG.audio.mime;
+
+function isAudioFile(file: File) {
+  return file.type === AUDIO_MIME || file.name.toLowerCase().endsWith(".mp3");
+}
+
 function errorText(value: unknown, fallback: string) {
   if (typeof value !== "string" || !value) return fallback;
 
   switch (value) {
-    case "only pdf allowed":
-      return "Only PDF files are allowed.";
+    case "only audio allowed":
+      return "Only MP3 files are allowed.";
     case "lesson_not_found":
       return "Lesson not found.";
     case "bad lessonId":
-      return "Invalid lesson scope for this PDF action.";
+      return "Invalid lesson scope for this audio action.";
     case "bad file size":
       return "Could not determine the file size.";
     case "file too large":
@@ -39,21 +40,19 @@ function errorText(value: unknown, fallback: string) {
     case "size mismatch":
       return "Uploaded file size does not match the expected size.";
     case "unexpected_content_type":
-      return "R2 returned an unexpected content type for this PDF.";
-    case "storage_cleanup_failed":
-      return "Could not clean up the file in R2.";
+      return "R2 returned an unexpected content type for this audio file.";
     case "unsupported_asset_kind":
-      return "This asset is not a PDF lesson asset.";
+      return "This asset is not an audio lesson asset.";
     case "asset_update_failed":
-      return "Server failed to update the PDF asset.";
+      return "Server failed to update the audio asset.";
     case "not_found":
-      return "PDF asset was not found.";
+      return "Audio asset was not found.";
     default:
       return value;
   }
 }
 
-export function LessonPdfManager({ lessonId }: { lessonId: string }) {
+export function LessonAudioManager({ lessonId }: { lessonId: string }) {
   const {
     assets,
     assetsLoading,
@@ -65,15 +64,15 @@ export function LessonPdfManager({ lessonId }: { lessonId: string }) {
     remove: deleteAsset,
     patch: patchAsset,
     refresh: loadAssets,
-  } = useLessonAssetUpload(lessonId, "pdf");
+  } = useLessonAssetUpload(lessonId, "audio");
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFileName, setSelectedFileName] = useState("");
   const [pickerError, setPickerError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const displayError = pickerError ?? (assetsErr ? errorText(assetsErr, "PDF action failed.") : null);
-  const assetSuccess = uploadedFileName ? `PDF "${uploadedFileName}" uploaded successfully.` : null;
+  const displayError = pickerError ?? (assetsErr ? errorText(assetsErr, "Audio action failed.") : null);
+  const assetSuccess = uploadedFileName ? `Audio "${uploadedFileName}" uploaded successfully.` : null;
 
   function clearSelectedFile() {
     setSelectedFile(null);
@@ -90,8 +89,8 @@ export function LessonPdfManager({ lessonId }: { lessonId: string }) {
       return;
     }
 
-    if (!isPdfFile(file, file.name)) {
-      setPickerError("Only PDF files can be selected.");
+    if (!isAudioFile(file)) {
+      setPickerError("Only MP3 files can be selected.");
       clearSelectedFile();
       return;
     }
@@ -109,7 +108,7 @@ export function LessonPdfManager({ lessonId }: { lessonId: string }) {
   async function startAssetUpload() {
     const file = selectedFile;
     if (!file) {
-      setPickerError("Select a PDF file first.");
+      setPickerError("Select an MP3 file first.");
       return;
     }
 
@@ -122,7 +121,7 @@ export function LessonPdfManager({ lessonId }: { lessonId: string }) {
     <Card>
       <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
         <div>
-          <CardTitle>PDF Assets</CardTitle>
+          <CardTitle>Audio Assets</CardTitle>
           <CardDescription>Maximum {formatBytes(LESSON_ASSET_MAX_SIZE_BYTES)}.</CardDescription>
         </div>
         <Button variant="outline" size="sm" onClick={loadAssets} loading={assetsLoading || uploadingAsset}>
@@ -136,25 +135,25 @@ export function LessonPdfManager({ lessonId }: { lessonId: string }) {
             <input
               ref={fileInputRef}
               type="file"
-              accept={LESSON_ASSET_PDF_MIME}
+              accept={AUDIO_MIME}
               onChange={handleFilePick}
               disabled={uploadingAsset}
               className="flex-1 text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-sm file:font-semibold file:text-secondary-foreground"
             />
             <Button type="button" onClick={startAssetUpload} disabled={uploadingAsset || !selectedFile} loading={uploadingAsset}>
               <Upload />
-              {uploadingAsset ? "Uploading..." : "Upload PDF"}
+              {uploadingAsset ? "Uploading..." : "Upload MP3"}
             </Button>
           </div>
 
           <p className="mt-2 text-xs text-muted-foreground">
-            {selectedFileName ? `Selected file: ${selectedFileName}` : "Choose a PDF file for this lesson."}
+            {selectedFileName ? `Selected file: ${selectedFileName}` : "Choose an MP3 file for this lesson."}
           </p>
 
           {uploadingAsset ? (
             <div className="mt-3">
               <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
-                <span>Uploading PDF...</span>
+                <span>Uploading audio...</span>
                 <span>{uploadProgress}%</span>
               </div>
               <Progress value={uploadProgress} />
@@ -178,14 +177,15 @@ export function LessonPdfManager({ lessonId }: { lessonId: string }) {
         </div>
 
         <div className="mt-4 flex flex-col gap-3">
-          {assetsLoading && assets.length === 0 ? <p className="text-sm text-muted-foreground">Loading PDFs...</p> : null}
-          {!assetsLoading && assets.length === 0 ? <p className="text-sm text-muted-foreground">No PDFs yet</p> : null}
+          {assetsLoading && assets.length === 0 ? <p className="text-sm text-muted-foreground">Loading audio...</p> : null}
+          {!assetsLoading && assets.length === 0 ? <p className="text-sm text-muted-foreground">No audio yet</p> : null}
 
           {assets.map((asset) => (
             <div key={asset.id} className="rounded-2xl border border-border bg-black/10 p-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate font-bold">
+                  <p className="flex items-center gap-1.5 truncate font-bold">
+                    <Music className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                     {asset.title || asset.original_name || <span className="text-muted-foreground">(untitled)</span>}
                   </p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">

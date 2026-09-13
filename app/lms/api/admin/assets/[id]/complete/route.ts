@@ -3,7 +3,12 @@ import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { headObject } from "@/lms/server/r2/signed";
-import { LESSON_ASSET_MAX_SIZE_BYTES, LESSON_ASSET_PDF_MIME, readLessonAssetScope } from "@/lms/lib/lesson-assets";
+import {
+  LESSON_ASSET_MAX_SIZE_BYTES,
+  LESSON_ASSET_KIND_CONFIG,
+  isKnownLessonAssetKind,
+  readLessonAssetScope,
+} from "@/lms/lib/lesson-assets";
 import { createLogger } from "@/shared/lib/logger";
 
 export const runtime = "nodejs";
@@ -51,8 +56,11 @@ export const POST = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
 
   const row = await db.lessonAsset.findUnique({ where: { id: assetId } });
   if (!row || row.lessonId !== lessonId) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
-  if (row.kind !== "pdf") return NextResponse.json({ ok: false, error: "unsupported_asset_kind" }, { status: 400 });
+  if (!isKnownLessonAssetKind(row.kind)) {
+    return NextResponse.json({ ok: false, error: "unsupported_asset_kind" }, { status: 400 });
+  }
 
+  const expectedMimeType = LESSON_ASSET_KIND_CONFIG[row.kind].mime;
   const key = String(row.storageKey || "");
   if (!key) return NextResponse.json({ ok: false, error: "missing_storage_key" }, { status: 400 });
 
@@ -76,7 +84,7 @@ export const POST = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
       return NextResponse.json({ ok: false, error: "size mismatch" }, { status: 400 });
     }
 
-    if (objectType && objectType !== LESSON_ASSET_PDF_MIME) {
+    if (objectType && objectType !== expectedMimeType) {
       return NextResponse.json({ ok: false, error: "unexpected_content_type" }, { status: 400 });
     }
   } catch (error) {

@@ -3,7 +3,7 @@ import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { deleteObject } from "@/lms/server/r2/signed";
-import { readLessonAssetScope } from "@/lms/lib/lesson-assets";
+import { isKnownLessonAssetKind, readLessonAssetScope } from "@/lms/lib/lesson-assets";
 import type { LessonAsset } from "@prisma/client";
 import { createLogger } from "@/shared/lib/logger";
 
@@ -53,7 +53,7 @@ export const PATCH = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
   if (!row || row.lessonId !== lessonId) {
     return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
   }
-  if (row.kind !== "pdf") {
+  if (!isKnownLessonAssetKind(row.kind)) {
     return NextResponse.json({ ok: false, error: "unsupported_asset_kind" }, { status: 400 });
   }
 
@@ -109,7 +109,7 @@ export const DELETE = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
 
   const row = await db.lessonAsset.findUnique({ where: { id }, select: { lessonId: true, kind: true, storageKey: true } });
   if (!row || row.lessonId !== lessonId) return NextResponse.json({ ok: true, deleted: false });
-  if (row.kind !== "pdf") {
+  if (!isKnownLessonAssetKind(row.kind)) {
     return NextResponse.json({ ok: false, error: "unsupported_asset_kind" }, { status: 400 });
   }
 

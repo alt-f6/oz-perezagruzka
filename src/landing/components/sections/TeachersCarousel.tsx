@@ -13,13 +13,17 @@ import { fadeInUp, staggerContainer } from "@/landing/components/ui/motion";
 // All source photos are portrait headshots with the face/hair near the top
 // of the frame, so object-cover's default center-crop chops off foreheads
 // once the tall source is cropped down to the card's aspect-[4/3] box.
-// object-top anchors the crop to the top instead, keeping the whole head in
-// frame and trimming shoulders/chest from the bottom.
+// A flat object-top isn't right for every photo either: Alice's and
+// Elizaveta's source photos are tight headshots where the face fills nearly
+// the whole frame, so object-top's crop window lands mid-face (eyes/nose)
+// instead of running to the chin. Each photoPosition below is picked from
+// that photo's actual pixel dimensions and head position so the crop starts
+// just above the hairline and runs down through the chin/collar.
 const TEACHERS = [
   {
     name: "Алиса Егорова",
     photo: "/landing/photos/teachers/alice_rus_lang.jpg",
-    photoPosition: "object-top",
+    photoPosition: "object-[center_45%]",
     subject: "РУССКИЙ ЯЗЫК · ОГЭ И ЕГЭ",
     score: "82",
     scoreLabel: "средний балл группы на ЕГЭ в 2025 г.",
@@ -29,7 +33,7 @@ const TEACHERS = [
   {
     name: "Елизавета Балдина",
     photo: "/landing/photos/teachers/elizaveta_balding.jpg",
-    photoPosition: "object-top",
+    photoPosition: "object-[center_15%]",
     subject: "МАТЕМАТИКА · ОГЭ И ЕГЭ",
     score: "91",
     scoreLabel: "средний результат на профильном ЕГЭ",

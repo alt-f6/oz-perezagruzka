@@ -24,6 +24,7 @@ function toLessonJson(lesson: Lesson) {
     is_published: lesson.isPublished,
     practice_link_url: lesson.practiceLinkUrl,
     practice_link_label: lesson.practiceLinkLabel,
+    module_id: lesson.moduleId,
   };
 }
 
@@ -64,6 +65,7 @@ export const PATCH = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
   const is_published = Boolean(body.is_published);
   const practiceLinkUrl = normalizePracticeLink(body.practice_link_url);
   const practiceLinkLabel = normalizePracticeLink(body.practice_link_label);
+  const moduleId = body.module_id ? String(body.module_id).trim() : null;
 
   if (!title) return NextResponse.json({ ok: false, error: "title_required" }, { status: 400 });
 
@@ -87,6 +89,7 @@ export const PATCH = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
         isPublished: is_published,
         practiceLinkUrl,
         practiceLinkLabel: practiceLinkUrl ? practiceLinkLabel : null,
+        ...(moduleId ? { moduleId } : {}),
       },
     });
 

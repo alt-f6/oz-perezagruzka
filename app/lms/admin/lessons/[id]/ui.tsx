@@ -62,6 +62,7 @@ export default function AdminLessonEditClient({ lessonId }: { lessonId: string }
         is_published: lesson.is_published,
         practice_link_url: lesson.practice_link_url,
         practice_link_label: lesson.practice_link_label,
+        module_id: lesson.module_id,
       }),
     });
 

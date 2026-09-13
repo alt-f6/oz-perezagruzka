@@ -82,6 +82,15 @@ export const PATCH = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
     }
   }
 
+  if (presentationEmbedUrl) {
+    try {
+      const parsed = new URL(presentationEmbedUrl);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error("bad protocol");
+    } catch {
+      return NextResponse.json({ ok: false, error: "invalid_presentation_embed_url" }, { status: 400 });
+    }
+  }
+
   try {
     const lesson = await db.lesson.update({
       where: { id: lessonId },

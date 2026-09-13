@@ -6,6 +6,10 @@ const SYNC_INTERVAL_MS = 15_000;
 const SPEEDS = [0.75, 1, 1.25, 1.5, 2] as const;
 
 type Props = {
+  // Accepted for interface consistency with how LessonStage calls this
+  // component (mirroring other stage components that use lessonId for
+  // syncPlaybackPosition) -- not used in this component's own signed-URL
+  // fetch, which only needs assetId.
   lessonId: string;
   assetId: string;
   title: string | null;
@@ -34,17 +38,38 @@ export function AudioPlayer({ assetId, title, initialPositionSeconds, onPosition
     };
   }, [assetId]);
 
+  // Seek to the saved resume position exactly once, as soon as the signed
+  // URL is available. This must not re-run on speed changes or parent
+  // re-renders (onPositionChange is an inline arrow function from the
+  // parent that changes identity every render), or playback jumps back to
+  // the resume position every time.
+  const hasSeekedRef = useRef(false);
+  useEffect(() => {
+    hasSeekedRef.current = false;
+  }, [url]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !url || hasSeekedRef.current) return;
+    if (initialPositionSeconds > 0) audio.currentTime = initialPositionSeconds;
+    hasSeekedRef.current = true;
+  }, [url, initialPositionSeconds]);
+
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !url) return;
     audio.playbackRate = rate;
-    if (initialPositionSeconds > 0) audio.currentTime = initialPositionSeconds;
+  }, [url, rate]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio || !url) return;
 
     const interval = setInterval(() => {
       if (!audio.paused) onPositionChange(Math.floor(audio.currentTime));
     }, SYNC_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [url, rate, initialPositionSeconds, onPositionChange]);
+  }, [url, onPositionChange]);
 
   function skip(deltaSeconds: number) {
     const audio = audioRef.current;

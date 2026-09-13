@@ -61,4 +61,30 @@ describe("CurriculumSidebar", () => {
     const lockedLessonRow = screen.getByText("Урок 3").closest("button, div");
     expect(lockedLessonRow?.tagName.toLowerCase()).not.toBe("button");
   });
+
+  it("renders an assigned lesson as clickable even when its module is locked (direct Assignment override)", () => {
+    // Regression test for C1: a module with no active enrollment yet
+    // (locked: true, lockReason: null) can still contain a lesson the
+    // student was directly assigned via an Assignment row. page.tsx already
+    // bakes that override into lesson.assigned, so the sidebar must not
+    // re-AND with module.locked -- doing so previously locked out every
+    // directly-assigned lesson.
+    const modulesWithDirectAssignment: CurriculumModule[] = [
+      {
+        id: "mod-3",
+        title: "Месяц 3",
+        locked: true,
+        lockReason: null,
+        unlocksAt: null,
+        lessons: [
+          { id: "l4", title: "Урок 4", order: 0, assigned: true, completedAt: null, format: "text" },
+        ],
+      },
+    ];
+
+    render(<CurriculumSidebar modules={modulesWithDirectAssignment} currentLessonId="l4" />);
+
+    const assignedLessonRow = screen.getByText("Урок 4").closest("button, div");
+    expect(assignedLessonRow?.tagName.toLowerCase()).toBe("button");
+  });
 });

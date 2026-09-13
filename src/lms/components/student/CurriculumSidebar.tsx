@@ -105,7 +105,7 @@ export function CurriculumSidebar({ modules, currentLessonId, onNavigate }: Prop
               <div className="flex flex-col gap-1 border-t border-border/60 p-1.5">
                 {module.lessons.map((lesson) => {
                   const isCurrent = lesson.id === currentLessonId;
-                  const isLocked = module.locked || !lesson.assigned;
+                  const isLocked = !lesson.assigned;
                   const isCompleted = Boolean(lesson.completedAt);
                   const isNavigating = isPending && pendingId === lesson.id;
                   const FormatIcon = FORMAT_ICON[lesson.format];

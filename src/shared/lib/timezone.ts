@@ -175,3 +175,34 @@ export function moscowDateKey(instant: Date | string): string {
   // en-CA already yields YYYY-MM-DD.
   return parts;
 }
+
+/** UTC instant of the Europe/Moscow midnight (00:00) for the calendar day containing `instant`. */
+export function moscowStartOfDay(instant: Date | string = new Date()): Date {
+  const [y, m, d] = moscowDateKey(instant).split("-").map(Number);
+  return zonedWallClockToUtc(y, m, d, 0, 0, BUSINESS_TIMEZONE);
+}
+
+/**
+ * UTC instant exactly one calendar day after `moscowStartOfDay(instant)` -- an
+ * exclusive upper bound for a "that MSK day" range filter. Moscow has been a
+ * fixed UTC+3 offset with no DST since 2014, so a flat 24h addition is safe.
+ */
+export function moscowStartOfNextDay(instant: Date | string = new Date()): Date {
+  return new Date(moscowStartOfDay(instant).getTime() + 24 * 60 * 60 * 1000);
+}
+
+/** UTC instant of the Moscow Monday 00:00 that starts the week containing `instant`. */
+export function moscowStartOfWeek(instant: Date | string = new Date()): Date {
+  const { weekdayMon0 } = moscowWallClock(instant);
+  return new Date(moscowStartOfDay(instant).getTime() - weekdayMon0 * 24 * 60 * 60 * 1000);
+}
+
+/** UTC instant of the Moscow Monday 00:00 that starts the week after `instant`'s -- an exclusive upper bound. */
+export function moscowStartOfNextWeek(instant: Date | string = new Date()): Date {
+  return new Date(moscowStartOfWeek(instant).getTime() + 7 * 24 * 60 * 60 * 1000);
+}
+
+/** Shifts `instant` forward (or back, for a negative `days`) by whole 24h days. */
+export function addMoscowDays(instant: Date | string, days: number): Date {
+  return new Date(new Date(instant).getTime() + days * 24 * 60 * 60 * 1000);
+}

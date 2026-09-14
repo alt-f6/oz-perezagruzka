@@ -6,6 +6,12 @@ import {
   localWallClockToMoscowUtc,
   moscowDateKey,
   moscowDateTimeToUtc,
+  moscowStartOfDay,
+  moscowStartOfNextDay,
+  moscowStartOfWeek,
+  moscowStartOfNextWeek,
+  addMoscowDays,
+  moscowWallClock,
   zonedWallClockToUtc,
 } from "./timezone";
 
@@ -53,5 +59,68 @@ describe("localWallClockToMoscowUtc", () => {
     const utc = localWallClockToMoscowUtc(local);
     expect(formatMoscowTime(utc)).toBe("15:00");
     expect(formatMoscowDate(utc)).toBe("07.09.2026");
+  });
+});
+
+describe("moscowStartOfDay", () => {
+  it("returns the MSK midnight (UTC+3) that contains the given instant", () => {
+    // 2026-03-10T05:00:00Z = 08:00 MSK on 2026-03-10; MSK midnight that day is 21:00 UTC the day before.
+    const result = moscowStartOfDay(new Date("2026-03-10T05:00:00.000Z"));
+    expect(result.toISOString()).toBe("2026-03-09T21:00:00.000Z");
+  });
+
+  it("is idempotent when given an instant that is already MSK midnight", () => {
+    const start = moscowStartOfDay(new Date("2026-03-09T21:00:00.000Z"));
+    expect(moscowStartOfDay(start).toISOString()).toBe(start.toISOString());
+  });
+});
+
+describe("moscowStartOfNextDay", () => {
+  it("is exactly 24 hours after moscowStartOfDay for the same instant", () => {
+    const instant = new Date("2026-03-10T05:00:00.000Z");
+    const diff = moscowStartOfNextDay(instant).getTime() - moscowStartOfDay(instant).getTime();
+    expect(diff).toBe(24 * 60 * 60 * 1000);
+  });
+});
+
+describe("moscowStartOfWeek", () => {
+  it("lands on a Moscow Monday at 00:00", () => {
+    const result = moscowStartOfWeek(new Date("2026-03-12T10:00:00.000Z"));
+    const wallClock = moscowWallClock(result);
+    expect(wallClock.weekdayMon0).toBe(0);
+    expect(wallClock.hour).toBe(0);
+    expect(wallClock.minute).toBe(0);
+  });
+
+  it("returns the same Monday for any instant later in that Moscow week", () => {
+    const weekStart = moscowStartOfWeek(new Date("2026-03-12T10:00:00.000Z"));
+    const laterSameWeek = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000 + 1000);
+    expect(moscowStartOfWeek(laterSameWeek).toISOString()).toBe(weekStart.toISOString());
+  });
+
+  it("never resolves to the instant that starts the following week", () => {
+    const instant = new Date("2026-03-12T10:00:00.000Z");
+    const nextWeekStart = moscowStartOfNextWeek(instant);
+    expect(moscowStartOfWeek(nextWeekStart).toISOString()).toBe(nextWeekStart.toISOString());
+  });
+});
+
+describe("moscowStartOfNextWeek", () => {
+  it("is exactly 7 days after moscowStartOfWeek for the same instant", () => {
+    const instant = new Date("2026-03-12T10:00:00.000Z");
+    const diff = moscowStartOfNextWeek(instant).getTime() - moscowStartOfWeek(instant).getTime();
+    expect(diff).toBe(7 * 24 * 60 * 60 * 1000);
+  });
+});
+
+describe("addMoscowDays", () => {
+  it("shifts an instant forward by whole 24h days", () => {
+    const instant = new Date("2026-03-10T05:00:00.000Z");
+    expect(addMoscowDays(instant, 1).toISOString()).toBe("2026-03-11T05:00:00.000Z");
+  });
+
+  it("supports negative offsets", () => {
+    const instant = new Date("2026-03-10T05:00:00.000Z");
+    expect(addMoscowDays(instant, -2).toISOString()).toBe("2026-03-08T05:00:00.000Z");
   });
 });

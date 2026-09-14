@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireRole, rbacErrorResponse } from "@/shared/lib/rbac";
 import { CRM_ROLES } from "@/shared/lib/auth";
-import { parsePaginationParams } from "@/shared/lib/pagination";
-import { listLessons } from "@/crm/lib/services/lesson-list.service";
+import { parseLessonListFilters } from "@/crm/lib/lessonFilters";
+import { listLessonsPage } from "@/crm/lib/services/lesson-list.service";
 
 export const runtime = "nodejs";
 
@@ -15,9 +15,13 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
   }
 
   const url = new URL(req.url);
-  const { cursor, limit } = parsePaginationParams(url.searchParams);
+  const parsed = parseLessonListFilters(Object.fromEntries(url.searchParams.entries()));
+  // Defense-in-depth: listLessonsPage's own where-builder already ignores
+  // teacherId for a TEACHER, but clearing it here keeps the RBAC boundary
+  // visible at this entry point too.
+  const filters = sessionUser.role === "TEACHER" ? { ...parsed, teacherId: undefined } : parsed;
 
-  const { lessons, nextCursor } = await listLessons({ sessionUser, cursor, limit });
+  const result = await listLessonsPage({ sessionUser, filters });
 
-  return NextResponse.json({ ok: true, lessons, nextCursor });
+  return NextResponse.json({ ok: true, ...result });
 }

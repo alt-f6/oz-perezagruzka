@@ -1,49 +1,54 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { NextRequest } from "next/server";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const requireRoleMock = vi.fn();
-const listLessonsMock = vi.fn();
+const requireRoleMock = vi.hoisted(() => vi.fn());
+const listLessonsPageMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/shared/lib/rbac", async () => {
-  const actual = await vi.importActual<typeof import("@/shared/lib/rbac")>("@/shared/lib/rbac");
-  return { ...actual, requireRole: (...args: unknown[]) => requireRoleMock(...args) };
+vi.mock("@/shared/lib/rbac", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/shared/lib/rbac")>();
+  return { ...actual, requireRole: requireRoleMock };
 });
-vi.mock("@/crm/lib/services/lesson-list.service", () => ({
-  listLessons: (...args: unknown[]) => listLessonsMock(...args),
-}));
+vi.mock("@/crm/lib/services/lesson-list.service", () => ({ listLessonsPage: listLessonsPageMock }));
 
-function makeRequest(query = "") {
-  return new NextRequest(`http://localhost/crm/api/lessons${query}`);
-}
+import { GET } from "./route";
 
 beforeEach(() => {
   requireRoleMock.mockReset();
-  listLessonsMock.mockReset();
-  requireRoleMock.mockResolvedValue({ id: "admin_1", role: "ADMIN" });
-  listLessonsMock.mockResolvedValue({ lessons: [], nextCursor: null });
+  listLessonsPageMock.mockReset();
 });
 
 describe("GET /crm/api/lessons", () => {
-  it("returns 401/403 via rbacErrorResponse when requireRole rejects", async () => {
+  it("returns an RBAC error response for an unauthenticated request", async () => {
     const { RbacError } = await import("@/shared/lib/rbac");
     requireRoleMock.mockRejectedValue(new RbacError(401, "unauthorized"));
-    const { GET } = await import("./route");
 
-    const res = await GET(makeRequest());
+    const res = await GET(new Request("http://x/crm/api/lessons") as never);
 
     expect(res.status).toBe(401);
-    expect(listLessonsMock).not.toHaveBeenCalled();
   });
 
-  it("passes the parsed cursor/limit and session user through to listLessons", async () => {
-    const { GET } = await import("./route");
+  it("parses filters from the query string and forwards them, ignoring teacherId for a TEACHER", async () => {
+    requireRoleMock.mockResolvedValue({ id: "t1", role: "TEACHER" });
+    listLessonsPageMock.mockResolvedValue({ lessons: [], total: 0, page: 1, pageSize: 25 });
 
-    await GET(makeRequest("?cursor=l5&limit=10"));
+    const res = await GET(
+      new Request("http://x/crm/api/lessons?q=abc&teacherId=550e8400-e29b-41d4-a716-446655440000&page=2") as never,
+    );
+    const json = await res.json();
 
-    expect(listLessonsMock).toHaveBeenCalledWith({
-      sessionUser: { id: "admin_1", role: "ADMIN" },
-      cursor: "l5",
-      limit: 10,
-    });
+    expect(json.ok).toBe(true);
+    const call = listLessonsPageMock.mock.calls[0][0];
+    expect(call.filters.q).toBe("abc");
+    expect(call.filters.teacherId).toBeUndefined();
+    expect(call.filters.page).toBe(2);
+  });
+
+  it("forwards an explicit teacherId filter for ADMIN/MANAGER", async () => {
+    requireRoleMock.mockResolvedValue({ id: "a1", role: "ADMIN" });
+    listLessonsPageMock.mockResolvedValue({ lessons: [], total: 0, page: 1, pageSize: 25 });
+
+    await GET(new Request("http://x/crm/api/lessons?teacherId=550e8400-e29b-41d4-a716-446655440000") as never);
+
+    const call = listLessonsPageMock.mock.calls[0][0];
+    expect(call.filters.teacherId).toBe("550e8400-e29b-41d4-a716-446655440000");
   });
 });

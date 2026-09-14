@@ -585,9 +585,16 @@ export function ScheduleClient({
                 // the wrong hour row whenever that differs from Moscow.
                 const { hour, minute } = moscowWallClock(lesson.scheduledAt);
                 const top = ((hour * 60 + minute) / 60) * PIXELS_PER_HOUR;
-                const height = Math.max(
-                  (lesson.durationMinutes / 60) * PIXELS_PER_HOUR,
-                  MIN_SESSION_BLOCK_HEIGHT,
+                // A long lesson (90/120/180 min) starting late in the day can
+                // run past midnight; clamp its block to the remaining grid
+                // space instead of bleeding past the 24h-tall container into
+                // whatever content follows.
+                const height = Math.min(
+                  Math.max(
+                    (lesson.durationMinutes / 60) * PIXELS_PER_HOUR,
+                    MIN_SESSION_BLOCK_HEIGHT,
+                  ),
+                  24 * PIXELS_PER_HOUR - top,
                 );
                 const widthPct = 100 / columnCount;
                 const isCancelled = lesson.status === "cancelled";

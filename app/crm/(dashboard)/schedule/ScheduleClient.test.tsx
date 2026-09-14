@@ -78,6 +78,32 @@ describe("ScheduleClient", () => {
     expect(block.style.height).not.toBe("");
   });
 
+  it("clamps a late-starting long lesson's block so it never overflows past the day grid", () => {
+    // 23:00 + 120 min would run past midnight -- the block must stay within
+    // the 24h-tall grid container instead of bleeding into whatever follows.
+    const lesson = makeLesson({
+      id: "s1",
+      scheduledAt: todayAt(23, 0),
+      durationMinutes: 120,
+    });
+    render(<ScheduleClient lessons={[lesson]} groups={groups} teachers={teachers} />);
+    const block = screen.getByTestId("session-block-s1");
+    const top = parseFloat(block.style.top);
+    const height = parseFloat(block.style.height);
+    expect(top + height).toBeLessThanOrEqual(24 * PIXELS_PER_HOUR);
+  });
+
+  it("does not clamp a normal-hours 90-minute lesson's block height", () => {
+    const lesson = makeLesson({
+      id: "s1",
+      scheduledAt: todayAt(15, 0),
+      durationMinutes: 90,
+    });
+    render(<ScheduleClient lessons={[lesson]} groups={groups} teachers={teachers} />);
+    const block = screen.getByTestId("session-block-s1");
+    expect(parseFloat(block.style.height)).toBeCloseTo(1.5 * PIXELS_PER_HOUR, 0);
+  });
+
   it("positions the day-view block at the same hour its own label displays (no self-contradiction)", () => {
     // 21:30 UTC is 00:30 Moscow (UTC+3) the NEXT calendar day. With TZ=UTC
     // forced (vitest.config.ts), raw Date#getHours()/getDate() getters read

@@ -17,7 +17,7 @@ describe("lessonSchema durationMinutes", () => {
   });
 
   it("accepts each allowed chip value", () => {
-    for (const durationMinutes of [30, 45, 60, 90, 120] as const) {
+    for (const durationMinutes of [30, 45, 60, 90, 120, 180] as const) {
       const parsed = lessonSchema.parse({ ...baseValues, durationMinutes });
       expect(parsed.durationMinutes).toBe(durationMinutes);
     }

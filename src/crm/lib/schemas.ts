@@ -141,13 +141,14 @@ export const studentUpdateSchema = z.object({
 
 export const recurrencePatternSchema = z.enum(["NONE", "WEEKDAYS", "WEEKLY", "CUSTOM"]);
 
-export const lessonDurationOptions = [30, 45, 60, 90, 120] as const;
+export const lessonDurationOptions = [30, 45, 60, 90, 120, 180] as const;
 export const lessonDurationSchema = z.union([
   z.literal(30),
   z.literal(45),
   z.literal(60),
   z.literal(90),
   z.literal(120),
+  z.literal(180),
 ]);
 
 // Per-weekday time slot override. When a recurring series should run at a

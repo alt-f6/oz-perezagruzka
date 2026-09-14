@@ -39,6 +39,17 @@ export function LessonsFilterToolbar({
   const debouncedSearch = useDebouncedValue(searchInput, 300);
 
   useEffect(() => {
+    // Re-syncs the local search box whenever filters.q changes for a reason
+    // other than this component's own debounce round-trip below (e.g. the
+    // Reset button, browser Back/Forward). Safe against fighting the user's
+    // typing: it only fires when the filters.q prop itself changes, and when
+    // that change was caused by this component's own debounce, filters.q
+    // already equals searchInput, so the reset is a no-op.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSearchInput(filters.q);
+  }, [filters.q]);
+
+  useEffect(() => {
     if (debouncedSearch !== filters.q) {
       onChange({ q: debouncedSearch || null });
     }

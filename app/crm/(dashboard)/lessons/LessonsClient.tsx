@@ -264,7 +264,12 @@ export function LessonsClient({
       if (result?.error) {
         showToast(result.error, "error");
       } else {
-        showToast("Занятия отменены");
+        const hasCounts = result !== undefined && "cancelledCount" in result;
+        showToast(
+          hasCounts && result.skippedCount > 0
+            ? `Отменено: ${result.cancelledCount}, пропущено: ${result.skippedCount}`
+            : "Занятия отменены",
+        );
         setSelectedIds([]);
         router.refresh();
       }

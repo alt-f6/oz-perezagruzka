@@ -1669,4 +1669,33 @@ describe("reassignTeacher", () => {
       data: { teacherId: "550e8400-e29b-41d4-a716-446655440001" },
     });
   });
+
+  it("excludes the batch's own session ids from the new teacher's conflict scan", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    dbMock.user.findFirst.mockResolvedValue({ id: "t2" });
+    const scheduledAt = new Date("2026-03-15T10:00:00.000Z");
+    dbMock.classSession.findMany
+      .mockResolvedValueOnce([
+        { id: "s1", type: "INDIVIDUAL", status: "scheduled", scheduledAt, durationMinutes: 60 },
+      ])
+      // The conflict-check query for the new teacher's existing schedule. In
+      // production Prisma's `where: { id: { notIn: [...] } }` would exclude
+      // the batch's own session (already on the target teacher, e.g. a
+      // mixed-teacher batch or a no-op reassignment) from this result --
+      // here we simulate that exclusion having already happened, and assert
+      // the call itself carries the `notIn` clause below.
+      .mockResolvedValueOnce([]);
+    dbMock.classSession.updateMany.mockResolvedValue({ count: 1 });
+
+    const result = await reassignTeacher({
+      sessionIds: ["550e8400-e29b-41d4-a716-446655440000"],
+      newTeacherId: "550e8400-e29b-41d4-a716-446655440001",
+    });
+
+    expect(result).toMatchObject({ reassignedCount: 1, skippedCount: 0 });
+    expect(dbMock.classSession.findMany).toHaveBeenNthCalledWith(2, {
+      where: expect.objectContaining({ id: { notIn: ["s1"] } }),
+      select: { scheduledAt: true, durationMinutes: true },
+    });
+  });
 });

@@ -66,4 +66,21 @@ describe("LessonsFilterToolbar", () => {
     );
     expect(screen.getByText("Сбросить")).toBeInTheDocument();
   });
+
+  it("resyncs the search input when filters.q changes externally (e.g. Reset)", () => {
+    const { rerender } = render(
+      <LessonsFilterToolbar
+        filters={{ ...defaultFilters(), q: "матем" }}
+        teachers={[]}
+        isTeacher={false}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByLabelText("Поиск занятий")).toHaveValue("матем");
+
+    rerender(
+      <LessonsFilterToolbar filters={{ ...defaultFilters(), q: "" }} teachers={[]} isTeacher={false} onChange={vi.fn()} />,
+    );
+    expect(screen.getByLabelText("Поиск занятий")).toHaveValue("");
+  });
 });

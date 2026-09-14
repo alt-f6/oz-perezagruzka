@@ -57,7 +57,12 @@ const LESSON_LIST_SELECT = {
   recurrenceGroupId: true,
   teacher: { select: { id: true, fullName: true } },
   group: {
-    select: { id: true, name: true, teacherId: true, subject: true, _count: { select: { students: true } } },
+    select: {
+      id: true,
+      name: true,
+      teacherId: true,
+      _count: { select: { students: { where: { student: { deletedAt: null } } } } },
+    },
   },
   student: { select: { id: true, fullName: true } },
   _count: { select: { attendance: true } },

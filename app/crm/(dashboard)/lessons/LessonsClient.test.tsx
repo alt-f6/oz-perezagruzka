@@ -12,11 +12,13 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(""),
 }));
 
+const bulkCancelSessionsWithBillingMock = vi.hoisted(() => vi.fn());
+
 vi.mock("./actions", () => ({
   createLesson: vi.fn(),
   deleteLesson: vi.fn(),
   bulkCancelSessions: vi.fn(),
-  bulkCancelSessionsWithBilling: vi.fn(),
+  bulkCancelSessionsWithBilling: bulkCancelSessionsWithBillingMock,
   reassignTeacher: vi.fn(),
 }));
 
@@ -73,6 +75,7 @@ function renderClient(props: Partial<Parameters<typeof LessonsClient>[0]> = {}) 
 beforeEach(() => {
   replaceMock.mockReset();
   refreshMock.mockReset();
+  bulkCancelSessionsWithBillingMock.mockReset();
 });
 
 describe("LessonsClient", () => {
@@ -103,12 +106,39 @@ describe("LessonsClient", () => {
     expect(screen.getByText("Показано 1–1 из 30 занятий")).toBeInTheDocument();
   });
 
-  it("navigates via router.replace with page=1 when a filter changes", () => {
-    renderClient({ userRole: "ADMIN" });
-    // The status select is present; changing it triggers updateQuery -> router.replace.
-    // (Simulated indirectly through the toolbar's onChange contract, verified in
-    // LessonsFilterToolbar.test.tsx; here we assert the wiring by checking the
-    // toolbar rendered with the current filters.)
-    expect(screen.getByText("Все статусы")).toBeInTheDocument();
+  it("navigates via router.replace with the next page when the next-page button is clicked", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
+    renderClient({
+      userRole: "ADMIN",
+      initialTotal: 2,
+      initialFilters: lessonListFiltersSchema.parse({ page: "1", pageSize: "1" }),
+    });
+
+    const nextPageButton = screen.getByLabelText("Следующая страница");
+    expect(nextPageButton).toBeEnabled();
+    await user.click(nextPageButton);
+
+    expect(replaceMock).toHaveBeenCalledTimes(1);
+    const [url] = replaceMock.mock.calls[0] as [string];
+    expect(url).toContain("page=2");
+  });
+
+  it("shows a combined cancelled/skipped toast when a bulk cancellation skips some sessions", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
+    bulkCancelSessionsWithBillingMock.mockResolvedValue({ cancelledCount: 1, skippedCount: 1 });
+
+    renderClient({
+      userRole: "ADMIN",
+      initialLessons: [baseLesson({ scheduledAt: new Date("2099-01-01T10:00:00.000Z") })],
+    });
+
+    await user.click(screen.getByLabelText(/Выбрать занятие/));
+    await user.click(screen.getByText("Отменить выбранные"));
+    await user.type(screen.getByPlaceholderText("Например: отпуск преподавателя"), "Причина теста");
+    await user.click(screen.getByRole("button", { name: "Отменить" }));
+
+    expect(await screen.findByText("Отменено: 1, пропущено: 1")).toBeInTheDocument();
   });
 });

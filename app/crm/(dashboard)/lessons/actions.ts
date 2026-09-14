@@ -94,6 +94,7 @@ function intervalsOverlap(
 async function findTeacherScheduleConflict(
   teacherId: string,
   occurrences: Occurrence[],
+  excludeSessionIds?: string[],
 ): Promise<{ scheduledAt: Date } | null> {
   const starts = occurrences.map((o) => o.scheduledAt.getTime());
   const ends = occurrences.map(
@@ -107,6 +108,9 @@ async function findTeacherScheduleConflict(
       teacherId,
       status: "scheduled",
       scheduledAt: { gte: windowStart, lt: windowEnd },
+      ...(excludeSessionIds && excludeSessionIds.length > 0
+        ? { id: { notIn: excludeSessionIds } }
+        : {}),
     },
     select: { scheduledAt: true, durationMinutes: true },
   });
@@ -457,6 +461,15 @@ function chunk<T>(items: T[], size: number): T[][] {
  * trail) inside the same per-session transaction that flips its status.
  * Batches run in chunks of CANCEL_CHUNK_SIZE, each its own transaction, so a
  * large selection can't time out a single Server Action request.
+ *
+ * NOTE: as of this writing, LessonsClient restricts bulk-cancel selection to
+ * future/unattended sessions (same restriction as bulkCancelSessions), so no
+ * selectable session currently has a LESSON_CHARGE to reverse -- this
+ * action's refund-reversal logic is written for future support of
+ * past/attended-lesson cancellation and is not yet reachable through the UI.
+ * This is a deliberate, confirmed scope decision, not a bug -- do not change
+ * the selection rule or attempt to reconcile teacher payouts as part of
+ * fixing an unrelated issue in this file.
  */
 export async function bulkCancelSessionsWithBilling(input: {
   sessionIds: string[];
@@ -1058,6 +1071,7 @@ export async function reassignTeacher(input: {
   const conflict = await findTeacherScheduleConflict(
     parsed.data.newTeacherId,
     eligible.map((t) => ({ scheduledAt: t.scheduledAt, durationMinutes: t.durationMinutes })),
+    eligible.map((t) => t.id),
   );
   if (conflict) {
     return {

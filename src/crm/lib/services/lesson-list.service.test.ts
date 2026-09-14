@@ -129,6 +129,22 @@ describe("listLessonsPage filtering and pagination", () => {
     expect(result.lessons[0].group).toEqual({ id: "g1", name: "Группа A", teacherId: "t1", studentCount: 4 });
   });
 
+  it("selects only active (non-soft-deleted) students in the group's roster count", async () => {
+    findManyMock.mockResolvedValue([]);
+    countMock.mockResolvedValue(0);
+
+    await listLessonsPage({
+      sessionUser: { id: "admin1", role: "ADMIN" },
+      filters: filters(),
+      now: NOW,
+    });
+
+    const call = findManyMock.mock.calls[0][0];
+    expect(call.select.group.select._count.select.students).toEqual({
+      where: { student: { deletedAt: null } },
+    });
+  });
+
   it("post-filters and paginates in memory for the NEEDS_ATTENTION cardinality status", async () => {
     findManyMock.mockResolvedValue([
       {

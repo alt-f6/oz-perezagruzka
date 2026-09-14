@@ -25,6 +25,6 @@ describe("LessonAttendanceBadge", () => {
 
   it("renders the marked/enrolled ratio for COMPLETED", () => {
     render(<LessonAttendanceBadge status="COMPLETED" enrolledCount={8} markedCount={8} />);
-    expect(screen.getByText("8/8 присутствовали")).toBeInTheDocument();
+    expect(screen.getByText("8/8 отмечено")).toBeInTheDocument();
   });
 });

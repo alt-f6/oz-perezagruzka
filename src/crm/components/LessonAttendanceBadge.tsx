@@ -30,7 +30,7 @@ export function LessonAttendanceBadge({
     case "COMPLETED":
       return (
         <Badge variant="success">
-          {markedCount}/{enrolledCount} присутствовали
+          {markedCount}/{enrolledCount} отмечено
         </Badge>
       );
   }

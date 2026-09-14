@@ -92,12 +92,16 @@ export function LessonsClient({
   const total = initialTotal;
   const filters = initialFilters;
 
+  const searchParamsKey = searchParams.toString();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  useEffect(() => {
+  const [selectionResetKey, setSelectionResetKey] = useState(searchParamsKey);
+  // Clears any stale selection whenever the visible page/filter changes.
+  // Comparing during render (instead of in an effect) lets React apply the
+  // reset synchronously before committing, avoiding an extra render pass.
+  if (searchParamsKey !== selectionResetKey) {
+    setSelectionResetKey(searchParamsKey);
     setSelectedIds([]);
-    // Clears any stale selection whenever the visible page/filter changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams.toString()]);
+  }
 
   const updateQuery = (patch: Record<string, string | null>) => {
     const current = Object.fromEntries(searchParams.entries());

@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import type { LessonListFilters } from "@/crm/lib/schemas";
@@ -37,20 +37,30 @@ export function LessonsFilterToolbar({
 }) {
   const [searchInput, setSearchInput] = useState(filters.q);
   const debouncedSearch = useDebouncedValue(searchInput, 300);
+  // Tracks the last value this component itself sent via onChange({ q }),
+  // so the re-sync effect below can tell "filters.q caught up with what we
+  // just emitted" (ignore) apart from "filters.q changed externally, e.g.
+  // Reset or browser Back/Forward" (apply). Initialized to the current
+  // filters.q so an initial non-empty prop isn't treated as external.
+  const lastEmittedQRef = useRef(filters.q);
 
   useEffect(() => {
-    // Re-syncs the local search box whenever filters.q changes for a reason
-    // other than this component's own debounce round-trip below (e.g. the
-    // Reset button, browser Back/Forward). Safe against fighting the user's
-    // typing: it only fires when the filters.q prop itself changes, and when
-    // that change was caused by this component's own debounce, filters.q
-    // already equals searchInput, so the reset is a no-op.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSearchInput(filters.q);
+    // Re-syncs the local search box when filters.q changes for a reason
+    // other than this component's own debounce round-trip below. Guarded
+    // against the case where the user keeps typing while the debounce ->
+    // onChange -> router.replace -> server re-render round trip is still in
+    // flight: without the guard, a late-arriving filters.q matching an
+    // earlier keystroke would clobber newer, uncommitted input.
+    if (filters.q !== lastEmittedQRef.current) {
+      lastEmittedQRef.current = filters.q;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSearchInput(filters.q);
+    }
   }, [filters.q]);
 
   useEffect(() => {
     if (debouncedSearch !== filters.q) {
+      lastEmittedQRef.current = debouncedSearch;
       onChange({ q: debouncedSearch || null });
     }
     // Intentionally excludes onChange/filters.q: this should only fire when

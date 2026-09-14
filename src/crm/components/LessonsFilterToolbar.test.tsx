@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { LessonsFilterToolbar } from "./LessonsFilterToolbar";
 import { lessonListFiltersSchema } from "@/crm/lib/schemas";
@@ -82,5 +82,44 @@ describe("LessonsFilterToolbar", () => {
       <LessonsFilterToolbar filters={{ ...defaultFilters(), q: "" }} teachers={[]} isTeacher={false} onChange={vi.fn()} />,
     );
     expect(screen.getByLabelText("Поиск занятий")).toHaveValue("");
+  });
+
+  it("does not clobber newer keystrokes with a late-arriving filters.q that matches an earlier emit", () => {
+    vi.useFakeTimers();
+    try {
+      const onChange = vi.fn();
+      const { rerender } = render(
+        <LessonsFilterToolbar filters={defaultFilters()} teachers={[]} isTeacher={false} onChange={onChange} />,
+      );
+      const input = screen.getByLabelText("Поиск занятий");
+
+      // User types "матем" and pauses long enough for the debounce to settle.
+      fireEvent.change(input, { target: { value: "матем" } });
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+      expect(onChange).toHaveBeenCalledWith({ q: "матем" });
+
+      // Before the parent's router.replace -> Server Component round trip
+      // completes, the user resumes typing.
+      fireEvent.change(input, { target: { value: "матема" } });
+      expect(input).toHaveValue("матема");
+
+      // The round trip finally completes, handing back new props with
+      // filters.q equal to what was emitted in step one ("матем") — this is
+      // this component's own earlier emission catching up, not an external
+      // change, so it must not overwrite the user's newer input.
+      rerender(
+        <LessonsFilterToolbar
+          filters={{ ...defaultFilters(), q: "матем" }}
+          teachers={[]}
+          isTeacher={false}
+          onChange={onChange}
+        />,
+      );
+      expect(input).toHaveValue("матема");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

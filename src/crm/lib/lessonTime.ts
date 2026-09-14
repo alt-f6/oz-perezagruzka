@@ -25,3 +25,15 @@ export function formatTimeRange(session: TimedSession): string {
   const end = getSessionEndsAt(session);
   return `${timeFormatter.format(start)}–${timeFormatter.format(end)} (${session.durationMinutes} мин)`;
 }
+
+/**
+ * A lesson is only "concluded" once it has actually finished (start +
+ * duration) -- attendance/grading/homework are routine journal work done
+ * during or right after the lesson, so a start-time boundary would remove a
+ * TEACHER's ability to record any of that for the lesson they're currently
+ * teaching. Every past-lesson guard and attendance-status classification
+ * must use this, never a bare `scheduledAt < now` check.
+ */
+export function isLessonConcluded(session: TimedSession, now: Date = new Date()): boolean {
+  return getSessionEndsAt(session).getTime() <= now.getTime();
+}

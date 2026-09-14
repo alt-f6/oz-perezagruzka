@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatTimeRange, getSessionEndsAt } from "./lessonTime";
+import { formatTimeRange, getSessionEndsAt, isLessonConcluded } from "./lessonTime";
 
 describe("getSessionEndsAt", () => {
   it("adds durationMinutes to scheduledAt", () => {
@@ -37,5 +37,30 @@ describe("formatTimeRange", () => {
       durationMinutes: 30,
     });
     expect(text).toBe("12:15–12:45 (30 мин)");
+  });
+});
+
+describe("isLessonConcluded", () => {
+  it("is false while the lesson is still in progress", () => {
+    const now = new Date("2026-03-10T10:30:00.000Z");
+    const session = { scheduledAt: new Date("2026-03-10T10:00:00.000Z"), durationMinutes: 60 };
+    expect(isLessonConcluded(session, now)).toBe(false);
+  });
+
+  it("is true exactly at the scheduled end instant", () => {
+    const session = { scheduledAt: new Date("2026-03-10T10:00:00.000Z"), durationMinutes: 60 };
+    const now = new Date("2026-03-10T11:00:00.000Z");
+    expect(isLessonConcluded(session, now)).toBe(true);
+  });
+
+  it("is true well after the lesson ended", () => {
+    const session = { scheduledAt: new Date("2026-03-10T10:00:00.000Z"), durationMinutes: 60 };
+    const now = new Date("2026-03-11T00:00:00.000Z");
+    expect(isLessonConcluded(session, now)).toBe(true);
+  });
+
+  it("defaults `now` to the current instant when omitted", () => {
+    const farFuture = { scheduledAt: new Date(Date.now() + 60_000), durationMinutes: 30 };
+    expect(isLessonConcluded(farFuture)).toBe(false);
   });
 });

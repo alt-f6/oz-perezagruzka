@@ -13,6 +13,7 @@ import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import { BillingService } from "@/crm/lib/services/billing.service";
 import { formatMoscowDate, formatMoscowTime } from "@/shared/lib/timezone";
+import { isLessonConcluded } from "@/crm/lib/lessonTime";
 import type { ActionResult } from "@/crm/lib/types";
 import {
   expandOccurrences,
@@ -23,19 +24,6 @@ import { getLastIndividualLessonPrice } from "@/crm/lib/services/abonement.servi
 import { createLogger } from "@/shared/lib/logger";
 
 const log = createLogger("lessons.actions");
-
-/**
- * A lesson is only "past" once it has actually finished -- attendance,
- * grading, and homework are routine journal work done during or right after
- * the lesson, so locking a TEACHER out at the *start* time would remove
- * their ability to record any of that for the very lesson they're teaching.
- * Every past-lesson guard in this file must use this (never bare
- * scheduledAt) so the boundary is consistently end-of-lesson, not
- * start-of-lesson.
- */
-function isLessonConcluded(scheduledAt: Date, durationMinutes: number): boolean {
-  return new Date(scheduledAt).getTime() + durationMinutes * 60_000 <= Date.now();
-}
 
 /**
  * A lesson-creation request that lands (partly) outside the teacher's declared
@@ -481,7 +469,7 @@ export async function setAttendance(
   // TEACHER can still edit anything still in progress or in the future.
   if (
     sessionUser.role !== "ADMIN" &&
-    isLessonConcluded(lesson.scheduledAt, lesson.durationMinutes)
+    isLessonConcluded({ scheduledAt: lesson.scheduledAt, durationMinutes: lesson.durationMinutes })
   ) {
     return { error: "Редактирование прошедших занятий доступно только администратору" };
   }
@@ -622,7 +610,10 @@ export async function assignMakeupLesson(values: {
   if (
     sessionUser.role !== "ADMIN" &&
     attendance.classSession?.scheduledAt &&
-    isLessonConcluded(attendance.classSession.scheduledAt, attendance.classSession.durationMinutes)
+    isLessonConcluded({
+      scheduledAt: attendance.classSession.scheduledAt,
+      durationMinutes: attendance.classSession.durationMinutes,
+    })
   ) {
     return { error: "Редактирование прошедших занятий доступно только администратору" };
   }
@@ -751,7 +742,10 @@ export async function gradeSubmission(values: {
   // once the lesson has already concluded.
   if (
     sessionUser.role !== "ADMIN" &&
-    isLessonConcluded(result.submission.scheduledAt, result.submission.durationMinutes)
+    isLessonConcluded({
+      scheduledAt: result.submission.scheduledAt,
+      durationMinutes: result.submission.durationMinutes,
+    })
   ) {
     return { error: "Редактирование прошедших занятий доступно только администратору" };
   }
@@ -837,7 +831,10 @@ async function loadLessonForHomeworkUpload(
 
   // Past-lesson lock: attaching/replacing a homework file is editing -- only
   // ADMIN may do so once the lesson has already concluded.
-  if (sessionUser.role !== "ADMIN" && isLessonConcluded(lesson.scheduledAt, lesson.durationMinutes)) {
+  if (
+    sessionUser.role !== "ADMIN" &&
+    isLessonConcluded({ scheduledAt: lesson.scheduledAt, durationMinutes: lesson.durationMinutes })
+  ) {
     return { ok: false, error: "Редактирование прошедших занятий доступно только администратору" };
   }
 

@@ -1,52 +1,58 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { motion } from "framer-motion";
 import {
   CalendarDays,
+  ChevronLeft,
   ChevronRight,
   GraduationCap,
   Plus,
   Repeat,
   Sparkles,
   Trash2,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { ConfirmDialog } from "@/crm/components/ConfirmDialog";
+import { LessonAttendanceBadge } from "@/crm/components/LessonAttendanceBadge";
 import { LessonFormFields } from "@/crm/components/LessonFormFields";
+import { LessonsFilterToolbar } from "@/crm/components/LessonsFilterToolbar";
 import { Modal } from "@/crm/components/Modal";
+import { ReassignTeacherModal } from "@/crm/components/ReassignTeacherModal";
 import { useToast } from "@/crm/components/ToastProvider";
+import { buildLessonsQuery } from "@/crm/lib/lessonFilters";
 import { formatTimeRange } from "@/crm/lib/lessonTime";
-import { lessonSchema, type LessonValues } from "@/crm/lib/schemas";
-import type { ClassSessionWithGroup, Group } from "@/crm/lib/types";
+import { lessonSchema, type LessonListFilters, type LessonValues } from "@/crm/lib/schemas";
+import type { LessonListRow } from "@/crm/lib/services/lesson-list.service";
+import type { Group } from "@/crm/lib/types";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/components/ui/table";
 import { formatMoscowDate } from "@/shared/lib/timezone";
-import { bulkCancelSessions, createLesson, deleteLesson } from "./actions";
+import {
+  bulkCancelSessions,
+  bulkCancelSessionsWithBilling,
+  createLesson,
+  deleteLesson,
+  reassignTeacher,
+} from "./actions";
 
 type CancelCandidate =
   | { kind: "single"; lessonId: string }
   | { kind: "series"; recurrenceGroupId: string }
   | { kind: "selection"; sessionIds: string[] };
 
-// Group lessons show the group name; individual lessons fall back to the
-// student's name (or a neutral label) now that a session may have no group.
-function sessionLabel(lesson: ClassSessionWithGroup): string {
+function sessionLabel(lesson: LessonListRow): string {
   return lesson.group?.name ?? lesson.student?.fullName ?? "Индивидуальное занятие";
 }
 
-// A GROUP session's own teacherId is a snapshot taken at creation time and
-// only re-synced onto still-scheduled sessions when the group is reassigned
-// (see assignTeacherToGroup/updateGroup) -- a session created before some
-// past reassignment, or touched by a path that predates that sync, can carry
-// a stale teacherId. The group's CURRENT teacher (teacherNameById, keyed off
-// lesson.group.teacherId) is always the source of truth for what's actually
-// displayed; the session's own teacher relation is only a fallback for
-// INDIVIDUAL sessions (no group) or a group with no teacher assigned.
-function getTeacherLabel(
-  lesson: ClassSessionWithGroup,
-  teacherNameById: Map<string, string>,
-): string {
+// A GROUP session's own teacherId is a creation-time snapshot, only re-synced
+// onto still-scheduled sessions when the group is reassigned -- the group's
+// CURRENT teacher (lesson.group.teacherId) is always the source of truth for
+// what's actually displayed; the session's own teacher is only a fallback for
+// an INDIVIDUAL session or a group with no teacher assigned.
+function getTeacherLabel(lesson: LessonListRow, teacherNameById: Map<string, string>): string {
   const liveTeacherId = lesson.group?.teacherId;
   if (liveTeacherId) {
     const liveName = teacherNameById.get(liveTeacherId);
@@ -57,14 +63,16 @@ function getTeacherLabel(
 
 export function LessonsClient({
   initialLessons,
-  initialNextCursor,
+  initialTotal,
+  initialFilters,
   groups,
   teachers = [],
   students = [],
   userRole,
 }: {
-  initialLessons: ClassSessionWithGroup[];
-  initialNextCursor: string | null;
+  initialLessons: LessonListRow[];
+  initialTotal: number;
+  initialFilters: LessonListFilters;
   groups: Group[];
   teachers?: { id: string; fullName: string }[];
   students?: { id: string; fullName: string }[];
@@ -72,57 +80,54 @@ export function LessonsClient({
 }) {
   const isTeacher = userRole === "TEACHER";
   const showToast = useToast();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Data flows down as props: navigating (router.replace) re-runs the parent
+  // Server Component with fresh searchParams, which passes fresh
+  // initialLessons/initialTotal/initialFilters here. No client-side
+  // duplicate-fetch layer is needed for filtering/paging.
+  const lessons = initialLessons;
+  const total = initialTotal;
+  const filters = initialFilters;
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  useEffect(() => {
+    setSelectedIds([]);
+    // Clears any stale selection whenever the visible page/filter changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams.toString()]);
+
+  const updateQuery = (patch: Record<string, string | null>) => {
+    const current = Object.fromEntries(searchParams.entries());
+    const next = buildLessonsQuery(current, patch);
+    const qs = new URLSearchParams(next).toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
+
+  const goToPage = (page: number) => updateQuery({ page: String(page) });
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [showCancelled, setShowCancelled] = useState(false);
-  const [trialOnly, setTrialOnly] = useState(false);
-  // Set when createLesson reports the chosen time is outside the teacher's
-  // declared working hours; drives the override-confirmation dialog so the
-  // lesson is never created silently against unavailability.
   const [availabilityWarning, setAvailabilityWarning] = useState<{
     occurrences: { scheduledAt: string; label: string }[];
     values: LessonValues;
   } | null>(null);
-  // Set when createLesson reports a backfilled past occurrence lands in a
-  // month whose payout period is already closed for the resolved teacher.
   const [closedPayoutWarning, setClosedPayoutWarning] = useState<{
     occurrences: { scheduledAt: string; label: string }[];
     values: LessonValues;
   } | null>(null);
-  // Set when createLesson reports the chosen student has no individual-lesson
-  // price history; the operator must explicitly confirm creating at 0 ₽.
   const [missingPriceWarning, setMissingPriceWarning] = useState<{
     studentName: string;
     values: LessonValues;
   } | null>(null);
   const [overriding, setOverriding] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [cancelCandidate, setCancelCandidate] = useState<CancelCandidate | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [lessons, setLessons] = useState(initialLessons);
-  const [nextCursor, setNextCursor] = useState(initialNextCursor);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isReassignOpen, setIsReassignOpen] = useState(false);
+  const [isReassigning, setIsReassigning] = useState(false);
 
-  const teacherNameById = useMemo(
-    () => new Map(teachers.map((t) => [t.id, t.fullName])),
-    [teachers],
-  );
-
-  const loadMore = async () => {
-    if (!nextCursor || isLoadingMore) return;
-    setIsLoadingMore(true);
-    try {
-      const res = await fetch(`/crm/api/lessons?cursor=${nextCursor}`);
-      if (!res.ok) throw new Error("request failed");
-      const json = await res.json();
-      if (!json.ok) throw new Error("request failed");
-      setLessons((prev) => [...prev, ...json.lessons]);
-      setNextCursor(json.nextCursor);
-    } catch {
-      showToast("Не удалось загрузить занятия", "error");
-    } finally {
-      setIsLoadingMore(false);
-    }
-  };
+  const teacherNameById = useMemo(() => new Map(teachers.map((t) => [t.id, t.fullName])), [teachers]);
 
   const {
     register,
@@ -144,8 +149,6 @@ export function LessonsClient({
     },
   });
 
-  // Returns true when the lesson was actually created. `ack` re-submits past
-  // whichever soft warning the operator just confirmed.
   const submitCreate = async (
     values: LessonValues,
     ack: { unavailable?: boolean; closedPayout?: boolean; missingPrice?: boolean } = {},
@@ -160,38 +163,22 @@ export function LessonsClient({
       showToast(result.error, "error");
       return false;
     }
-    // missingPriceWarning is checked before the other two: createLesson
-    // returns it from inside the INDIVIDUAL branch, before occurrences are
-    // even expanded, so it's always the first warning surfaced.
     if ("missingPriceWarning" in result && result.missingPriceWarning) {
-      setMissingPriceWarning({
-        studentName: result.missingPriceWarning.studentName,
-        values,
-      });
+      setMissingPriceWarning({ studentName: result.missingPriceWarning.studentName, values });
       return false;
     }
-    // Closed-payout is checked before availability server-side, so surface it
-    // first here too -- an operator overriding one warning may still hit the
-    // other on the next submit.
     if ("closedPayoutWarning" in result && result.closedPayoutWarning) {
-      setClosedPayoutWarning({
-        occurrences: result.closedPayoutWarning.occurrences,
-        values,
-      });
+      setClosedPayoutWarning({ occurrences: result.closedPayoutWarning.occurrences, values });
       return false;
     }
     if ("availabilityWarning" in result && result.availabilityWarning) {
-      setAvailabilityWarning({
-        occurrences: result.availabilityWarning.occurrences,
-        values,
-      });
+      setAvailabilityWarning({ occurrences: result.availabilityWarning.occurrences, values });
       return false;
     }
-    showToast(
-      values.recurrence === "NONE" ? "Занятие создано" : "Занятия созданы",
-    );
+    showToast(values.recurrence === "NONE" ? "Занятие создано" : "Занятия созданы");
     reset();
     setIsModalOpen(false);
+    router.refresh();
     return true;
   };
 
@@ -242,20 +229,25 @@ export function LessonsClient({
     }
   };
 
-  const visibleLessons = useMemo(
-    () => lessons.filter((l) => (showCancelled || l.status !== "cancelled") && (!trialOnly || l.isTrial)),
-    [lessons, showCancelled, trialOnly],
-  );
-
   const toggleSelected = (lessonId: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(lessonId) ? prev.filter((id) => id !== lessonId) : [...prev, lessonId],
-    );
+    setSelectedIds((prev) => (prev.includes(lessonId) ? prev.filter((id) => id !== lessonId) : [...prev, lessonId]));
   };
+
+  const selectableIds = useMemo(
+    () => lessons.filter((l) => l.status === "scheduled" && new Date(l.scheduledAt) > new Date()).map((l) => l.id),
+    [lessons],
+  );
+  const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIds.includes(id));
+  const someSelected = selectedIds.length > 0 && !allSelected;
+  const headerCheckboxRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (headerCheckboxRef.current) headerCheckboxRef.current.indeterminate = someSelected;
+  }, [someSelected]);
+
+  const toggleSelectAll = () => setSelectedIds(allSelected ? [] : selectableIds);
 
   const runCancellation = async (reason?: string) => {
     if (!cancelCandidate) return;
-    void reason; // collected for operator context; not yet persisted (see design doc follow-ups)
     setIsCancelling(true);
     try {
       const result =
@@ -263,19 +255,43 @@ export function LessonsClient({
           ? await deleteLesson(cancelCandidate.lessonId)
           : cancelCandidate.kind === "series"
             ? await bulkCancelSessions({ recurrenceGroupId: cancelCandidate.recurrenceGroupId })
-            : await bulkCancelSessions({ sessionIds: cancelCandidate.sessionIds });
+            : await bulkCancelSessionsWithBilling({ sessionIds: cancelCandidate.sessionIds, reason: reason ?? "" });
 
       if (result?.error) {
         showToast(result.error, "error");
       } else {
         showToast("Занятия отменены");
         setSelectedIds([]);
+        router.refresh();
       }
     } catch {
       showToast("Не удалось отменить занятия", "error");
     } finally {
       setIsCancelling(false);
       setCancelCandidate(null);
+    }
+  };
+
+  const runReassign = async (newTeacherId: string) => {
+    setIsReassigning(true);
+    try {
+      const result = await reassignTeacher({ sessionIds: selectedIds, newTeacherId });
+      if (!("reassignedCount" in result)) {
+        showToast(result.error, "error");
+      } else {
+        showToast(
+          result.skippedCount > 0
+            ? `Перенесено: ${result.reassignedCount}, пропущено из-за конфликтов: ${result.skippedCount}`
+            : `Преподаватель изменён у ${result.reassignedCount} занятий`,
+        );
+        setSelectedIds([]);
+        setIsReassignOpen(false);
+        router.refresh();
+      }
+    } catch {
+      showToast("Не удалось сменить преподавателя", "error");
+    } finally {
+      setIsReassigning(false);
     }
   };
 
@@ -299,170 +315,210 @@ export function LessonsClient({
     }
     return {
       title: "Отменить выбранные занятия?",
-      message: `Будет отменено занятий: ${cancelCandidate.sessionIds.length}. Прошедшие занятия затронуты не будут.`,
+      message: `Будет отменено занятий: ${cancelCandidate.sessionIds.length}. Списания будут возвращены на баланс.`,
     };
   })();
+
+  const pageStart = total === 0 ? 0 : (filters.page - 1) * filters.pageSize + 1;
+  const pageEnd = Math.min(filters.page * filters.pageSize, total);
+  const hasNextPage = filters.page * filters.pageSize < total;
+  const hasPrevPage = filters.page > 1;
 
   return (
     <div className="min-w-0 w-full space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="page-title">Занятия</h1>
-          <p className="page-subtitle">
-            Все уроки школы и переход к посещаемости
-          </p>
+          <p className="page-subtitle">Все уроки школы и переход к посещаемости</p>
         </div>
-        <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={showCancelled}
-              onChange={(e) => setShowCancelled(e.target.checked)}
-              aria-label="Показать отменённые"
-            />
-            Показать отменённые
-          </label>
-          <label className="flex items-center gap-2 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              checked={trialOnly}
-              onChange={(e) => setTrialOnly(e.target.checked)}
-              aria-label="Только пробные уроки"
-            />
-            Только пробные
-          </label>
-          {!isTeacher && (
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              className="btn-primary"
-            >
-              <Plus size={16} />
-              Новое занятие
-            </button>
-          )}
-        </div>
+        {!isTeacher && (
+          <button type="button" onClick={() => setIsModalOpen(true)} className="btn-primary">
+            <Plus size={16} />
+            Новое занятие
+          </button>
+        )}
       </div>
 
-      {selectedIds.length > 0 && (
-        <div className="flex items-center justify-between rounded-xl border border-accent/30 bg-accent/[0.06] px-4 py-3">
-          <p className="text-sm font-medium text-slate-700">
-            Выбрано занятий: {selectedIds.length}
-          </p>
-          <button
-            type="button"
-            onClick={() => setCancelCandidate({ kind: "selection", sessionIds: selectedIds })}
-            className="btn-danger px-3.5 py-2 text-xs"
-          >
-            Отменить выбранные ({selectedIds.length})
-          </button>
+      <LessonsFilterToolbar filters={filters} teachers={teachers} isTeacher={isTeacher} onChange={updateQuery} />
+
+      {!isTeacher && selectedIds.length > 0 && (
+        <div className="sticky top-2 z-20 flex items-center justify-between rounded-xl border border-accent/30 bg-accent/[0.06] px-4 py-3 shadow-sm">
+          <p className="text-sm font-medium text-slate-700">Выбрано: {selectedIds.length}</p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setCancelCandidate({ kind: "selection", sessionIds: selectedIds })}
+              className="btn-danger px-3.5 py-2 text-xs"
+            >
+              Отменить выбранные
+            </button>
+            <button type="button" onClick={() => setIsReassignOpen(true)} className="btn-secondary px-3.5 py-2 text-xs">
+              Сменить преподавателя
+            </button>
+            <button type="button" onClick={() => setSelectedIds([])} className="btn-secondary px-3.5 py-2 text-xs">
+              Снять выделение
+            </button>
+          </div>
         </div>
       )}
 
-      {visibleLessons.length === 0 ? (
+      {lessons.length === 0 ? (
         <div className="empty-state">
           <CalendarDays size={28} className="text-slate-300" />
-          <p className="font-medium text-slate-600">Пока нет занятий</p>
-          <p>Запланируйте первое занятие</p>
+          <p className="font-medium text-slate-600">Занятий не найдено</p>
+          <p>Измените фильтры или запланируйте новое занятие</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {visibleLessons.map((lesson) => {
-            const isCancelled = lesson.status === "cancelled";
-            const isFuture = new Date(lesson.scheduledAt) > new Date();
-            return (
-              <motion.div
-                key={lesson.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-                className={`card card-hover flex items-center justify-between gap-4 p-4 ${
-                  isCancelled ? "opacity-50" : ""
-                }`}
-              >
-                <div className="flex min-w-0 items-center gap-4">
-                  {!isCancelled && isFuture && (
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(lesson.id)}
-                      onChange={() => toggleSelected(lesson.id)}
-                      aria-label={`Выбрать занятие ${sessionLabel(lesson)}`}
-                    />
-                  )}
-                  <div className="icon-tile h-11 w-11 bg-slate-100 text-slate-600">
-                    <CalendarDays size={19} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold tracking-tight text-slate-900">
-                      {sessionLabel(lesson)}
-                      {isCancelled && (
-                        <span className="badge-neutral ml-2 align-middle">Отменено</span>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              {!isTeacher && (
+                <TableHead className="w-10">
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="Выбрать все занятия"
+                  />
+                </TableHead>
+              )}
+              <TableHead>Занятие</TableHead>
+              <TableHead>Дата и время</TableHead>
+              <TableHead>Преподаватель</TableHead>
+              <TableHead>Статус</TableHead>
+              <TableHead className="text-right">Действия</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {lessons.map((lesson) => {
+              const isCancelled = lesson.status === "cancelled";
+              const isFuture = new Date(lesson.scheduledAt) > new Date();
+              const profileHref = lesson.groupId
+                ? `/groups/${lesson.groupId}`
+                : lesson.studentId
+                  ? `/students/${lesson.studentId}`
+                  : null;
+              return (
+                <TableRow key={lesson.id} className={isCancelled ? "opacity-50" : undefined}>
+                  {!isTeacher && (
+                    <TableCell>
+                      {!isCancelled && isFuture && (
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(lesson.id)}
+                          onChange={() => toggleSelected(lesson.id)}
+                          aria-label={`Выбрать занятие ${sessionLabel(lesson)}`}
+                        />
                       )}
-                      {lesson.isTrial && (
-                        <span className="badge-warning ml-2 inline-flex items-center gap-1 align-middle">
-                          <Sparkles size={11} className="shrink-0" />
-                          ПРОБНЫЙ УРОК
+                    </TableCell>
+                  )}
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {profileHref ? (
+                        <Link href={profileHref} className="truncate font-semibold text-slate-900 hover:underline">
+                          {sessionLabel(lesson)}
+                        </Link>
+                      ) : (
+                        <span className="truncate font-semibold text-slate-900">{sessionLabel(lesson)}</span>
+                      )}
+                      {lesson.groupId && (
+                        <span className="badge-neutral inline-flex items-center gap-1 text-[11px]">
+                          <Users size={11} />
+                          {lesson.group?.studentCount ?? 0}
                         </span>
                       )}
-                    </p>
-                    <p className="mt-0.5 text-sm text-slate-500">
+                      {lesson.isTrial && (
+                        <span className="badge-warning inline-flex items-center gap-1 text-[11px]">
+                          <Sparkles size={11} className="shrink-0" />
+                          [Пробный урок]
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm text-slate-600">
                       {formatMoscowDate(lesson.scheduledAt)},{" "}
-                      {formatTimeRange({
-                        scheduledAt: lesson.scheduledAt,
-                        durationMinutes: lesson.durationMinutes,
-                      })}
-                    </p>
-                    <span className="badge-info mt-1 gap-1 px-1.5 py-0 text-[11px]">
+                      {formatTimeRange({ scheduledAt: lesson.scheduledAt, durationMinutes: lesson.durationMinutes })}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="badge-info inline-flex items-center gap-1 text-[11px]">
                       <GraduationCap size={12} className="shrink-0" />
                       {getTeacherLabel(lesson, teacherNameById)}
                     </span>
-                  </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-1.5">
-                  {!isCancelled && isFuture && lesson.recurrenceGroupId && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setCancelCandidate({
-                          kind: "series",
-                          recurrenceGroupId: lesson.recurrenceGroupId as string,
-                        })
-                      }
-                      className="icon-btn-danger"
-                      title="Отменить оставшиеся занятия серии"
-                    >
-                      <Repeat size={16} />
-                    </button>
-                  )}
-                  {!isCancelled && (
-                    <button
-                      type="button"
-                      onClick={() => setCancelCandidate({ kind: "single", lessonId: lesson.id })}
-                      className="icon-btn-danger"
-                      title="Отменить занятие"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                  <Link
-                    href={`/lessons/${lesson.id}`}
-                    className="btn-secondary px-3.5 py-2 text-xs"
-                  >
-                    Посещаемость
-                    <ChevronRight size={14} />
-                  </Link>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
+                  </TableCell>
+                  <TableCell>
+                    <Link href={`/lessons/${lesson.id}`}>
+                      <LessonAttendanceBadge
+                        status={lesson.attendanceStatus}
+                        enrolledCount={lesson.enrolledCount}
+                        markedCount={lesson.markedCount}
+                      />
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex shrink-0 items-center justify-end gap-1.5">
+                      {!isTeacher && !isCancelled && isFuture && lesson.recurrenceGroupId && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setCancelCandidate({ kind: "series", recurrenceGroupId: lesson.recurrenceGroupId as string })
+                          }
+                          className="icon-btn-danger"
+                          title="Отменить оставшиеся занятия серии"
+                        >
+                          <Repeat size={16} />
+                        </button>
+                      )}
+                      {!isTeacher && !isCancelled && (
+                        <button
+                          type="button"
+                          onClick={() => setCancelCandidate({ kind: "single", lessonId: lesson.id })}
+                          className="icon-btn-danger"
+                          title="Отменить занятие"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                      <Link href={`/lessons/${lesson.id}`} className="btn-secondary px-3.5 py-2 text-xs">
+                        Посещаемость
+                        <ChevronRight size={14} />
+                      </Link>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       )}
 
-      {nextCursor && (
-        <div className="flex justify-center">
-          <button onClick={loadMore} disabled={isLoadingMore} className="btn-secondary">
-            {isLoadingMore ? "Загрузка..." : "Показать ещё"}
-          </button>
+      {total > 0 && (
+        <div className="flex items-center justify-between text-sm text-slate-500">
+          <p>
+            Показано {pageStart}–{pageEnd} из {total} занятий
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => goToPage(filters.page - 1)}
+              disabled={!hasPrevPage}
+              className="icon-btn disabled:opacity-40"
+              aria-label="Предыдущая страница"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              type="button"
+              onClick={() => goToPage(filters.page + 1)}
+              disabled={!hasNextPage}
+              className="icon-btn disabled:opacity-40"
+              aria-label="Следующая страница"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -473,38 +529,39 @@ export function LessonsClient({
         confirmLabel="Отменить"
         danger
         busy={isCancelling}
-        reasonLabel={cancelCandidate?.kind !== "single" ? "Причина отмены" : undefined}
+        reasonLabel={cancelCandidate?.kind === "selection" ? "Причина отмены" : undefined}
         reasonPlaceholder="Например: отпуск преподавателя"
         onConfirm={runCancellation}
         onClose={() => setCancelCandidate(null)}
       />
 
+      <ReassignTeacherModal
+        open={isReassignOpen}
+        sessionCount={selectedIds.length}
+        teachers={teachers}
+        busy={isReassigning}
+        onConfirm={runReassign}
+        onClose={() => setIsReassignOpen(false)}
+      />
+
       {!isTeacher && (
-      <Modal
-        open={isModalOpen}
-        title="Новое занятие"
-        onClose={() => setIsModalOpen(false)}
-      >
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <LessonFormFields
-            register={register}
-            watch={watch}
-            setValue={setValue}
-            errors={errors}
-            groups={groups}
-            teachers={teachers}
-            students={students}
-            isSubmitting={isSubmitting}
-          />
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="btn-primary w-full"
-          >
-            {isSubmitting ? "Создание..." : "Создать"}
-          </button>
-        </form>
-      </Modal>
+        <Modal open={isModalOpen} title="Новое занятие" onClose={() => setIsModalOpen(false)}>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <LessonFormFields
+              register={register}
+              watch={watch}
+              setValue={setValue}
+              errors={errors}
+              groups={groups}
+              teachers={teachers}
+              students={students}
+              isSubmitting={isSubmitting}
+            />
+            <button type="submit" disabled={isSubmitting} className="btn-primary w-full">
+              {isSubmitting ? "Создание..." : "Создать"}
+            </button>
+          </form>
+        </Modal>
       )}
 
       <ConfirmDialog

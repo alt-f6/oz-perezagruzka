@@ -437,12 +437,12 @@ const lessonDateKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "
 // (see the "safe pagination" invariant), it should just reset to defaults.
 export const lessonListFiltersSchema = z.object({
   q: z.string().trim().max(200).catch(""),
-  teacherId: z.uuid().catch(undefined),
+  teacherId: z.uuid().optional().catch(undefined),
   format: lessonFormatFilterSchema,
   status: lessonStatusFilterSchema,
   range: lessonRangePresetSchema,
-  from: lessonDateKeySchema.catch(undefined),
-  to: lessonDateKeySchema.catch(undefined),
+  from: lessonDateKeySchema.optional().catch(undefined),
+  to: lessonDateKeySchema.optional().catch(undefined),
   page: z.coerce.number().int().min(1).catch(1),
   pageSize: z.coerce.number().int().min(1).max(100).catch(25),
 });

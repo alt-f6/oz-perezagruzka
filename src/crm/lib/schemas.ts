@@ -450,15 +450,10 @@ export const lessonListFiltersSchema = z.object({
 export type LessonListFilters = z.infer<typeof lessonListFiltersSchema>;
 
 // bulkCancelSessionsWithBilling payload (app/crm/(dashboard)/lessons/actions.ts).
-export const bulkCancelWithReasonSchema = z
-  .object({
-    sessionIds: z.array(z.uuid()).min(1, { message: "Выберите хотя бы одно занятие" }),
-    reason: z.string().trim().min(2, { message: "Укажите причину отмены" }).max(500),
-  })
-  .refine((data) => data.reason.trim().toLowerCase() !== "no", {
-    message: "Укажите причину отмены",
-    path: ["reason"],
-  });
+export const bulkCancelWithReasonSchema = z.object({
+  sessionIds: z.array(z.uuid()).min(1, { message: "Выберите хотя бы одно занятие" }),
+  reason: z.string().trim().min(3, { message: "Укажите причину отмены" }).max(500),
+});
 
 // reassignTeacher payload (app/crm/(dashboard)/lessons/actions.ts).
 export const reassignTeacherSchema = z.object({

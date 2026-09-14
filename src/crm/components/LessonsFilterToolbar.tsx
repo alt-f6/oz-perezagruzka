@@ -53,7 +53,6 @@ export function LessonsFilterToolbar({
     // earlier keystroke would clobber newer, uncommitted input.
     if (filters.q !== lastEmittedQRef.current) {
       lastEmittedQRef.current = filters.q;
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSearchInput(filters.q);
     }
   }, [filters.q]);

@@ -24,8 +24,10 @@ export const POST = withApiErrors(async (req: NextRequest) => {
   const title = String(body.title ?? "").trim();
   if (!title) return NextResponse.json({ ok: false, error: "title_required" }, { status: 400 });
 
+  const description = body.description ? String(body.description).trim() : "";
+
   const course = await db.course.create({
-    data: { title, teacherId: admin.id },
+    data: { title, description, teacherId: admin.id },
     select: { id: true, title: true, isPublished: true },
   });
 

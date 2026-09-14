@@ -270,37 +270,37 @@ export function LeadModal({ lead, trigger, triggerLabel, triggerClassName }: Lea
                 )}
                 {lead.sessionId && (
                   <>
-                    <dt className="text-slate-500">Session ID</dt>
+                    <dt className="text-slate-500">ID сессии</dt>
                     <dd className="font-mono text-slate-700 truncate" title={lead.sessionId}>{lead.sessionId}</dd>
                   </>
                 )}
                 {lead.utmContent && (
                   <>
-                    <dt className="text-slate-500">UTM Content</dt>
+                    <dt className="text-slate-500">UTM-контент</dt>
                     <dd className="text-slate-700">{lead.utmContent}</dd>
                   </>
                 )}
                 {lead.utmTerm && (
                   <>
-                    <dt className="text-slate-500">UTM Term</dt>
+                    <dt className="text-slate-500">UTM-термин</dt>
                     <dd className="text-slate-700">{lead.utmTerm}</dd>
                   </>
                 )}
                 {lead.clickId && (
                   <>
-                    <dt className="text-slate-500">Click ID</dt>
+                    <dt className="text-slate-500">ID клика</dt>
                     <dd className="font-mono text-slate-700 truncate" title={lead.clickId}>{lead.clickId}</dd>
                   </>
                 )}
                 {lead.referrer && (
                   <>
-                    <dt className="text-slate-500">Referrer</dt>
+                    <dt className="text-slate-500">Реферер</dt>
                     <dd className="text-slate-700 truncate" title={lead.referrer}>{lead.referrer}</dd>
                   </>
                 )}
                 {lead.landingPage && (
                   <>
-                    <dt className="text-slate-500">Landing Page</dt>
+                    <dt className="text-slate-500">Посадочная страница</dt>
                     <dd className="text-slate-700 truncate" title={lead.landingPage}>{lead.landingPage}</dd>
                   </>
                 )}

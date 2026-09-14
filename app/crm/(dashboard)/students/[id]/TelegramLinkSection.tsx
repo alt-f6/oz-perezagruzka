@@ -74,7 +74,7 @@ function ParentTelegramRow({
           value={chatId}
           disabled={busy}
           onChange={(e) => setChatId(e.target.value)}
-          placeholder="Telegram chat ID"
+          placeholder="ID чата Telegram"
           className="input w-60"
         />
       </div>

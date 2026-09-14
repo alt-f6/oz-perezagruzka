@@ -28,9 +28,10 @@ function LessonPresentationPanel({ lesson }: { lesson: Lesson }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Presentation</CardTitle>
+        <CardTitle>Презентация</CardTitle>
         <CardDescription>
-          Set the embed URL in the lesson fields above (Presentation embed URL) — no file upload for this format.
+          Укажите ссылку для встраивания в полях урока выше («Ссылка на встроенную презентацию») — для этого формата
+          загрузка файлов не требуется.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -41,12 +42,12 @@ function LessonPresentationPanel({ lesson }: { lesson: Lesson }) {
               className="h-full w-full border-0"
               allow="autoplay; encrypted-media; fullscreen; picture-in-picture; screen-wake-lock;"
               allowFullScreen
-              title="Presentation preview"
+              title="Предпросмотр презентации"
             />
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            No presentation embed URL set yet. Add one in the lesson fields above.
+            Ссылка на презентацию ещё не указана. Добавьте её в полях урока выше.
           </p>
         )}
       </CardContent>
@@ -69,7 +70,7 @@ export default function AdminLessonEditClient({ lessonId }: { lessonId: string }
     const j = await r.json().catch(() => null);
 
     if (!r.ok || !j?.ok) {
-      setError(j?.message || j?.error || "Failed to load lesson");
+      setError(j?.message || j?.error || "Не удалось загрузить урок");
       setLoading(false);
       setLesson(null);
       return;
@@ -81,7 +82,7 @@ export default function AdminLessonEditClient({ lessonId }: { lessonId: string }
 
   useEffect(() => {
     if (!lessonId) {
-      setError("Invalid lesson ID");
+      setError("Некорректный ID урока");
       setLoading(false);
       setLesson(null);
       return;
@@ -116,7 +117,7 @@ export default function AdminLessonEditClient({ lessonId }: { lessonId: string }
     const j = await r.json().catch(() => null);
 
     if (!r.ok || !j?.ok) {
-      setError(j?.message || j?.error || "Failed to save lesson");
+      setError(j?.message || j?.error || "Не удалось сохранить урок");
       setSaving(false);
       return;
     }
@@ -137,11 +138,11 @@ export default function AdminLessonEditClient({ lessonId }: { lessonId: string }
     return (
       <main className="mx-auto max-w-5xl px-6 py-8">
         <Link href="/admin/lessons" className="text-sm font-semibold text-muted-foreground hover:text-foreground">
-          ← Back to lessons
+          ← Назад к урокам
         </Link>
         <Card className="mt-4">
           <CardContent className="pt-5">
-            <p className="font-bold">Lesson not found</p>
+            <p className="font-bold">Урок не найден</p>
             {error ? <p className="mt-1 text-sm text-muted-foreground">{error}</p> : null}
           </CardContent>
         </Card>
@@ -153,15 +154,15 @@ export default function AdminLessonEditClient({ lessonId }: { lessonId: string }
     <main className="mx-auto max-w-5xl px-6 py-8">
       <div className="mb-4 flex items-center justify-between gap-3">
         <Button asChild variant="outline" size="sm">
-          <Link href="/admin/lessons">Back</Link>
+          <Link href="/admin/lessons">Назад</Link>
         </Button>
 
         <div className="flex flex-wrap justify-end gap-2">
           <Badge variant="outline">ID: {lesson.id}</Badge>
           {lesson.is_published ? (
-            <Badge variant="success">Published</Badge>
+            <Badge variant="success">Опубликован</Badge>
           ) : (
-            <Badge variant="secondary">Draft</Badge>
+            <Badge variant="secondary">Черновик</Badge>
           )}
         </div>
       </div>

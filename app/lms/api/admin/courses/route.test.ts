@@ -40,7 +40,39 @@ describe("GET /api/admin/courses", () => {
 
     expect(json.ok).toBe(true);
     expect(createCourseMock).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ title: "Новый курс", teacherId: "admin-1" }) })
+      expect.objectContaining({ data: expect.objectContaining({ title: "Новый курс", description: "", teacherId: "admin-1" }) })
     );
+  });
+
+  it("creates a course with an optional trimmed description", async () => {
+    createCourseMock.mockResolvedValue({ id: "c3", title: "Новый курс", isPublished: false });
+    const { POST } = await import("./route");
+
+    const req = new Request("http://test/api/admin/courses", {
+      method: "POST",
+      body: JSON.stringify({ title: "Новый курс", description: "  Курс для начинающих  " }),
+    });
+    const res = await POST(req as never);
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(createCourseMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ title: "Новый курс", description: "Курс для начинающих" }) })
+    );
+  });
+
+  it("rejects an empty title", async () => {
+    const { POST } = await import("./route");
+
+    const req = new Request("http://test/api/admin/courses", {
+      method: "POST",
+      body: JSON.stringify({ title: "   " }),
+    });
+    const res = await POST(req as never);
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json).toEqual({ ok: false, error: "title_required" });
+    expect(createCourseMock).not.toHaveBeenCalled();
   });
 });

@@ -343,7 +343,7 @@ export default function AdminAssignmentsClient({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-20">Order</TableHead>
+              <TableHead className="w-20">Порядок</TableHead>
               <TableHead>Урок</TableHead>
               <TableHead className="w-40">Статус</TableHead>
               <TableHead className="w-36">Доступ</TableHead>

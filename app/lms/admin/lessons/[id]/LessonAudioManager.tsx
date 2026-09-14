@@ -22,31 +22,31 @@ function errorText(value: unknown, fallback: string) {
 
   switch (value) {
     case "only audio allowed":
-      return "Only MP3 files are allowed.";
+      return "Разрешены только MP3-файлы.";
     case "lesson_not_found":
-      return "Lesson not found.";
+      return "Урок не найден.";
     case "bad lessonId":
-      return "Invalid lesson scope for this audio action.";
+      return "Некорректный урок для этого действия с аудио.";
     case "bad file size":
-      return "Could not determine the file size.";
+      return "Не удалось определить размер файла.";
     case "file too large":
-      return `File is too large. Maximum is ${formatBytes(LESSON_ASSET_MAX_SIZE_BYTES)}.`;
+      return `Файл слишком большой. Максимум ${formatBytes(LESSON_ASSET_MAX_SIZE_BYTES)}.`;
     case "upload_url_generation_failed":
-      return "Could not generate an upload URL for R2.";
+      return "Не удалось создать ссылку для загрузки в R2.";
     case "file not found in r2":
-      return "File was not found in R2 after upload.";
+      return "Файл не найден в R2 после загрузки.";
     case "empty_file_in_r2":
-      return "R2 reported an empty file.";
+      return "R2 сообщил, что файл пустой.";
     case "size mismatch":
-      return "Uploaded file size does not match the expected size.";
+      return "Размер загруженного файла не совпадает с ожидаемым.";
     case "unexpected_content_type":
-      return "R2 returned an unexpected content type for this audio file.";
+      return "R2 вернул неожиданный тип содержимого для этого аудиофайла.";
     case "unsupported_asset_kind":
-      return "This asset is not an audio lesson asset.";
+      return "Это вложение не является аудиофайлом урока.";
     case "asset_update_failed":
-      return "Server failed to update the audio asset.";
+      return "Не удалось обновить аудиофайл на сервере.";
     case "not_found":
-      return "Audio asset was not found.";
+      return "Аудиофайл не найден.";
     default:
       return value;
   }
@@ -71,8 +71,8 @@ export function LessonAudioManager({ lessonId }: { lessonId: string }) {
   const [pickerError, setPickerError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const displayError = pickerError ?? (assetsErr ? errorText(assetsErr, "Audio action failed.") : null);
-  const assetSuccess = uploadedFileName ? `Audio "${uploadedFileName}" uploaded successfully.` : null;
+  const displayError = pickerError ?? (assetsErr ? errorText(assetsErr, "Действие с аудио не выполнено.") : null);
+  const assetSuccess = uploadedFileName ? `Аудио «${uploadedFileName}» успешно загружено.` : null;
 
   function clearSelectedFile() {
     setSelectedFile(null);
@@ -90,13 +90,13 @@ export function LessonAudioManager({ lessonId }: { lessonId: string }) {
     }
 
     if (!isAudioFile(file)) {
-      setPickerError("Only MP3 files can be selected.");
+      setPickerError("Можно выбрать только MP3-файлы.");
       clearSelectedFile();
       return;
     }
 
     if (file.size > LESSON_ASSET_MAX_SIZE_BYTES) {
-      setPickerError(`File is too large. Maximum is ${formatBytes(LESSON_ASSET_MAX_SIZE_BYTES)}.`);
+      setPickerError(`Файл слишком большой. Максимум ${formatBytes(LESSON_ASSET_MAX_SIZE_BYTES)}.`);
       clearSelectedFile();
       return;
     }
@@ -108,7 +108,7 @@ export function LessonAudioManager({ lessonId }: { lessonId: string }) {
   async function startAssetUpload() {
     const file = selectedFile;
     if (!file) {
-      setPickerError("Select an MP3 file first.");
+      setPickerError("Сначала выберите MP3-файл.");
       return;
     }
 
@@ -121,11 +121,11 @@ export function LessonAudioManager({ lessonId }: { lessonId: string }) {
     <Card>
       <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
         <div>
-          <CardTitle>Audio Assets</CardTitle>
-          <CardDescription>Maximum {formatBytes(LESSON_ASSET_MAX_SIZE_BYTES)}.</CardDescription>
+          <CardTitle>Аудиофайлы</CardTitle>
+          <CardDescription>Максимум {formatBytes(LESSON_ASSET_MAX_SIZE_BYTES)}.</CardDescription>
         </div>
         <Button variant="outline" size="sm" onClick={loadAssets} loading={assetsLoading || uploadingAsset}>
-          Refresh
+          Обновить
         </Button>
       </CardHeader>
 
@@ -142,18 +142,18 @@ export function LessonAudioManager({ lessonId }: { lessonId: string }) {
             />
             <Button type="button" onClick={startAssetUpload} disabled={uploadingAsset || !selectedFile} loading={uploadingAsset}>
               <Upload />
-              {uploadingAsset ? "Uploading..." : "Upload MP3"}
+              {uploadingAsset ? "Загрузка..." : "Загрузить MP3"}
             </Button>
           </div>
 
           <p className="mt-2 text-xs text-muted-foreground">
-            {selectedFileName ? `Selected file: ${selectedFileName}` : "Choose an MP3 file for this lesson."}
+            {selectedFileName ? `Выбран файл: ${selectedFileName}` : "Выберите MP3-файл для этого урока."}
           </p>
 
           {uploadingAsset ? (
             <div className="mt-3">
               <div className="mb-1.5 flex justify-between text-xs text-muted-foreground">
-                <span>Uploading audio...</span>
+                <span>Загрузка аудио...</span>
                 <span>{uploadProgress}%</span>
               </div>
               <Progress value={uploadProgress} />
@@ -177,8 +177,8 @@ export function LessonAudioManager({ lessonId }: { lessonId: string }) {
         </div>
 
         <div className="mt-4 flex flex-col gap-3">
-          {assetsLoading && assets.length === 0 ? <p className="text-sm text-muted-foreground">Loading audio...</p> : null}
-          {!assetsLoading && assets.length === 0 ? <p className="text-sm text-muted-foreground">No audio yet</p> : null}
+          {assetsLoading && assets.length === 0 ? <p className="text-sm text-muted-foreground">Загрузка аудио...</p> : null}
+          {!assetsLoading && assets.length === 0 ? <p className="text-sm text-muted-foreground">Пока нет аудио</p> : null}
 
           {assets.map((asset) => (
             <div key={asset.id} className="rounded-2xl border border-border bg-black/10 p-3">
@@ -186,12 +186,12 @@ export function LessonAudioManager({ lessonId }: { lessonId: string }) {
                 <div className="min-w-0">
                   <p className="flex items-center gap-1.5 truncate font-bold">
                     <Music className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
-                    {asset.title || asset.original_name || <span className="text-muted-foreground">(untitled)</span>}
+                    {asset.title || asset.original_name || <span className="text-muted-foreground">(без названия)</span>}
                   </p>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    <Badge variant="outline">Order {asset.order}</Badge>
+                    <Badge variant="outline">Порядок {asset.order}</Badge>
                     <Badge variant={asset.is_public ? "success" : "secondary"}>
-                      {asset.is_public ? "Visible" : "Hidden"}
+                      {asset.is_public ? "Виден" : "Скрыт"}
                     </Badge>
                     <Badge variant="outline">{formatBytes(Number(asset.size_bytes || 0))}</Badge>
                   </div>
@@ -203,7 +203,7 @@ export function LessonAudioManager({ lessonId }: { lessonId: string }) {
                     size="icon"
                     onClick={() => patchAsset(asset.id, { is_public: !asset.is_public })}
                     disabled={assetsLoading || uploadingAsset}
-                    aria-label={asset.is_public ? "Hide" : "Show"}
+                    aria-label={asset.is_public ? "Скрыть" : "Показать"}
                   >
                     {asset.is_public ? <Eye /> : <EyeOff />}
                   </Button>
@@ -212,7 +212,7 @@ export function LessonAudioManager({ lessonId }: { lessonId: string }) {
                     size="icon"
                     onClick={() => deleteAsset(asset.id)}
                     disabled={assetsLoading || uploadingAsset}
-                    aria-label="Delete"
+                    aria-label="Удалить"
                   >
                     <Trash2 />
                   </Button>

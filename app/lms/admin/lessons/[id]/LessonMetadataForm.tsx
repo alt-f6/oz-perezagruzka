@@ -50,6 +50,12 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
   const [modules, setModules] = useState<Module[]>([]);
   const [modulesLoading, setModulesLoading] = useState(false);
 
+  const [showNewCourseForm, setShowNewCourseForm] = useState(false);
+  const [newCourseTitle, setNewCourseTitle] = useState("");
+  const [newCourseDescription, setNewCourseDescription] = useState("");
+  const [creatingCourse, setCreatingCourse] = useState(false);
+  const [newCourseError, setNewCourseError] = useState<string | null>(null);
+
   const [showNewModuleForm, setShowNewModuleForm] = useState(false);
   const [newModuleTitle, setNewModuleTitle] = useState("");
   const [newModuleDescription, setNewModuleDescription] = useState("");
@@ -82,6 +88,34 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
     })();
   }, [courseId]);
 
+  async function createCourse() {
+    if (!newCourseTitle.trim()) return;
+    setCreatingCourse(true);
+    setNewCourseError(null);
+
+    const r = await fetch("/api/admin/courses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: newCourseTitle, description: newCourseDescription }),
+    });
+    const j = await r.json().catch(() => null);
+
+    if (!r.ok || !j?.ok) {
+      setNewCourseError(j?.error || "Не удалось создать курс");
+      setCreatingCourse(false);
+      return;
+    }
+
+    const created = j.course as Course;
+    setCourses((prev) => [...prev, created]);
+    setCourseId(created.id);
+
+    setShowNewCourseForm(false);
+    setNewCourseTitle("");
+    setNewCourseDescription("");
+    setCreatingCourse(false);
+  }
+
   async function createModule() {
     if (!courseId || !newModuleTitle.trim()) return;
     setCreatingModule(true);
@@ -101,7 +135,7 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
     const j = await r.json().catch(() => null);
 
     if (!r.ok || !j?.ok) {
-      setNewModuleError(j?.error || "Failed to create module");
+      setNewModuleError(j?.error || "Не удалось создать модуль");
       setCreatingModule(false);
       return;
     }
@@ -121,14 +155,14 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Edit Lesson</CardTitle>
-        <CardDescription>Lesson content and video assets stay separate. Video order still matters.</CardDescription>
+        <CardTitle>Редактирование урока</CardTitle>
+        <CardDescription>Содержание урока и видеоматериалы хранятся отдельно. Порядок видео по-прежнему важен.</CardDescription>
       </CardHeader>
 
       <CardContent>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_140px]">
           <div className="grid gap-1.5">
-            <Label htmlFor="lesson-title">Title</Label>
+            <Label htmlFor="lesson-title">Название</Label>
             <Input
               id="lesson-title"
               value={lesson.title}
@@ -137,7 +171,7 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="lesson-order">Order</Label>
+            <Label htmlFor="lesson-order">Порядок</Label>
             <Input
               id="lesson-order"
               type="number"
@@ -147,7 +181,7 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
           </div>
 
           <div className="grid gap-1.5 sm:col-span-2">
-            <Label htmlFor="lesson-description">Description</Label>
+            <Label htmlFor="lesson-description">Описание</Label>
             <Textarea
               id="lesson-description"
               className="min-h-24"
@@ -157,7 +191,7 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
           </div>
 
           <div className="grid gap-1.5 sm:col-span-2">
-            <Label htmlFor="lesson-content">Content</Label>
+            <Label htmlFor="lesson-content">Содержание</Label>
             <Textarea
               id="lesson-content"
               className="min-h-60"
@@ -173,36 +207,46 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
               onCheckedChange={(checked) => onChange({ ...lesson, is_published: checked })}
             />
             <Label htmlFor="lesson-published" className="cursor-pointer normal-case tracking-normal text-foreground">
-              Published
+              Опубликован
             </Label>
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:col-span-2 sm:grid-cols-2">
             <div className="grid gap-1.5">
-              <Label htmlFor="lesson-course">Course</Label>
-              <Select value={courseId} onValueChange={setCourseId}>
-                <SelectTrigger id="lesson-course">
-                  <SelectValue placeholder="Select a course" />
-                </SelectTrigger>
-                <SelectContent>
-                  {courses.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="lesson-course">Курс</Label>
+              <div className="flex gap-2">
+                <Select value={courseId} onValueChange={setCourseId}>
+                  <SelectTrigger id="lesson-course" className="flex-1">
+                    <SelectValue placeholder="Выберите курс" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {courses.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowNewCourseForm((v) => !v)}
+                >
+                  {showNewCourseForm ? "Отмена" : "+ Новый курс"}
+                </Button>
+              </div>
             </div>
 
             <div className="grid gap-1.5">
-              <Label htmlFor="lesson-module">Module</Label>
+              <Label htmlFor="lesson-module">Модуль</Label>
               <Select
                 value={lesson.module_id ?? ""}
                 onValueChange={(value) => onChange({ ...lesson, module_id: value })}
                 disabled={!courseId || modulesLoading}
               >
                 <SelectTrigger id="lesson-module">
-                  <SelectValue placeholder={modulesLoading ? "Loading..." : "Select a module"} />
+                  <SelectValue placeholder={modulesLoading ? "Загрузка..." : "Выберите модуль"} />
                 </SelectTrigger>
                 <SelectContent>
                   {modules.map((m) => (
@@ -214,6 +258,47 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
               </Select>
             </div>
 
+            {showNewCourseForm ? (
+              <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-black/10 p-3 sm:col-span-2 sm:grid-cols-2">
+                <div className="grid gap-1.5 sm:col-span-2">
+                  <Label htmlFor="new-course-title">Название курса</Label>
+                  <Input
+                    id="new-course-title"
+                    value={newCourseTitle}
+                    onChange={(e) => setNewCourseTitle(e.target.value)}
+                  />
+                </div>
+
+                <div className="grid gap-1.5 sm:col-span-2">
+                  <Label htmlFor="new-course-description">Описание курса (необязательно)</Label>
+                  <Textarea
+                    id="new-course-description"
+                    className="min-h-16"
+                    value={newCourseDescription}
+                    onChange={(e) => setNewCourseDescription(e.target.value)}
+                  />
+                </div>
+
+                {newCourseError ? (
+                  <p role="alert" className="text-sm text-destructive-foreground sm:col-span-2">
+                    {newCourseError}
+                  </p>
+                ) : null}
+
+                <div className="flex justify-end sm:col-span-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={createCourse}
+                    loading={creatingCourse}
+                    disabled={!newCourseTitle.trim()}
+                  >
+                    Создать курс
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+
             <div className="sm:col-span-2">
               <Button
                 type="button"
@@ -222,14 +307,14 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
                 onClick={() => setShowNewModuleForm((v) => !v)}
                 disabled={!courseId}
               >
-                {showNewModuleForm ? "Cancel" : "+ New module"}
+                {showNewModuleForm ? "Отмена" : "+ Новый модуль"}
               </Button>
             </div>
 
             {showNewModuleForm ? (
               <div className="grid grid-cols-1 gap-3 rounded-lg border border-border bg-black/10 p-3 sm:col-span-2 sm:grid-cols-2">
                 <div className="grid gap-1.5 sm:col-span-2">
-                  <Label htmlFor="new-module-title">New module title</Label>
+                  <Label htmlFor="new-module-title">Название модуля</Label>
                   <Input
                     id="new-module-title"
                     value={newModuleTitle}
@@ -238,7 +323,7 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
                 </div>
 
                 <div className="grid gap-1.5 sm:col-span-2">
-                  <Label htmlFor="new-module-description">Description</Label>
+                  <Label htmlFor="new-module-description">Описание</Label>
                   <Textarea
                     id="new-module-description"
                     className="min-h-16"
@@ -248,7 +333,7 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
                 </div>
 
                 <div className="grid gap-1.5">
-                  <Label htmlFor="new-module-unlock-mode">Unlock mode</Label>
+                  <Label htmlFor="new-module-unlock-mode">Режим открытия</Label>
                   <Select
                     value={newModuleUnlockMode}
                     onValueChange={(value) => setNewModuleUnlockMode(value as UnlockMode)}
@@ -257,16 +342,16 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="MANUAL">Manual</SelectItem>
-                      <SelectItem value="DRIP_ENROLLMENT">Drip (days after enrollment)</SelectItem>
-                      <SelectItem value="FIXED_DATE">Fixed date</SelectItem>
+                      <SelectItem value="MANUAL">Вручную</SelectItem>
+                      <SelectItem value="DRIP_ENROLLMENT">По расписанию (дней после зачисления)</SelectItem>
+                      <SelectItem value="FIXED_DATE">Фиксированная дата</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
                 {newModuleUnlockMode === "DRIP_ENROLLMENT" ? (
                   <div className="grid gap-1.5">
-                    <Label htmlFor="new-module-unlock-days">Unlock after (days)</Label>
+                    <Label htmlFor="new-module-unlock-days">Открыть через (дней)</Label>
                     <Input
                       id="new-module-unlock-days"
                       type="number"
@@ -278,7 +363,7 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
 
                 {newModuleUnlockMode === "FIXED_DATE" ? (
                   <div className="grid gap-1.5">
-                    <Label htmlFor="new-module-unlock-at">Unlock date</Label>
+                    <Label htmlFor="new-module-unlock-at">Дата открытия</Label>
                     <Input
                       id="new-module-unlock-at"
                       type="date"
@@ -296,7 +381,7 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
 
                 <div className="flex justify-end sm:col-span-2">
                   <Button type="button" size="sm" onClick={createModule} loading={creatingModule}>
-                    Create module
+                    Создать модуль
                   </Button>
                 </div>
               </div>
@@ -304,7 +389,7 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
           </div>
 
           <div className="grid gap-1.5 sm:col-span-2">
-            <Label htmlFor="lesson-practice-link-url">Practice / workshop link</Label>
+            <Label htmlFor="lesson-practice-link-url">Ссылка на практику / воркшоп</Label>
             <Input
               id="lesson-practice-link-url"
               type="url"
@@ -313,15 +398,15 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
               onChange={(e) => onChange({ ...lesson, practice_link_url: e.target.value })}
             />
             <p className="text-xs text-muted-foreground">
-              Separate from video links — for Miro boards, Google Docs, simulators, or external tests.
+              Отдельно от видеоссылок — для досок Miro, Google Docs, тренажёров или внешних тестов.
             </p>
           </div>
 
           <div className="grid gap-1.5 sm:col-span-2">
-            <Label htmlFor="lesson-practice-link-label">Practice link label (optional)</Label>
+            <Label htmlFor="lesson-practice-link-label">Подпись ссылки на практику (необязательно)</Label>
             <Input
               id="lesson-practice-link-label"
-              placeholder="Open interactive practice"
+              placeholder="Открыть интерактивную практику"
               value={lesson.practice_link_label ?? ""}
               onChange={(e) => onChange({ ...lesson, practice_link_label: e.target.value })}
               disabled={!lesson.practice_link_url}
@@ -329,7 +414,7 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
           </div>
 
           <div className="grid gap-1.5 sm:col-span-2">
-            <Label htmlFor="lesson-presentation-embed">Presentation embed URL</Label>
+            <Label htmlFor="lesson-presentation-embed">Ссылка на встроенную презентацию</Label>
             <Input
               id="lesson-presentation-embed"
               type="url"
@@ -338,13 +423,13 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
               onChange={(e) => onChange({ ...lesson, presentation_embed_url: e.target.value })}
             />
             <p className="text-xs text-muted-foreground">
-              For Google Slides / Miro / other iframe-embeddable slide decks. Leave empty if using an uploaded PDF
-              deck instead.
+              Для Google Slides / Miro и других слайд-дек с поддержкой iframe-встраивания. Оставьте пустым, если
+              используется загруженная PDF-презентация.
             </p>
           </div>
 
           <div className="grid gap-1.5 sm:col-span-2">
-            <Label htmlFor="lesson-homework-task">Homework instructions (Markdown)</Label>
+            <Label htmlFor="lesson-homework-task">Домашнее задание (Markdown)</Label>
             <Textarea
               id="lesson-homework-task"
               className="min-h-32"
@@ -352,7 +437,7 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
               onChange={(e) => onChange({ ...lesson, homework_task: e.target.value })}
             />
             <p className="text-xs text-muted-foreground">
-              Shown to the student as a homework scaffold. Submission/grading ships in Phase 2.
+              Показывается ученику как основа домашнего задания. Отправка и проверка появятся во второй фазе.
             </p>
           </div>
         </div>
@@ -368,10 +453,10 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
 
         <div className="mt-4 flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onRefresh} disabled={saving}>
-            Refresh
+            Обновить
           </Button>
           <Button type="button" onClick={onSave} loading={saving}>
-            {saving ? "Saving..." : "Save lesson"}
+            {saving ? "Сохранение..." : "Сохранить урок"}
           </Button>
         </div>
       </CardContent>

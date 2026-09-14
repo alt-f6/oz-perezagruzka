@@ -63,6 +63,7 @@ const {
   deleteLesson,
   bulkCancelSessions,
   bulkCancelSessionsWithBilling,
+  reassignTeacher,
   setAttendance,
   assignMakeupLesson,
   gradeSubmission,
@@ -1591,5 +1592,83 @@ describe("bulkCancelSessionsWithBilling", () => {
 
     expect(result).toMatchObject({ cancelledCount: 0, skippedCount: 1 });
     expect(dbMock.transaction.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("reassignTeacher", () => {
+  it("requires ADMIN or MANAGER", async () => {
+    rbacMock.requireRole.mockRejectedValue(new RbacError(403, "forbidden"));
+    await expect(
+      reassignTeacher({ sessionIds: ["s1"], newTeacherId: "550e8400-e29b-41d4-a716-446655440000" }),
+    ).rejects.toThrow();
+  });
+
+  it("rejects when the target teacher does not exist", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    dbMock.user.findFirst.mockResolvedValue(null);
+
+    const result = await reassignTeacher({
+      sessionIds: ["550e8400-e29b-41d4-a716-446655440000"],
+      newTeacherId: "550e8400-e29b-41d4-a716-446655440001",
+    });
+
+    expect(result.error).toBe("Преподаватель не найден");
+  });
+
+  it("skips GROUP-type sessions (own teacherId is never what's displayed for a group)", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    dbMock.user.findFirst.mockResolvedValue({ id: "t2" });
+    dbMock.classSession.findMany.mockResolvedValue([
+      { id: "s1", type: "GROUP", status: "scheduled", scheduledAt: new Date(), durationMinutes: 60 },
+    ]);
+
+    const result = await reassignTeacher({
+      sessionIds: ["550e8400-e29b-41d4-a716-446655440000"],
+      newTeacherId: "550e8400-e29b-41d4-a716-446655440001",
+    });
+
+    expect(result.reassignedCount).toBe(0);
+    expect(result.skippedCount).toBe(1);
+    expect(dbMock.classSession.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects the whole batch when the new teacher has a conflicting session", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    dbMock.user.findFirst.mockResolvedValue({ id: "t2" });
+    const scheduledAt = new Date("2026-03-15T10:00:00.000Z");
+    dbMock.classSession.findMany
+      .mockResolvedValueOnce([{ id: "s1", type: "INDIVIDUAL", status: "scheduled", scheduledAt, durationMinutes: 60 }])
+      .mockResolvedValueOnce([{ scheduledAt, durationMinutes: 60 }]);
+
+    const result = await reassignTeacher({
+      sessionIds: ["550e8400-e29b-41d4-a716-446655440000"],
+      newTeacherId: "550e8400-e29b-41d4-a716-446655440001",
+    });
+
+    expect(result.error).toContain("уже занят");
+    expect(dbMock.classSession.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("reassigns eligible INDIVIDUAL sessions when there is no conflict", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    dbMock.user.findFirst.mockResolvedValue({ id: "t2" });
+    dbMock.classSession.findMany
+      .mockResolvedValueOnce([
+        { id: "s1", type: "INDIVIDUAL", status: "scheduled", scheduledAt: new Date(), durationMinutes: 60 },
+      ])
+      .mockResolvedValueOnce([]); // no conflicting sessions for the new teacher
+    dbMock.classSession.updateMany.mockResolvedValue({ count: 1 });
+
+    const result = await reassignTeacher({
+      sessionIds: ["550e8400-e29b-41d4-a716-446655440000"],
+      newTeacherId: "550e8400-e29b-41d4-a716-446655440001",
+    });
+
+    expect(result.reassignedCount).toBe(1);
+    expect(result.skippedCount).toBe(0);
+    expect(dbMock.classSession.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ["s1"] } },
+      data: { teacherId: "550e8400-e29b-41d4-a716-446655440001" },
+    });
   });
 });

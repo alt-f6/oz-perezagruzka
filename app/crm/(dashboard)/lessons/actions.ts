@@ -8,6 +8,7 @@ import {
   setAttendanceUpdateSchema,
   gradeSubmissionSchema,
   bulkCancelWithReasonSchema,
+  reassignTeacherSchema,
   type LessonValues,
 } from "@/crm/lib/schemas";
 import { db } from "@/shared/lib/db";
@@ -1006,4 +1007,75 @@ export async function attachHomeworkFile(
 
   revalidatePath(`/lessons/${lessonId}`);
   return {};
+}
+
+export type ReassignTeacherResult =
+  | { error: string }
+  | { error?: undefined; reassignedCount: number; skippedCount: number };
+
+/**
+ * Bulk-moves INDIVIDUAL sessions to a new teacher, admin/manager only. GROUP
+ * sessions are rejected outright: a session's own teacherId is only a
+ * display fallback (see getTeacherLabel in LessonsClient.tsx) -- the group's
+ * OWN teacherId is what actually drives who teaches it, so reassigning a
+ * GROUP session's row here would silently have no visible effect. Every
+ * remaining session is checked against the new teacher's existing scheduled
+ * sessions for a time overlap before anything is moved; a single conflict
+ * blocks the whole batch (never a silent partial reassignment) so the
+ * operator can resolve the exact conflicting time and retry.
+ */
+export async function reassignTeacher(input: {
+  sessionIds: string[];
+  newTeacherId: string;
+}): Promise<ReassignTeacherResult> {
+  await requireRole(["ADMIN", "MANAGER"]);
+
+  const parsed = reassignTeacherSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Некорректные данные" };
+  }
+
+  const teacher = await db.user.findFirst({
+    where: { id: parsed.data.newTeacherId, role: "TEACHER" },
+    select: { id: true },
+  });
+  if (!teacher) {
+    return { error: "Преподаватель не найден" };
+  }
+
+  const targets = await db.classSession.findMany({
+    where: { id: { in: parsed.data.sessionIds } },
+    select: { id: true, type: true, status: true, scheduledAt: true, durationMinutes: true },
+  });
+
+  const eligible = targets.filter((t) => t.type === "INDIVIDUAL" && t.status === "scheduled");
+  const skippedCount = targets.length - eligible.length;
+
+  if (eligible.length === 0) {
+    return { reassignedCount: 0, skippedCount };
+  }
+
+  const conflict = await findTeacherScheduleConflict(
+    parsed.data.newTeacherId,
+    eligible.map((t) => ({ scheduledAt: t.scheduledAt, durationMinutes: t.durationMinutes })),
+  );
+  if (conflict) {
+    return {
+      error: `Преподаватель уже занят ${formatMoscowDate(conflict.scheduledAt)} в ${formatMoscowTime(
+        conflict.scheduledAt,
+      )}. Отмените конфликт и повторите перенос.`,
+    };
+  }
+
+  try {
+    const result = await db.classSession.updateMany({
+      where: { id: { in: eligible.map((t) => t.id) } },
+      data: { teacherId: parsed.data.newTeacherId },
+    });
+    revalidatePath("/lessons");
+    revalidatePath("/schedule");
+    return { reassignedCount: result.count, skippedCount };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Не удалось сменить преподавателя" };
+  }
 }

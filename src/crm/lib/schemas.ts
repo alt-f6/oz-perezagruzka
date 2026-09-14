@@ -422,6 +422,53 @@ export const leadSchema = z
     },
   );
 
+export const lessonFormatFilterSchema = z.enum(["ALL", "GROUP", "INDIVIDUAL"]).catch("ALL");
+
+export const lessonStatusFilterSchema = z
+  .enum(["ALL", "NEEDS_ATTENTION", "COMPLETED", "SCHEDULED", "CANCELLED", "TRIAL"])
+  .catch("ALL");
+
+export const lessonRangePresetSchema = z.enum(["TODAY", "TOMORROW", "THIS_WEEK", "CUSTOM"]).nullable().catch(null);
+
+const lessonDateKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Некорректная дата" });
+
+// Every field falls back to a safe default via `.catch()` instead of
+// throwing -- a stale/tampered/malformed URL query must never 500 the page
+// (see the "safe pagination" invariant), it should just reset to defaults.
+export const lessonListFiltersSchema = z.object({
+  q: z.string().trim().max(200).catch(""),
+  teacherId: z.uuid().catch(undefined),
+  format: lessonFormatFilterSchema,
+  status: lessonStatusFilterSchema,
+  range: lessonRangePresetSchema,
+  from: lessonDateKeySchema.catch(undefined),
+  to: lessonDateKeySchema.catch(undefined),
+  page: z.coerce.number().int().min(1).catch(1),
+  pageSize: z.coerce.number().int().min(1).max(100).catch(25),
+});
+
+export type LessonListFilters = z.infer<typeof lessonListFiltersSchema>;
+
+// bulkCancelSessionsWithBilling payload (app/crm/(dashboard)/lessons/actions.ts).
+export const bulkCancelWithReasonSchema = z
+  .object({
+    sessionIds: z.array(z.uuid()).min(1, { message: "Выберите хотя бы одно занятие" }),
+    reason: z.string().trim().min(2, { message: "Укажите причину отмены" }).max(500),
+  })
+  .refine((data) => data.reason.trim().toLowerCase() !== "no", {
+    message: "Укажите причину отмены",
+    path: ["reason"],
+  });
+
+// reassignTeacher payload (app/crm/(dashboard)/lessons/actions.ts).
+export const reassignTeacherSchema = z.object({
+  sessionIds: z.array(z.uuid()).min(1, { message: "Выберите хотя бы одно занятие" }),
+  newTeacherId: z.uuid({ message: "Выберите преподавателя" }),
+});
+
+export type BulkCancelWithReasonValues = z.infer<typeof bulkCancelWithReasonSchema>;
+export type ReassignTeacherValues = z.infer<typeof reassignTeacherSchema>;
+
 export type LoginValues = z.infer<typeof loginSchema>;
 export type RegisterValues = z.infer<typeof registerSchema>;
 export type GroupValues = z.infer<typeof groupSchema>;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lessonSchema } from "./schemas";
+import { lessonSchema, lessonListFiltersSchema, bulkCancelWithReasonSchema, reassignTeacherSchema } from "./schemas";
 
 const baseValues = {
   groupId: "b6f8f9d4-6f1a-4e2a-9b8a-0a1b2c3d4e5f",
@@ -61,5 +61,98 @@ describe("lessonSchema daySlots (per-day time slots)", () => {
       daySlots: [{ day: 1, time: "15:00", durationMinutes: 40 }],
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe("lessonListFiltersSchema", () => {
+  it("defaults every field when given an empty object", () => {
+    const result = lessonListFiltersSchema.parse({});
+    expect(result).toEqual({
+      q: "",
+      teacherId: undefined,
+      format: "ALL",
+      status: "ALL",
+      range: null,
+      from: undefined,
+      to: undefined,
+      page: 1,
+      pageSize: 25,
+    });
+  });
+
+  it("parses a fully-specified query", () => {
+    const result = lessonListFiltersSchema.parse({
+      q: "  Иванов  ",
+      teacherId: "550e8400-e29b-41d4-a716-446655440000",
+      format: "INDIVIDUAL",
+      status: "NEEDS_ATTENTION",
+      range: "THIS_WEEK",
+      from: "2026-03-01",
+      to: "2026-03-07",
+      page: "2",
+      pageSize: "50",
+    });
+    expect(result.q).toBe("Иванов");
+    expect(result.teacherId).toBe("550e8400-e29b-41d4-a716-446655440000");
+    expect(result.format).toBe("INDIVIDUAL");
+    expect(result.status).toBe("NEEDS_ATTENTION");
+    expect(result.range).toBe("THIS_WEEK");
+    expect(result.from).toBe("2026-03-01");
+    expect(result.page).toBe(2);
+    expect(result.pageSize).toBe(50);
+  });
+
+  it("falls back to defaults instead of throwing on garbage input", () => {
+    const result = lessonListFiltersSchema.parse({
+      teacherId: "not-a-uuid",
+      format: "BOGUS",
+      status: "BOGUS",
+      range: "BOGUS",
+      from: "not-a-date",
+      page: "-5",
+      pageSize: "9999",
+    });
+    expect(result.teacherId).toBeUndefined();
+    expect(result.format).toBe("ALL");
+    expect(result.status).toBe("ALL");
+    expect(result.range).toBeNull();
+    expect(result.from).toBeUndefined();
+    expect(result.page).toBe(1);
+    expect(result.pageSize).toBe(25);
+  });
+
+  it("caps pageSize at 100", () => {
+    const result = lessonListFiltersSchema.parse({ pageSize: "100" });
+    expect(result.pageSize).toBe(100);
+  });
+});
+
+describe("bulkCancelWithReasonSchema", () => {
+  it("requires at least one session id and a non-trivial reason", () => {
+    expect(bulkCancelWithReasonSchema.safeParse({ sessionIds: [], reason: "ok reason" }).success).toBe(false);
+    expect(
+      bulkCancelWithReasonSchema.safeParse({
+        sessionIds: ["550e8400-e29b-41d4-a716-446655440000"],
+        reason: "ok",
+      }).success,
+    ).toBe(true);
+    expect(
+      bulkCancelWithReasonSchema.safeParse({
+        sessionIds: ["550e8400-e29b-41d4-a716-446655440000"],
+        reason: "no",
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("reassignTeacherSchema", () => {
+  it("requires at least one session id and a valid teacher id", () => {
+    expect(
+      reassignTeacherSchema.safeParse({
+        sessionIds: ["550e8400-e29b-41d4-a716-446655440000"],
+        newTeacherId: "550e8400-e29b-41d4-a716-446655440001",
+      }).success,
+    ).toBe(true);
+    expect(reassignTeacherSchema.safeParse({ sessionIds: [], newTeacherId: "x" }).success).toBe(false);
   });
 });

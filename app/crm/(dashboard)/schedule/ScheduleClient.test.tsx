@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { todayKey } from "@/crm/lib/calendarGrid";
 
 const toastMock = vi.hoisted(() => vi.fn());
 vi.mock("@/crm/components/ToastProvider", () => ({ useToast: () => toastMock }));
@@ -244,6 +245,44 @@ describe("ScheduleClient", () => {
 
     const badge = within(block).getByText("Иван Иванов");
     expect(badge).toBeVisible();
+  });
+
+  it("does not show a success toast when createLesson returns a missingPriceWarning instead of persisting", async () => {
+    // Regression: a student with no prior individual-lesson price history
+    // makes createLesson return `missingPriceWarning` (nothing persisted) --
+    // the UI must surface the warning dialog, not a false "Занятие создано".
+    const studentId = "550e8400-e29b-41d4-a716-446655440001";
+    const teacherId = "550e8400-e29b-41d4-a716-446655440002";
+    const user = userEvent.setup();
+    actionsMock.createLesson.mockResolvedValue({
+      missingPriceWarning: { studentId, studentName: "Назар Михеев" },
+    });
+
+    render(
+      <ScheduleClient
+        lessons={[]}
+        groups={groups}
+        teachers={[{ id: teacherId, fullName: "Иван Иванов" }]}
+        students={[{ id: studentId, fullName: "Назар Михеев" }]}
+        userRole="ADMIN"
+      />,
+    );
+
+    await user.click(screen.getByText("Новое занятие"));
+    await user.click(screen.getByRole("button", { name: "Индивидуальное занятие" }));
+
+    await user.selectOptions(screen.getByDisplayValue("Выберите ученика..."), studentId);
+    await user.selectOptions(screen.getByDisplayValue("Выберите преподавателя..."), teacherId);
+
+    await user.click(screen.getByText("Выберите дату"));
+    fireEvent.click(document.querySelector(`[data-day="${todayKey()}"]`) as HTMLElement);
+
+    await user.click(screen.getByRole("button", { name: "09:00" }));
+    await user.click(screen.getByRole("button", { name: "Далее" }));
+    await user.click(screen.getByRole("button", { name: "Создать" }));
+
+    expect(await screen.findByText("У ученика нет истории цены")).toBeInTheDocument();
+    expect(toastMock).not.toHaveBeenCalledWith("Занятие создано");
   });
 
   it("shows a compact teacher label on month-view chips", async () => {

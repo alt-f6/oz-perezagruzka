@@ -1627,8 +1627,7 @@ describe("reassignTeacher", () => {
       newTeacherId: "550e8400-e29b-41d4-a716-446655440001",
     });
 
-    expect(result.reassignedCount).toBe(0);
-    expect(result.skippedCount).toBe(1);
+    expect(result).toMatchObject({ reassignedCount: 0, skippedCount: 1 });
     expect(dbMock.classSession.updateMany).not.toHaveBeenCalled();
   });
 
@@ -1664,8 +1663,7 @@ describe("reassignTeacher", () => {
       newTeacherId: "550e8400-e29b-41d4-a716-446655440001",
     });
 
-    expect(result.reassignedCount).toBe(1);
-    expect(result.skippedCount).toBe(0);
+    expect(result).toMatchObject({ reassignedCount: 1, skippedCount: 0 });
     expect(dbMock.classSession.updateMany).toHaveBeenCalledWith({
       where: { id: { in: ["s1"] } },
       data: { teacherId: "550e8400-e29b-41d4-a716-446655440001" },

@@ -7,6 +7,7 @@ import {
   makeupSchema,
   setAttendanceUpdateSchema,
   gradeSubmissionSchema,
+  bulkCancelWithReasonSchema,
   type LessonValues,
 } from "@/crm/lib/schemas";
 import { db } from "@/shared/lib/db";
@@ -432,6 +433,94 @@ export async function bulkCancelSessions(
       error: err instanceof Error ? err.message : "Не удалось отменить занятия",
     };
   }
+}
+
+export type BulkCancelWithBillingResult =
+  | { error: string }
+  | { error?: undefined; cancelledCount: number; skippedCount: number };
+
+const CANCEL_CHUNK_SIZE = 20;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+/**
+ * Cancels a batch of sessions that may already carry billed attendance --
+ * unlike bulkCancelSessions (future-only, never-attended), this is the path
+ * for cancelling lessons that already happened or were already charged.
+ * Every LESSON_CHARGE transaction on a cancelled session is reversed with a
+ * compensating ADJUSTMENT transaction (never deleted, preserving the audit
+ * trail) inside the same per-session transaction that flips its status.
+ * Batches run in chunks of CANCEL_CHUNK_SIZE, each its own transaction, so a
+ * large selection can't time out a single Server Action request.
+ */
+export async function bulkCancelSessionsWithBilling(input: {
+  sessionIds: string[];
+  reason: string;
+}): Promise<BulkCancelWithBillingResult> {
+  await requireRole(["ADMIN", "MANAGER"]);
+
+  const parsed = bulkCancelWithReasonSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Некорректные данные" };
+  }
+
+  let cancelledCount = 0;
+  let skippedCount = 0;
+
+  for (const idsChunk of chunk(parsed.data.sessionIds, CANCEL_CHUNK_SIZE)) {
+    try {
+      const chunkResult = await db.$transaction(async (tx) => {
+        const targets = await tx.classSession.findMany({
+          where: { id: { in: idsChunk } },
+          select: {
+            id: true,
+            status: true,
+            transactions: { where: { type: "LESSON_CHARGE" }, select: { id: true, studentId: true, amount: true } },
+          },
+        });
+
+        let chunkCancelled = 0;
+        for (const target of targets) {
+          if (target.status !== "scheduled") continue;
+
+          for (const charge of target.transactions) {
+            await tx.transaction.create({
+              data: {
+                studentId: charge.studentId,
+                classSessionId: target.id,
+                amount: -Number(charge.amount),
+                type: "ADJUSTMENT",
+                // Deterministic per (session, student): guards against ever
+                // double-crediting the same cancelled charge.
+                idempotencyKey: `lesson_cancel_adjustment:${target.id}:${charge.studentId}`,
+                description: `Возврат за отменённое занятие: ${parsed.data.reason}`,
+              },
+            });
+          }
+
+          await tx.classSession.update({ where: { id: target.id }, data: { status: "cancelled" } });
+          chunkCancelled += 1;
+        }
+
+        return { cancelled: chunkCancelled, skipped: targets.length - chunkCancelled };
+      });
+
+      cancelledCount += chunkResult.cancelled;
+      skippedCount += chunkResult.skipped;
+    } catch (err) {
+      log.error("Не удалось отменить часть занятий", err, { idsChunk });
+      skippedCount += idsChunk.length;
+    }
+  }
+
+  revalidatePath("/lessons");
+  revalidatePath("/schedule");
+  revalidatePath("/groups");
+  return { cancelledCount, skippedCount };
 }
 
 export async function setAttendance(

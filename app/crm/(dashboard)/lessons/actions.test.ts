@@ -6,6 +6,7 @@ import {
   withSlot,
 } from "@/crm/lib/availability";
 import { BillingService } from "@/crm/lib/services/billing.service";
+import { RbacError } from "@/shared/lib/rbac";
 
 const dbMock = vi.hoisted(() => ({
   group: { findUnique: vi.fn() },
@@ -24,6 +25,7 @@ const dbMock = vi.hoisted(() => ({
   teacherAvailability: { findMany: vi.fn() },
   teacherPayout: { findFirst: vi.fn() },
   makeupLesson: { upsert: vi.fn() },
+  transaction: { create: vi.fn() },
   $transaction: vi.fn(),
 }));
 
@@ -37,7 +39,10 @@ const r2Mock = vi.hoisted(() => ({
 }));
 
 vi.mock("@/shared/lib/db", () => ({ db: dbMock }));
-vi.mock("@/shared/lib/rbac", () => rbacMock);
+vi.mock("@/shared/lib/rbac", async () => {
+  const actual = await vi.importActual<typeof import("@/shared/lib/rbac")>("@/shared/lib/rbac");
+  return { ...rbacMock, RbacError: actual.RbacError };
+});
 vi.mock("@/lms/server/r2/signed", () => r2Mock);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/crm/lib/prisma", () => ({
@@ -57,6 +62,7 @@ const {
   createLesson,
   deleteLesson,
   bulkCancelSessions,
+  bulkCancelSessionsWithBilling,
   setAttendance,
   assignMakeupLesson,
   gradeSubmission,
@@ -1527,5 +1533,63 @@ describe("attachHomeworkFile", () => {
 
     expect(result.error).toMatch(/только администратору/);
     expect(dbMock.submission.upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("bulkCancelSessionsWithBilling", () => {
+  it("requires ADMIN or MANAGER", async () => {
+    rbacMock.requireRole.mockRejectedValue(new RbacError(403, "forbidden"));
+    await expect(bulkCancelSessionsWithBilling({ sessionIds: ["s1"], reason: "test reason" })).rejects.toThrow();
+  });
+
+  it("rejects an empty selection or too-short reason before touching the db", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    const result = await bulkCancelSessionsWithBilling({ sessionIds: [], reason: "test reason" });
+    expect(result.error).toBeDefined();
+  });
+
+  it("cancels an eligible session and reverses its LESSON_CHARGE with a compensating ADJUSTMENT", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    dbMock.classSession.findMany.mockResolvedValue([
+      {
+        id: "s1",
+        status: "scheduled",
+        transactions: [{ id: "tx1", studentId: "st1", amount: -1000 }],
+      },
+    ]);
+    dbMock.$transaction.mockImplementation(async (fn: any) => fn(dbMock));
+
+    const result = await bulkCancelSessionsWithBilling({
+      sessionIds: ["550e8400-e29b-41d4-a716-446655440000"],
+      reason: "Отпуск преподавателя",
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result).toMatchObject({ cancelledCount: 1, skippedCount: 0 });
+    expect(dbMock.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ studentId: "st1", classSessionId: "s1", amount: 1000, type: "ADJUSTMENT" }),
+      }),
+    );
+    expect(dbMock.classSession.update).toHaveBeenCalledWith({
+      where: { id: "s1" },
+      data: { status: "cancelled" },
+    });
+  });
+
+  it("skips a session that is already cancelled without creating a duplicate adjustment", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    dbMock.classSession.findMany.mockResolvedValue([
+      { id: "s1", status: "cancelled", transactions: [{ id: "tx1", studentId: "st1", amount: -1000 }] },
+    ]);
+    dbMock.$transaction.mockImplementation(async (fn: any) => fn(dbMock));
+
+    const result = await bulkCancelSessionsWithBilling({
+      sessionIds: ["550e8400-e29b-41d4-a716-446655440000"],
+      reason: "Отпуск преподавателя",
+    });
+
+    expect(result).toMatchObject({ cancelledCount: 0, skippedCount: 1 });
+    expect(dbMock.transaction.create).not.toHaveBeenCalled();
   });
 });

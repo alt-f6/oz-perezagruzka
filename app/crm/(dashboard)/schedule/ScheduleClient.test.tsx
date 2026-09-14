@@ -206,6 +206,25 @@ describe("ScheduleClient", () => {
     expect(within(card).getByText("Иван Иванов")).toBeInTheDocument();
   });
 
+  it("shows a Sunday lesson in the week view under its own day column", async () => {
+    const user = userEvent.setup();
+    // 2026-09-20 is a Sunday. 09:00 Moscow (UTC+3) = 06:00Z.
+    const lesson = makeLesson({
+      id: "sunday1",
+      scheduledAt: "2026-09-20T06:00:00.000Z",
+      teacherId: "t1",
+      teacher: { fullName: "Назар Михеев" },
+    });
+    render(<ScheduleClient lessons={[lesson]} groups={groups} teachers={teachers} />);
+
+    await user.click(screen.getByRole("button", { name: "Неделя" }));
+    const dateInput = document.querySelector('input[type="date"]') as HTMLInputElement;
+    fireEvent.change(dateInput, { target: { value: "2026-09-20" } });
+
+    const card = screen.getByTestId("week-session-sunday1");
+    expect(within(card).getByText(/09:00–10:00/)).toBeInTheDocument();
+  });
+
   it("keeps a short-duration day-view block tall enough to fit the teacher badge without clipping", () => {
     const lesson = makeLesson({
       id: "s1",

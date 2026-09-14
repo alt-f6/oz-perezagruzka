@@ -19,8 +19,9 @@ const dbMock = vi.hoisted(() => ({
     update: vi.fn(),
     findMany: vi.fn(),
     updateMany: vi.fn(),
+    delete: vi.fn(),
   },
-  attendance: { findUnique: vi.fn(), update: vi.fn(), upsert: vi.fn() },
+  attendance: { findUnique: vi.fn(), update: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn() },
   submission: { findUnique: vi.fn(), update: vi.fn(), upsert: vi.fn() },
   teacherAvailability: { findMany: vi.fn() },
   teacherPayout: { findFirst: vi.fn() },
@@ -600,7 +601,8 @@ describe("deleteLesson", () => {
     expect(result.error).toBeUndefined();
   });
 
-  it("refuses to cancel a session that already has attendance recorded, to protect billing/salary history", async () => {
+  it("refuses a MANAGER trying to cancel a session that already has attendance recorded, to protect billing/salary history", async () => {
+    rbacMock.requireRole.mockResolvedValue({ id: "user_2", email: "m@m.com", role: "MANAGER" });
     dbMock.classSession.findUnique.mockResolvedValue({
       status: "scheduled",
       _count: { attendance: 2 },
@@ -610,9 +612,11 @@ describe("deleteLesson", () => {
 
     expect(result.error).toBeTruthy();
     expect(dbMock.classSession.update).not.toHaveBeenCalled();
+    expect(dbMock.classSession.delete).not.toHaveBeenCalled();
   });
 
-  it("refuses to cancel a session that is already cancelled", async () => {
+  it("refuses a MANAGER trying to cancel a session that is already cancelled", async () => {
+    rbacMock.requireRole.mockResolvedValue({ id: "user_2", email: "m@m.com", role: "MANAGER" });
     dbMock.classSession.findUnique.mockResolvedValue({
       status: "cancelled",
       _count: { attendance: 0 },
@@ -622,6 +626,70 @@ describe("deleteLesson", () => {
 
     expect(result.error).toBeTruthy();
     expect(dbMock.classSession.update).not.toHaveBeenCalled();
+    expect(dbMock.classSession.delete).not.toHaveBeenCalled();
+  });
+
+  it("lets an ADMIN purge a session that already has billed attendance, reversing the charge and cascading the attendance rows", async () => {
+    // rbacMock defaults to ADMIN (see beforeEach).
+    dbMock.classSession.findUnique.mockResolvedValue({
+      status: "scheduled",
+      _count: { attendance: 1 },
+      attendance: [{ id: "att_1", studentId: "st1" }],
+      transactions: [{ id: "tx1", studentId: "st1", amount: -1000 }],
+    });
+    dbMock.$transaction.mockImplementation(async (fn: any) => fn(dbMock));
+
+    const result = await deleteLesson("session_1");
+
+    expect(result.error).toBeUndefined();
+    expect(dbMock.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          studentId: "st1",
+          classSessionId: "session_1",
+          amount: 1000,
+          type: "ADJUSTMENT",
+        }),
+      }),
+    );
+    expect(dbMock.attendance.deleteMany).toHaveBeenCalledWith({ where: { classSessionId: "session_1" } });
+    expect(dbMock.classSession.delete).toHaveBeenCalledWith({ where: { id: "session_1" } });
+  });
+
+  it("lets an ADMIN purge an already-cancelled session with no attendance, without creating a spurious adjustment", async () => {
+    dbMock.classSession.findUnique.mockResolvedValue({
+      status: "cancelled",
+      _count: { attendance: 0 },
+      attendance: [],
+      transactions: [],
+    });
+    dbMock.$transaction.mockImplementation(async (fn: any) => fn(dbMock));
+
+    const result = await deleteLesson("session_1");
+
+    expect(result.error).toBeUndefined();
+    expect(dbMock.transaction.create).not.toHaveBeenCalled();
+    expect(dbMock.attendance.deleteMany).toHaveBeenCalledWith({ where: { classSessionId: "session_1" } });
+    expect(dbMock.classSession.delete).toHaveBeenCalledWith({ where: { id: "session_1" } });
+  });
+
+  it("still soft-cancels for an ADMIN when the session is scheduled with no attendance yet (no purge needed)", async () => {
+    dbMock.classSession.findUnique.mockResolvedValue({
+      status: "scheduled",
+      _count: { attendance: 0 },
+      attendance: [],
+      transactions: [],
+    });
+    dbMock.classSession.update.mockResolvedValue({});
+
+    const result = await deleteLesson("session_1");
+
+    expect(result.error).toBeUndefined();
+    expect(dbMock.classSession.update).toHaveBeenCalledWith({
+      where: { id: "session_1" },
+      data: { status: "cancelled" },
+    });
+    expect(dbMock.classSession.delete).not.toHaveBeenCalled();
   });
 });
 

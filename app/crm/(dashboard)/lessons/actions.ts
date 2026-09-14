@@ -333,41 +333,92 @@ export async function createLesson(
 }
 
 export async function deleteLesson(lessonId: string): Promise<ActionResult> {
-  await requireRole(["ADMIN", "MANAGER"]);
+  const sessionUser = await requireRole(["ADMIN", "MANAGER"]);
 
   // No scheduledAt/future restriction here on purpose: a lesson that was
   // entered by mistake (duplicate, wrong group, wrong date) is often only
   // noticed after it's already passed, and an operator must still be able to
-  // pull it out of the schedule. What DOES stay guarded is attendance: once a
-  // session has any Attendance rows, cancelling it would silently orphan
-  // billing/salary history (BillingService.markAttendanceAndCharge already
-  // ran), so that case is blocked instead of allowed to corrupt those
-  // records.
+  // pull it out of the schedule. What DOES stay guarded (for non-ADMIN roles)
+  // is attendance: once a session has any Attendance rows, cancelling it
+  // would silently orphan billing/salary history
+  // (BillingService.markAttendanceAndCharge already ran), so that case is
+  // blocked instead of allowed to corrupt those records. An ADMIN gets an
+  // explicit escape hatch below instead of this guard.
   const session = await db.classSession.findUnique({
     where: { id: lessonId },
-    select: { status: true, _count: { select: { attendance: true } } },
+    select: {
+      status: true,
+      _count: { select: { attendance: true } },
+      attendance: { select: { id: true, studentId: true } },
+      transactions: { where: { type: "LESSON_CHARGE" }, select: { id: true, studentId: true, amount: true } },
+    },
   });
   if (!session) {
     return { error: "Занятие не найдено" };
   }
-  if (session.status !== "scheduled") {
-    return { error: "Занятие уже отменено" };
-  }
-  if (session._count.attendance > 0) {
-    return {
-      error:
-        "У занятия уже отмечена посещаемость — отмена недоступна, чтобы не исказить начисления",
-    };
+
+  const isAdmin = sessionUser.role === "ADMIN";
+
+  if (!isAdmin) {
+    if (session.status !== "scheduled") {
+      return { error: "Занятие уже отменено" };
+    }
+    if (session._count.attendance > 0) {
+      return {
+        error:
+          "У занятия уже отмечена посещаемость — отмена недоступна, чтобы не исказить начисления",
+      };
+    }
   }
 
+  // A still-scheduled session with no attendance yet has nothing to purge --
+  // behave exactly as before (soft-cancel), for admins too.
+  if (session.status === "scheduled" && session._count.attendance === 0) {
+    try {
+      await db.classSession.update({
+        where: { id: lessonId },
+        data: { status: "cancelled" },
+      });
+    } catch (err) {
+      return {
+        error: err instanceof Error ? err.message : "Не удалось отменить занятие",
+      };
+    }
+    revalidatePath("/lessons");
+    revalidatePath("/schedule");
+    return {};
+  }
+
+  // ADMIN-only purge path: reached either because the session already has
+  // attendance (bypassing the guard above) or because it's already cancelled
+  // and the admin wants it fully removed. Every existing LESSON_CHARGE is
+  // reversed with an audited compensating ADJUSTMENT (never deleted --
+  // preserves the financial ledger, same pattern as
+  // bulkCancelSessionsWithBilling), then the Attendance rows are cascade
+  // deleted and the ClassSession row itself is hard-deleted. Transaction rows
+  // are never touched by the session delete itself: Transaction.classSession
+  // is onDelete:SetNull in the schema, so they survive with classSessionId
+  // cleared rather than being destroyed or blocking the delete.
   try {
-    await db.classSession.update({
-      where: { id: lessonId },
-      data: { status: "cancelled" },
+    await db.$transaction(async (tx) => {
+      for (const charge of session.transactions) {
+        await tx.transaction.create({
+          data: {
+            studentId: charge.studentId,
+            classSessionId: lessonId,
+            amount: -Number(charge.amount),
+            type: "ADJUSTMENT",
+            idempotencyKey: `lesson_purge_adjustment:${lessonId}:${charge.studentId}`,
+            description: "Возврат за удалённое занятие (административное удаление)",
+          },
+        });
+      }
+      await tx.attendance.deleteMany({ where: { classSessionId: lessonId } });
+      await tx.classSession.delete({ where: { id: lessonId } });
     });
   } catch (err) {
     return {
-      error: err instanceof Error ? err.message : "Не удалось отменить занятие",
+      error: err instanceof Error ? err.message : "Не удалось удалить занятие",
     };
   }
 

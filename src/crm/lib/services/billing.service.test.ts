@@ -305,3 +305,52 @@ describe("BillingService.markAttendanceAndCharge — duplicate-marking preventio
     );
   });
 });
+
+describe("BillingService.markAttendanceAndCharge — future-lesson guard", () => {
+  it("rejects PRESENT for a lesson more than 15 minutes in the future", async () => {
+    const tx = makeTx({
+      classSession: { ...classSessionFixture, scheduledAt: new Date(Date.now() + 20 * 60_000) },
+    });
+    runWithTx(tx);
+
+    await expect(
+      BillingService.markAttendanceAndCharge("session_1", "student_1", "PRESENT"),
+    ).rejects.toThrow(/до его начала/);
+    expect(tx.transaction.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects ABSENT for a lesson more than 15 minutes in the future", async () => {
+    const tx = makeTx({
+      classSession: { ...classSessionFixture, scheduledAt: new Date(Date.now() + 20 * 60_000) },
+    });
+    runWithTx(tx);
+
+    await expect(
+      BillingService.markAttendanceAndCharge("session_1", "student_1", "ABSENT"),
+    ).rejects.toThrow(/до его начала/);
+  });
+
+  it("still allows EXCUSED for a future lesson (non-billable status, no time guard)", async () => {
+    const tx = makeTx({
+      classSession: { ...classSessionFixture, scheduledAt: new Date(Date.now() + 20 * 60_000) },
+    });
+    runWithTx(tx);
+
+    await expect(
+      BillingService.markAttendanceAndCharge("session_1", "student_1", "EXCUSED"),
+    ).resolves.toBeDefined();
+    expect(tx.transaction.create).not.toHaveBeenCalled();
+  });
+
+  it("allows PRESENT exactly at the 15-minute pre-lesson boundary", async () => {
+    const tx = makeTx({
+      classSession: { ...classSessionFixture, scheduledAt: new Date(Date.now() + 15 * 60_000) },
+    });
+    runWithTx(tx);
+
+    await expect(
+      BillingService.markAttendanceAndCharge("session_1", "student_1", "PRESENT"),
+    ).resolves.toBeDefined();
+    expect(tx.transaction.create).toHaveBeenCalled();
+  });
+});

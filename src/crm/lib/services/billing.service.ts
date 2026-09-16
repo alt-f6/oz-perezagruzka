@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { prisma } from "@/crm/lib/prisma";
 import { getNotificationProvider } from "@/crm/lib/services/notification.service";
 import { createLogger } from "@/shared/lib/logger";
+import { isAttendanceWindowOpen } from "@/crm/lib/lessonTime";
 
 const log = createLogger("billing");
 
@@ -34,6 +35,13 @@ export class BillingService {
           : undefined;
 
         const isBillableStatus = status === "PRESENT" || status === "ABSENT";
+
+        if (
+          isBillableStatus &&
+          !isAttendanceWindowOpen({ scheduledAt: classSession.scheduledAt })
+        ) {
+          throw new Error("Нельзя отметить посещаемость занятия до его начала");
+        }
 
         // Freeze bounds are DATE columns (UTC midnight), so truncate the
         // session start to its UTC calendar day. That way a freeze covering

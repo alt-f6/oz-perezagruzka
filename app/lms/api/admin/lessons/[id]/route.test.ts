@@ -39,6 +39,8 @@ const lessonRow = (overrides: Partial<Record<string, unknown>> = {}) => ({
   practiceLinkLabel: null,
   presentationEmbedUrl: null,
   homeworkTask: null,
+  moduleId: "module_1",
+  module: { courseId: "course_1" },
   ...overrides,
 });
 
@@ -61,6 +63,21 @@ describe("GET /api/admin/lessons/[id]", () => {
 
     expect(json.lesson.practice_link_url).toBe("https://miro.com/board/1");
     expect(json.lesson.practice_link_label).toBe("Open board");
+  });
+
+  it("resolves course_id from the lesson's module so the course/module selectors can hydrate", async () => {
+    findUniqueMock.mockResolvedValue(lessonRow({ moduleId: "module_1", module: { courseId: "course_1" } }));
+    const { GET } = await import("./route");
+
+    const res = await GET(new NextRequest("http://localhost/api/admin/lessons/lesson_1"), makeCtx("lesson_1"));
+    const json = await res.json();
+
+    expect(findUniqueMock).toHaveBeenCalledWith({
+      where: { id: "lesson_1" },
+      include: { module: { select: { courseId: true } } },
+    });
+    expect(json.lesson.module_id).toBe("module_1");
+    expect(json.lesson.course_id).toBe("course_1");
   });
 });
 
@@ -87,6 +104,7 @@ describe("PATCH /api/admin/lessons/[id]", () => {
         practiceLinkUrl: "https://miro.com/board/1",
         practiceLinkLabel: "Open board",
       }),
+      include: { module: { select: { courseId: true } } },
     });
     expect(json.ok).toBe(true);
   });
@@ -103,6 +121,7 @@ describe("PATCH /api/admin/lessons/[id]", () => {
     expect(updateMock).toHaveBeenCalledWith({
       where: { id: "lesson_1" },
       data: expect.objectContaining({ practiceLinkUrl: null, practiceLinkLabel: null }),
+      include: { module: { select: { courseId: true } } },
     });
   });
 
@@ -158,6 +177,7 @@ describe("PATCH /api/admin/lessons/[id]", () => {
         presentationEmbedUrl: "https://docs.google.com/presentation/d/abc/embed",
         homeworkTask: "Read chapter 1",
       }),
+      include: { module: { select: { courseId: true } } },
     });
     expect(json.ok).toBe(true);
   });
@@ -174,6 +194,21 @@ describe("PATCH /api/admin/lessons/[id]", () => {
     expect(updateMock).toHaveBeenCalledWith({
       where: { id: "lesson_1" },
       data: expect.objectContaining({ presentationEmbedUrl: null, homeworkTask: null }),
+      include: { module: { select: { courseId: true } } },
     });
+  });
+
+  it("returns course_id resolved from the module so the saved response stays hydrated", async () => {
+    updateMock.mockResolvedValue(lessonRow({ moduleId: "module_2", module: { courseId: "course_2" } }));
+    const { PATCH } = await import("./route");
+
+    const res = await PATCH(patchRequest({ title: "Lesson 1", module_id: "module_2" }), makeCtx("lesson_1"));
+    const json = await res.json();
+
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ include: { module: { select: { courseId: true } } } })
+    );
+    expect(json.lesson.module_id).toBe("module_2");
+    expect(json.lesson.course_id).toBe("course_2");
   });
 });

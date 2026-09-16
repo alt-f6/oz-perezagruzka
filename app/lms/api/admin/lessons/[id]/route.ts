@@ -8,13 +8,15 @@ export const runtime = "nodejs";
 
 type Ctx = { params: Promise<{ id: string }> };
 
+type LessonWithCourse = Lesson & { module: { courseId: string } };
+
 async function readLessonId({ params }: Ctx) {
   const { id } = await params;
   if (!id || typeof id !== "string") return null;
   return id;
 }
 
-function toLessonJson(lesson: Lesson) {
+function toLessonJson(lesson: LessonWithCourse) {
   return {
     id: lesson.id,
     title: lesson.title,
@@ -27,6 +29,7 @@ function toLessonJson(lesson: Lesson) {
     presentation_embed_url: lesson.presentationEmbedUrl,
     homework_task: lesson.homeworkTask,
     module_id: lesson.moduleId,
+    course_id: lesson.module.courseId,
   };
 }
 
@@ -42,7 +45,10 @@ export const GET = withApiErrors(async (_: NextRequest, ctx: Ctx) => {
   const lessonId = await readLessonId(ctx);
   if (!lessonId) return NextResponse.json({ ok: false, error: "bad id" }, { status: 400 });
 
-  const lesson = await db.lesson.findUnique({ where: { id: lessonId } });
+  const lesson = await db.lesson.findUnique({
+    where: { id: lessonId },
+    include: { module: { select: { courseId: true } } },
+  });
 
   if (!lesson) {
     return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
@@ -106,6 +112,7 @@ export const PATCH = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
         homeworkTask,
         ...(moduleId ? { moduleId } : {}),
       },
+      include: { module: { select: { courseId: true } } },
     });
 
     return NextResponse.json({ ok: true, lesson: toLessonJson(lesson) });

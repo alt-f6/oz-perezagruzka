@@ -28,6 +28,7 @@ export type Lesson = {
   presentation_embed_url: string | null;
   homework_task: string | null;
   module_id: string;
+  course_id: string;
 };
 
 type Course = { id: string; title: string; isPublished: boolean };
@@ -74,6 +75,11 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
   }, []);
 
   useEffect(() => {
+    setCourseId(lesson.course_id ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson.id, lesson.course_id]);
+
+  useEffect(() => {
     if (!courseId) {
       setModules([]);
       return;
@@ -87,6 +93,11 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
       setModulesLoading(false);
     })();
   }, [courseId]);
+
+  function handleCourseChange(value: string) {
+    setCourseId(value);
+    onChange({ ...lesson, module_id: "" });
+  }
 
   async function createCourse() {
     if (!newCourseTitle.trim()) return;
@@ -109,6 +120,7 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
     const created = j.course as Course;
     setCourses((prev) => [...prev, created]);
     setCourseId(created.id);
+    onChange({ ...lesson, module_id: "" });
 
     setShowNewCourseForm(false);
     setNewCourseTitle("");
@@ -215,7 +227,7 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
             <div className="grid gap-1.5">
               <Label htmlFor="lesson-course">Курс</Label>
               <div className="flex gap-2">
-                <Select value={courseId} onValueChange={setCourseId}>
+                <Select value={courseId} onValueChange={handleCourseChange}>
                   <SelectTrigger id="lesson-course" className="flex-1">
                     <SelectValue placeholder="Выберите курс" />
                   </SelectTrigger>

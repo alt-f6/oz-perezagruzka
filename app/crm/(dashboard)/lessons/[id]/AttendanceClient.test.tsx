@@ -53,6 +53,13 @@ const concludedLessonFixture: ClassSessionWithGroup = {
   durationMinutes: 60,
 };
 
+// Starts in 20 minutes -- outside the 15-minute pre-lesson attendance
+// window, so attendance can't be marked yet.
+const futureLessonFixture: ClassSessionWithGroup = {
+  ...baseLessonFixture,
+  scheduledAt: new Date(Date.now() + 20 * 60_000).toISOString(),
+};
+
 describe("AttendanceClient", () => {
   it("shows the assigned teacher's name in the lesson header", () => {
     render(
@@ -280,5 +287,83 @@ describe("AttendanceClient", () => {
     expect(
       screen.getByText("Редактирование прошедших занятий доступно только администратору"),
     ).toBeInTheDocument();
+  });
+
+  it("disables the attendance status select for a lesson outside the 15-minute pre-lesson window", () => {
+    const student = { id: "s1", fullName: "Петров Петр", phone: null };
+    render(
+      <AttendanceClient
+        lesson={futureLessonFixture}
+        students={[student]}
+        attendance={[]}
+        submissions={[]}
+        makeupOptions={[]}
+      />,
+    );
+
+    expect(screen.getAllByRole("combobox")[0]).toBeDisabled();
+  });
+
+  it("shows a neutral placeholder and helper message for an unrecorded future lesson, not the PRESENT default", () => {
+    const student = { id: "s1", fullName: "Петров Петр", phone: null };
+    render(
+      <AttendanceClient
+        lesson={futureLessonFixture}
+        students={[student]}
+        attendance={[]}
+        submissions={[]}
+        makeupOptions={[]}
+      />,
+    );
+
+    expect(screen.getByText("Не началось")).toBeInTheDocument();
+    expect(
+      screen.getByText("Отметка посещаемости откроется за 15 минут до начала урока"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a neutral 'Запланировано' billing badge for an unrecorded future lesson, never the green 'Присутствовал'", () => {
+    const student = { id: "s1", fullName: "Петров Петр", phone: null };
+    render(
+      <AttendanceClient
+        lesson={futureLessonFixture}
+        students={[student]}
+        attendance={[]}
+        submissions={[]}
+        userRole="ADMIN"
+        makeupOptions={[]}
+      />,
+    );
+
+    expect(screen.getByText("Запланировано")).toBeInTheDocument();
+    expect(screen.queryByText("Присутствовал")).not.toBeInTheDocument();
+  });
+
+  it("still shows the real status badge for a future lesson that already has an explicit record", () => {
+    const student = { id: "s1", fullName: "Петров Петр", phone: null };
+    const attendance: AttendanceRecord[] = [
+      {
+        id: "a1",
+        classSessionId: futureLessonFixture.id,
+        studentId: student.id,
+        status: "EXCUSED",
+        priceAtTime: 0,
+        homeworkCompleted: false,
+      },
+    ];
+
+    render(
+      <AttendanceClient
+        lesson={futureLessonFixture}
+        students={[student]}
+        attendance={attendance}
+        submissions={[]}
+        userRole="ADMIN"
+        makeupOptions={[]}
+      />,
+    );
+
+    expect(screen.getByText("Уважительная причина")).toBeInTheDocument();
+    expect(screen.queryByText("Запланировано")).not.toBeInTheDocument();
   });
 });

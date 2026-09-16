@@ -3,6 +3,7 @@
 import { ArrowLeft, GraduationCap } from "lucide-react";
 import NextLink from "next/link";
 import { useState } from "react";
+import { ATTENDANCE_PRE_WINDOW_MS } from "@/crm/lib/lessonTime";
 import { TimezoneBadge } from "@/crm/components/TimezoneBadge";
 import { useToast } from "@/crm/components/ToastProvider";
 import {
@@ -70,6 +71,16 @@ export function AttendanceClient({
   const canEdit = userRole === "ADMIN" || !isPastLesson;
   const EDIT_LOCKED_MESSAGE =
     "Редактирование прошедших занятий доступно только администратору";
+
+  // Future-lesson lock (mirrors the server-side guard in ../actions.ts): a
+  // lesson can't be marked PRESENT/ABSENT, nor implicitly billed via
+  // grading fields, until its attendance window opens -- 15 minutes before
+  // its scheduled start. Applies regardless of role.
+  const isFuture =
+    new Date(lesson.scheduledAt).getTime() - ATTENDANCE_PRE_WINDOW_MS >
+    new Date().getTime();
+  const FUTURE_LOCKED_MESSAGE =
+    "Отметка посещаемости откроется за 15 минут до начала урока";
 
   const recordFor = (studentId: string) =>
     attendance.find((record) => record.studentId === studentId);
@@ -203,7 +214,8 @@ export function AttendanceClient({
                   const record = recordFor(student.id);
                   const isBusy = busyStudentId === student.id;
 
-                  const currentStatus = record?.status ?? "PRESENT";
+                  const displayStatus =
+                    record?.status ?? (isFuture ? null : "PRESENT");
                   const currentHomeworkCompleted =
                     record?.homeworkCompleted ?? false;
                   const currentGrade = record?.grade ?? "";
@@ -238,9 +250,15 @@ export function AttendanceClient({
 
                       <td className="whitespace-nowrap">
                         <select
-                          value={currentStatus}
-                          disabled={isBusy || !canEdit}
-                          title={!canEdit ? EDIT_LOCKED_MESSAGE : undefined}
+                          value={displayStatus ?? "UNSET"}
+                          disabled={isBusy || !canEdit || isFuture}
+                          title={
+                            !canEdit
+                              ? EDIT_LOCKED_MESSAGE
+                              : isFuture
+                                ? FUTURE_LOCKED_MESSAGE
+                                : undefined
+                          }
                           onChange={(e) =>
                             updateAttendanceData(student.id, {
                               status: e.target.value as AttendanceStatus,
@@ -248,12 +266,20 @@ export function AttendanceClient({
                           }
                           className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 shadow-sm outline-none transition-all duration-200 focus:border-accent/50 focus:ring-2 focus:ring-accent/10 disabled:opacity-50"
                         >
+                          {displayStatus === null && (
+                            <option value="UNSET">Не началось</option>
+                          )}
                           {ATTENDANCE_STATUSES.map((item) => (
                             <option key={item.value} value={item.value}>
                               {item.label}
                             </option>
                           ))}
                         </select>
+                        {isFuture && (
+                          <p className="mt-1 text-[11px] text-slate-400">
+                            {FUTURE_LOCKED_MESSAGE}
+                          </p>
+                        )}
                       </td>
 
                       <td className="whitespace-nowrap">
@@ -328,7 +354,7 @@ export function AttendanceClient({
                       </td>
 
                       <td className="whitespace-nowrap">
-                        {currentStatus !== "EXCUSED" || !record ? (
+                        {displayStatus !== "EXCUSED" || !record ? (
                           <span className="text-xs text-slate-500">—</span>
                         ) : (() => {
                             const makeupRecord = Array.isArray(record.makeup)
@@ -398,11 +424,17 @@ export function AttendanceClient({
 
                       {!isTeacher && (
                         <td className="whitespace-nowrap">
-                          <span
-                            className={`rounded-lg px-2.5 py-1 text-xs font-medium border ${ATTENDANCE_STATUS_CLASSES[currentStatus]}`}
-                          >
-                            {ATTENDANCE_STATUS_LABELS[currentStatus]}
-                          </span>
+                          {isFuture && displayStatus === null ? (
+                            <span className="rounded-lg border bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-500">
+                              Запланировано
+                            </span>
+                          ) : (
+                            <span
+                              className={`rounded-lg px-2.5 py-1 text-xs font-medium border ${ATTENDANCE_STATUS_CLASSES[displayStatus ?? "PRESENT"]}`}
+                            >
+                              {ATTENDANCE_STATUS_LABELS[displayStatus ?? "PRESENT"]}
+                            </span>
+                          )}
                         </td>
                       )}
                     </tr>

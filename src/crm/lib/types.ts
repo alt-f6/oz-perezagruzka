@@ -95,7 +95,7 @@ export interface AttendanceRecord {
   id: string;
   classSessionId: string;
   studentId: string;
-  status: AttendanceStatus;
+  status: AttendanceStatus | null;
   priceAtTime: number;
   grade?: number | null;
   homeworkCompleted: boolean;

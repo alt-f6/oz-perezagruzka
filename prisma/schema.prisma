@@ -348,7 +348,7 @@ model Attendance {
   id                String           @id @default(uuid())
   classSessionId    String
   studentId         String
-  status            AttendanceStatus
+  status            AttendanceStatus?
   priceAtTime       Decimal          @db.Decimal(10, 2)
   grade             Int?
   homeworkCompleted Boolean          @default(false)

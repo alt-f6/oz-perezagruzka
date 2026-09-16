@@ -658,9 +658,11 @@ export async function setAttendance(
   }
 
   let billingWarning: string | undefined;
+  let billingAttempted = false;
 
   try {
     if (parsed.data.status !== undefined) {
+      billingAttempted = true;
       await BillingService.markAttendanceAndCharge(lessonId, studentId, parsed.data.status);
     } else if (hasGradingFields && windowOpen) {
       // Grading/homework/comment requires an Attendance row. If the teacher
@@ -669,13 +671,16 @@ export async function setAttendance(
       // now via the same billing path a real PRESENT selection would take --
       // grading a student implies they attended, keeping billing state
       // consistent instead of failing the save outright.
+      billingAttempted = true;
       await BillingService.markAttendanceAndCharge(lessonId, studentId, "PRESENT");
     } else if (hasGradingFields) {
       // Lesson hasn't reached its attendance window yet -- grading fields
       // (a pre-lesson comment/homework note) may still be saved, but must
       // NOT imply the student was PRESENT or trigger a charge. Materialize
       // an unmarked stub row (status null) so the grade/comment/homework
-      // update below has a row to attach to.
+      // update below has a row to attach to. No BillingService call happens
+      // in this branch, so a failure here is a plain save failure, not a
+      // billing failure -- billingAttempted stays false.
       await db.attendance.upsert({
         where: {
           classSessionId_studentId: { classSessionId: lessonId, studentId },
@@ -695,13 +700,28 @@ export async function setAttendance(
     // attended, was graded, or got homework/comments noted. Fall back to a
     // plain, unbilled attendance row and surface a soft warning instead of
     // failing the whole save.
-    log.warn("Списание не выполнено, посещаемость сохранена без списания", {
-      lessonId,
-      studentId,
-      error: err instanceof Error ? err.message : String(err),
-    });
-    billingWarning =
-      "Посещаемость сохранена, но списание не выполнено — проверьте баланс ученика";
+    //
+    // The message differs depending on whether billing was even attempted:
+    // the future-lesson, grading-only stub-upsert above never calls
+    // BillingService, so a failure there is a save failure, not a billing
+    // failure -- claiming "списание не выполнено" in that case would send a
+    // teacher to check a student balance that was never at issue.
+    if (billingAttempted) {
+      log.warn("Списание не выполнено, посещаемость сохранена без списания", {
+        lessonId,
+        studentId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      billingWarning =
+        "Посещаемость сохранена, но списание не выполнено — проверьте баланс ученика";
+    } else {
+      log.warn("Не удалось сохранить посещаемость", {
+        lessonId,
+        studentId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      billingWarning = "Посещаемость сохранена не полностью — попробуйте обновить страницу";
+    }
 
     const fallbackStatus = parsed.data.status ?? (windowOpen ? "PRESENT" : null);
     try {

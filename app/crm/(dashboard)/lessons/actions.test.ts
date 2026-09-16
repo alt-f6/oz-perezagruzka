@@ -1079,6 +1079,42 @@ describe("setAttendance", () => {
     });
     markSpy.mockRestore();
   });
+
+  it("falls back to a null-status stub (not PRESENT) when the future-lesson grading-only stub-upsert throws", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "teacher_1",
+      scheduledAt: new Date(Date.now() + 20 * 60_000),
+      durationMinutes: 60,
+      group: { teacherId: "teacher_1" },
+    });
+    const markSpy = vi.spyOn(BillingService, "markAttendanceAndCharge");
+    dbMock.attendance.upsert
+      .mockRejectedValueOnce(new Error("db unavailable"))
+      .mockResolvedValueOnce({ id: "att_1" });
+
+    const result = await setAttendance("lesson_1", "student_1", {
+      comment: "Подготовил план урока",
+    });
+
+    expect(result.error).toBeUndefined();
+    expect("warning" in result && result.warning).toBeTruthy();
+    expect("warning" in result && result.warning).toBe(
+      "Посещаемость сохранена не полностью — попробуйте обновить страницу",
+    );
+    expect(markSpy).not.toHaveBeenCalled();
+    expect(dbMock.attendance.upsert).toHaveBeenNthCalledWith(2, {
+      where: { classSessionId_studentId: { classSessionId: "lesson_1", studentId: "student_1" } },
+      update: { status: null },
+      create: {
+        classSessionId: "lesson_1",
+        studentId: "student_1",
+        status: null,
+        priceAtTime: 0,
+      },
+    });
+    markSpy.mockRestore();
+  });
 });
 
 const MAKEUP_ATTENDANCE_ID = "44444444-4444-4444-8444-444444444444";

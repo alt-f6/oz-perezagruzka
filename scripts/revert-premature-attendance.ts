@@ -48,65 +48,75 @@ async function main() {
 
   let reverted = 0;
   let skipped = 0;
+  let failed = 0;
 
   for (const record of targets) {
     const label = `attendance ${record.id} (student "${record.student.fullName}", session ${record.classSessionId}, scheduled ${record.classSession.scheduledAt.toISOString()}, marked ${record.createdAt.toISOString()})`;
     const idempotencyKey = `revert_premature:${record.classSessionId}:${record.studentId}`;
 
-    const alreadyReverted = await db.transaction.findUnique({
-      where: { idempotencyKey },
-      select: { id: true },
-    });
-    if (alreadyReverted) {
-      console.log(`SKIP (already reverted) ${label}`);
-      skipped++;
+    try {
+      const alreadyReverted = await db.transaction.findUnique({
+        where: { idempotencyKey },
+        select: { id: true },
+      });
+      if (alreadyReverted) {
+        console.log(`SKIP (already reverted) ${label}`);
+        skipped++;
+        continue;
+      }
+
+      const charge = await db.transaction.findFirst({
+        where: {
+          studentId: record.studentId,
+          classSessionId: record.classSessionId,
+          type: "LESSON_CHARGE",
+        },
+        select: { id: true, amount: true },
+      });
+
+      console.log(
+        `${apply ? "REVERT" : "WOULD REVERT"} ${label}` +
+          (charge
+            ? ` -- refunding ${Number(charge.amount) * -1} (compensating charge ${charge.id})`
+            : " -- no LESSON_CHARGE found, resetting status only"),
+      );
+
+      if (apply) {
+        await db.$transaction(async (tx) => {
+          if (charge) {
+            await tx.transaction.create({
+              data: {
+                studentId: record.studentId,
+                classSessionId: record.classSessionId,
+                amount: Number(charge.amount) * -1,
+                type: "ADJUSTMENT",
+                idempotencyKey,
+                description: `Корректировка: откат ошибочного досрочного списания за урок ${record.classSessionId}`,
+              },
+            });
+          }
+          await tx.attendance.update({
+            where: { id: record.id },
+            data: { status: null },
+          });
+        });
+      }
+      reverted++;
+    } catch (err) {
+      console.error(`ERROR processing ${label}:`, err);
+      failed++;
       continue;
     }
-
-    const charge = await db.transaction.findFirst({
-      where: {
-        studentId: record.studentId,
-        classSessionId: record.classSessionId,
-        type: "LESSON_CHARGE",
-      },
-      select: { id: true, amount: true },
-    });
-
-    console.log(
-      `${apply ? "REVERT" : "WOULD REVERT"} ${label}` +
-        (charge
-          ? ` -- refunding ${Number(charge.amount) * -1} (compensating charge ${charge.id})`
-          : " -- no LESSON_CHARGE found, resetting status only"),
-    );
-
-    if (apply) {
-      await db.$transaction(async (tx) => {
-        if (charge) {
-          await tx.transaction.create({
-            data: {
-              studentId: record.studentId,
-              classSessionId: record.classSessionId,
-              amount: Number(charge.amount) * -1,
-              type: "ADJUSTMENT",
-              idempotencyKey,
-              description: `Корректировка: откат ошибочного досрочного списания за урок ${record.classSessionId}`,
-            },
-          });
-        }
-        await tx.attendance.update({
-          where: { id: record.id },
-          data: { status: null },
-        });
-      });
-    }
-    reverted++;
   }
 
   console.log(
-    `\n${apply ? "Reverted" : "Would revert"} ${reverted} record(s); skipped ${skipped} already-reverted.`,
+    `\n${apply ? "Reverted" : "Would revert"} ${reverted} record(s); skipped ${skipped} already-reverted; ${failed} failed${failed > 0 ? " -- see errors above" : ""}.`,
   );
   if (!apply && reverted > 0) {
     console.log("Re-run with --apply to write these changes.");
+  }
+  if (failed > 0) {
+    process.exitCode = 1;
   }
 }
 

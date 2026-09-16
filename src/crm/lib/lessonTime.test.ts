@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatTimeRange, getSessionEndsAt, isLessonConcluded } from "./lessonTime";
+import { formatTimeRange, getSessionEndsAt, isAttendanceWindowOpen, isLessonConcluded } from "./lessonTime";
 
 describe("getSessionEndsAt", () => {
   it("adds durationMinutes to scheduledAt", () => {
@@ -62,5 +62,32 @@ describe("isLessonConcluded", () => {
   it("defaults `now` to the current instant when omitted", () => {
     const farFuture = { scheduledAt: new Date(Date.now() + 60_000), durationMinutes: 30 };
     expect(isLessonConcluded(farFuture)).toBe(false);
+  });
+});
+
+describe("isAttendanceWindowOpen", () => {
+  it("is false more than 15 minutes before the scheduled start", () => {
+    const now = new Date("2026-03-10T09:44:00.000Z");
+    const session = { scheduledAt: new Date("2026-03-10T10:00:00.000Z") };
+    expect(isAttendanceWindowOpen(session, now)).toBe(false);
+  });
+
+  it("is true exactly at the 15-minute pre-lesson boundary", () => {
+    const now = new Date("2026-03-10T09:45:00.000Z");
+    const session = { scheduledAt: new Date("2026-03-10T10:00:00.000Z") };
+    expect(isAttendanceWindowOpen(session, now)).toBe(true);
+  });
+
+  it("is true at the scheduled start and any time after", () => {
+    const session = { scheduledAt: new Date("2026-03-10T10:00:00.000Z") };
+    expect(isAttendanceWindowOpen(session, new Date("2026-03-10T10:00:00.000Z"))).toBe(true);
+    expect(isAttendanceWindowOpen(session, new Date("2026-03-11T00:00:00.000Z"))).toBe(true);
+  });
+
+  it("defaults `now` to the current instant when omitted", () => {
+    const soon = { scheduledAt: new Date(Date.now() + 5 * 60_000) };
+    expect(isAttendanceWindowOpen(soon)).toBe(true);
+    const distant = { scheduledAt: new Date(Date.now() + 60 * 60_000) };
+    expect(isAttendanceWindowOpen(distant)).toBe(false);
   });
 });

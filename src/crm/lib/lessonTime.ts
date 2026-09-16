@@ -37,3 +37,22 @@ export function formatTimeRange(session: TimedSession): string {
 export function isLessonConcluded(session: TimedSession, now: Date = new Date()): boolean {
   return getSessionEndsAt(session).getTime() <= now.getTime();
 }
+
+/** Lead time before a lesson's scheduled start during which its attendance may be marked. */
+export const ATTENDANCE_PRE_WINDOW_MS = 15 * 60_000;
+
+/**
+ * A lesson's attendance window opens 15 minutes before its scheduled start
+ * and never closes on its own -- `isLessonConcluded` plus the past-lesson
+ * role lock govern editing after the lesson is over, separately. Used to
+ * block PRESENT/ABSENT marking (and any implicit PRESENT materialized from
+ * grading fields) before a lesson has effectively begun, so a future lesson
+ * can never be billed.
+ */
+export function isAttendanceWindowOpen(
+  session: { scheduledAt: Date | string },
+  now: Date = new Date(),
+): boolean {
+  const start = new Date(session.scheduledAt).getTime();
+  return now.getTime() >= start - ATTENDANCE_PRE_WINDOW_MS;
+}

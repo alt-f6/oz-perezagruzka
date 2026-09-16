@@ -87,7 +87,7 @@ export function StudentDashboardClient({
                       <p className="text-sm font-semibold text-accent">
                         {getGroupName(lesson)}
                       </p>
-                      {record && (
+                      {record?.status && (
                         <span
                           className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${ATTENDANCE_STATUS_CLASSES[record.status]}`}
                         >

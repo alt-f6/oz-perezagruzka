@@ -761,7 +761,11 @@ describe("setAttendance", () => {
   beforeEach(() => {
     dbMock.classSession.findUnique.mockResolvedValue({
       teacherId: "teacher_1",
-      scheduledAt: new Date(Date.now() + 86_400_000),
+      // Started 5 minutes ago: attendance window is open, lesson isn't
+      // concluded yet -- the "normal" case most of these tests exercise.
+      // Tests for the future-lesson guard and the past-lesson lock override
+      // this scheduledAt explicitly.
+      scheduledAt: new Date(Date.now() - 5 * 60_000),
       durationMinutes: 60,
       group: { teacherId: "teacher_1" },
     });
@@ -968,6 +972,112 @@ describe("setAttendance", () => {
 
     expect(result.error).toMatch(/только администратору/);
     expect(dbMock.attendance.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects PRESENT for a lesson more than 15 minutes in the future", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "teacher_1",
+      scheduledAt: new Date(Date.now() + 20 * 60_000),
+      durationMinutes: 60,
+      group: { teacherId: "teacher_1" },
+    });
+    const markSpy = vi.spyOn(BillingService, "markAttendanceAndCharge");
+
+    const result = await setAttendance("lesson_1", "student_1", { status: "PRESENT" });
+
+    expect(result.error).toMatch(/до его начала/);
+    expect(markSpy).not.toHaveBeenCalled();
+    markSpy.mockRestore();
+  });
+
+  it("rejects ABSENT for a future lesson, with no ADMIN exception", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "teacher_1",
+      scheduledAt: new Date(Date.now() + 20 * 60_000),
+      durationMinutes: 60,
+      group: { teacherId: "teacher_1" },
+    });
+    const markSpy = vi.spyOn(BillingService, "markAttendanceAndCharge");
+
+    const result = await setAttendance("lesson_1", "student_1", { status: "ABSENT" });
+
+    expect(result.error).toMatch(/до его начала/);
+    expect(markSpy).not.toHaveBeenCalled();
+    markSpy.mockRestore();
+  });
+
+  it("allows PRESENT exactly at the 15-minute pre-lesson window boundary", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "teacher_1",
+      scheduledAt: new Date(Date.now() + 15 * 60_000),
+      durationMinutes: 60,
+      group: { teacherId: "teacher_1" },
+    });
+    const markSpy = vi
+      .spyOn(BillingService, "markAttendanceAndCharge")
+      .mockResolvedValue({ id: "att_1" } as never);
+
+    const result = await setAttendance("lesson_1", "student_1", { status: "PRESENT" });
+
+    expect(result.error).toBeUndefined();
+    expect(markSpy).toHaveBeenCalledWith("lesson_1", "student_1", "PRESENT");
+    markSpy.mockRestore();
+  });
+
+  it("still allows EXCUSED on a future lesson (non-billable status, no time guard)", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "teacher_1",
+      scheduledAt: new Date(Date.now() + 20 * 60_000),
+      durationMinutes: 60,
+      group: { teacherId: "teacher_1" },
+    });
+    const markSpy = vi
+      .spyOn(BillingService, "markAttendanceAndCharge")
+      .mockResolvedValue({ id: "att_1" } as never);
+
+    const result = await setAttendance("lesson_1", "student_1", { status: "EXCUSED" });
+
+    expect(result.error).toBeUndefined();
+    expect(markSpy).toHaveBeenCalledWith("lesson_1", "student_1", "EXCUSED");
+    markSpy.mockRestore();
+  });
+
+  it("saving only a comment on a future lesson does NOT mark PRESENT or bill -- materializes an unmarked stub instead", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "teacher_1",
+      scheduledAt: new Date(Date.now() + 20 * 60_000),
+      durationMinutes: 60,
+      group: { teacherId: "teacher_1" },
+    });
+    const markSpy = vi.spyOn(BillingService, "markAttendanceAndCharge");
+    dbMock.attendance.upsert.mockResolvedValue({ id: "att_1" });
+
+    const result = await setAttendance("lesson_1", "student_1", {
+      comment: "Подготовил план урока",
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(markSpy).not.toHaveBeenCalled();
+    expect(dbMock.attendance.upsert).toHaveBeenCalledWith({
+      where: { classSessionId_studentId: { classSessionId: "lesson_1", studentId: "student_1" } },
+      update: {},
+      create: {
+        classSessionId: "lesson_1",
+        studentId: "student_1",
+        status: null,
+        priceAtTime: 0,
+      },
+    });
+    expect(dbMock.attendance.update).toHaveBeenCalledWith({
+      where: { classSessionId_studentId: { classSessionId: "lesson_1", studentId: "student_1" } },
+      data: { comment: "Подготовил план урока" },
+    });
+    markSpy.mockRestore();
   });
 });
 

@@ -15,7 +15,7 @@ import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import { BillingService } from "@/crm/lib/services/billing.service";
 import { formatMoscowDate, formatMoscowTime } from "@/shared/lib/timezone";
-import { isLessonConcluded } from "@/crm/lib/lessonTime";
+import { isAttendanceWindowOpen, isLessonConcluded } from "@/crm/lib/lessonTime";
 import type { ActionResult } from "@/crm/lib/types";
 import {
   expandOccurrences,
@@ -644,12 +644,25 @@ export async function setAttendance(
     parsed.data.homeworkCompleted !== undefined ||
     parsed.data.comment !== undefined;
 
+  const windowOpen = isAttendanceWindowOpen({ scheduledAt: lesson.scheduledAt });
+  const requestsBillableStatus =
+    parsed.data.status === "PRESENT" || parsed.data.status === "ABSENT";
+
+  // Zero Future Billing invariant: PRESENT/ABSENT can never be set -- nor
+  // implicitly triggered by a grading-field save below -- before a lesson's
+  // attendance window opens. No role exception (unlike the past-lesson lock
+  // above, which exempts ADMIN). EXCUSED/CANCELLED_BY_CENTER stay unblocked
+  // since BillingService never charges them regardless of timing.
+  if (!windowOpen && requestsBillableStatus) {
+    return { error: "Нельзя отметить посещаемость занятия до его начала" };
+  }
+
   let billingWarning: string | undefined;
 
   try {
     if (parsed.data.status !== undefined) {
       await BillingService.markAttendanceAndCharge(lessonId, studentId, parsed.data.status);
-    } else if (hasGradingFields) {
+    } else if (hasGradingFields && windowOpen) {
       // Grading/homework/comment requires an Attendance row. If the teacher
       // never touched the status dropdown (it visually defaults to PRESENT
       // but isn't persisted until an explicit change), materialize the row
@@ -657,6 +670,24 @@ export async function setAttendance(
       // grading a student implies they attended, keeping billing state
       // consistent instead of failing the save outright.
       await BillingService.markAttendanceAndCharge(lessonId, studentId, "PRESENT");
+    } else if (hasGradingFields) {
+      // Lesson hasn't reached its attendance window yet -- grading fields
+      // (a pre-lesson comment/homework note) may still be saved, but must
+      // NOT imply the student was PRESENT or trigger a charge. Materialize
+      // an unmarked stub row (status null) so the grade/comment/homework
+      // update below has a row to attach to.
+      await db.attendance.upsert({
+        where: {
+          classSessionId_studentId: { classSessionId: lessonId, studentId },
+        },
+        update: {},
+        create: {
+          classSessionId: lessonId,
+          studentId,
+          status: null,
+          priceAtTime: 0,
+        },
+      });
     }
   } catch (err) {
     // Billing (balance/freeze/pricing) is a downstream concern -- a billing
@@ -672,7 +703,7 @@ export async function setAttendance(
     billingWarning =
       "Посещаемость сохранена, но списание не выполнено — проверьте баланс ученика";
 
-    const fallbackStatus = parsed.data.status ?? "PRESENT";
+    const fallbackStatus = parsed.data.status ?? (windowOpen ? "PRESENT" : null);
     try {
       await db.attendance.upsert({
         where: {

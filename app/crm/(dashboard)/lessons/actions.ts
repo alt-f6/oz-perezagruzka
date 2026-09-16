@@ -592,7 +592,7 @@ export async function setAttendance(
   lessonId: string,
   studentId: string,
   update: {
-    status?: AttendanceStatus;
+    status?: AttendanceStatus | null;
     grade?: number | null;
     homeworkCompleted?: boolean;
     comment?: string | null;
@@ -639,6 +639,14 @@ export async function setAttendance(
     }
   }
 
+  // RBAC: CANCELLED_BY_CENTER is an ADMIN/MANAGER-only action (cancelling a
+  // lesson center-wide isn't a TEACHER's call) -- unlike EXCUSED, which any
+  // owning role may set. Unconditional on lesson timing: a TEACHER can't set
+  // this after the fact either.
+  if (sessionUser.role === "TEACHER" && parsed.data.status === "CANCELLED_BY_CENTER") {
+    return { error: "Отмена центром доступна только администраторам" };
+  }
+
   const hasGradingFields =
     parsed.data.grade !== undefined ||
     parsed.data.homeworkCompleted !== undefined ||
@@ -661,7 +669,26 @@ export async function setAttendance(
   let billingAttempted = false;
 
   try {
-    if (parsed.data.status !== undefined) {
+    if (parsed.data.status === null) {
+      // Explicit revert to "unmarked" -- undoing an advance EXCUSED/
+      // CANCELLED_BY_CENTER mark before the lesson's window opens (or, for
+      // ADMIN, any time). A null status is never billable, so this never
+      // routes through BillingService; upsert (not update) so reverting a
+      // lesson that was never marked at all is a harmless no-op rather than
+      // a P2025 "record not found".
+      await db.attendance.upsert({
+        where: {
+          classSessionId_studentId: { classSessionId: lessonId, studentId },
+        },
+        update: { status: null },
+        create: {
+          classSessionId: lessonId,
+          studentId,
+          status: null,
+          priceAtTime: 0,
+        },
+      });
+    } else if (parsed.data.status !== undefined) {
       billingAttempted = true;
       await BillingService.markAttendanceAndCharge(lessonId, studentId, parsed.data.status);
     } else if (hasGradingFields && windowOpen) {
@@ -723,7 +750,17 @@ export async function setAttendance(
       billingWarning = "Посещаемость сохранена не полностью — попробуйте обновить страницу";
     }
 
-    const fallbackStatus = parsed.data.status ?? (windowOpen ? "PRESENT" : null);
+    // `??` would be wrong here: an explicit `status: null` (a revert
+    // request) is nullish, so `parsed.data.status ?? (windowOpen ? ... :
+    // null)` would silently override it with "PRESENT" on an open window,
+    // re-marking a student the caller just tried to un-mark. Only fall back
+    // to the windowOpen-based default when status was never provided at all.
+    const fallbackStatus =
+      parsed.data.status !== undefined
+        ? parsed.data.status
+        : windowOpen
+          ? "PRESENT"
+          : null;
     try {
       await db.attendance.upsert({
         where: {

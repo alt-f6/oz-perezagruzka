@@ -326,8 +326,11 @@ export const attendanceStatusEnum = z.enum(["PRESENT", "ABSENT", "EXCUSED", "CAN
 // independently optional -- the UI saves one field at a time (status select,
 // grade select, or homework checkbox each fire their own call) -- so this
 // only rejects a key that IS present but malformed, never a partial payload.
+// `status` also accepts an explicit `null` (distinct from omitting the key):
+// it's how the journal reverts an advance EXCUSED/CANCELLED_BY_CENTER mark
+// back to "unmarked" before a lesson's attendance window opens.
 export const setAttendanceUpdateSchema = z.object({
-  status: attendanceStatusEnum.optional(),
+  status: attendanceStatusEnum.nullable().optional(),
   grade: z.number().int().min(1, { message: "Оценка должна быть от 1 до 5" }).max(5, { message: "Оценка должна быть от 1 до 5" }).nullable().optional(),
   homeworkCompleted: z.boolean().optional(),
   comment: z.string().trim().max(2000, { message: "Комментарий слишком длинный" }).nullable().optional(),

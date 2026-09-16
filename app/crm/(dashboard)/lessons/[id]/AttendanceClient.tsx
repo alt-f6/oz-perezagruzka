@@ -27,6 +27,17 @@ const ATTENDANCE_STATUSES: { value: AttendanceStatus; label: string }[] = [
   { value: "CANCELLED_BY_CENTER", label: "Отменено центром" },
 ];
 
+// Options offered for a lesson whose attendance window hasn't opened yet --
+// deliberately excludes PRESENT/ABSENT (billable, can't be known in advance)
+// and uses copy distinct from ATTENDANCE_STATUSES because these are framed
+// as advance actions ("mark as excused ahead of time"), not a record of what
+// happened. CANCELLED_BY_CENTER is filtered out per-role at render time
+// (ADMIN/MANAGER only), not here.
+const FUTURE_ATTENDANCE_STATUSES: { value: AttendanceStatus; label: string }[] = [
+  { value: "EXCUSED", label: "Уважительная причина" },
+  { value: "CANCELLED_BY_CENTER", label: "Отмена центром" },
+];
+
 const GRADES = [0, 1, 2, 3, 4, 5];
 
 type StudentWithTransactions = Student & {
@@ -79,8 +90,19 @@ export function AttendanceClient({
   const isFuture =
     new Date(lesson.scheduledAt).getTime() - ATTENDANCE_PRE_WINDOW_MS >
     new Date().getTime();
-  const FUTURE_LOCKED_MESSAGE =
-    "Отметка посещаемости откроется за 15 минут до начала урока";
+  const FUTURE_HELPER_MESSAGE =
+    "До начала урока доступны только отмена и уважительная причина. Отметка присутствия откроется за 15 минут.";
+
+  // A future lesson may only be marked with a non-billable status set in
+  // advance (EXCUSED for any owning role, CANCELLED_BY_CENTER restricted to
+  // ADMIN/MANAGER, mirroring the server-side RBAC check in ../actions.ts) --
+  // PRESENT/ABSENT must never appear in the DOM for a future lesson.
+  const futureStatusOptions = FUTURE_ATTENDANCE_STATUSES.filter(
+    (item) =>
+      item.value !== "CANCELLED_BY_CENTER" ||
+      userRole === "ADMIN" ||
+      userRole === "MANAGER",
+  );
 
   const recordFor = (studentId: string) =>
     attendance.find((record) => record.studentId === studentId);
@@ -88,7 +110,7 @@ export function AttendanceClient({
   const updateAttendanceData = async (
     studentId: string,
     update: {
-      status?: AttendanceStatus;
+      status?: AttendanceStatus | null;
       grade?: number | null;
       homeworkCompleted?: boolean;
       comment?: string | null;
@@ -251,33 +273,41 @@ export function AttendanceClient({
                       <td className="whitespace-nowrap">
                         <select
                           value={displayStatus ?? "UNSET"}
-                          disabled={isBusy || !canEdit || isFuture}
-                          title={
-                            !canEdit
-                              ? EDIT_LOCKED_MESSAGE
-                              : isFuture
-                                ? FUTURE_LOCKED_MESSAGE
-                                : undefined
-                          }
-                          onChange={(e) =>
-                            updateAttendanceData(student.id, {
-                              status: e.target.value as AttendanceStatus,
-                            })
-                          }
+                          disabled={isBusy || !canEdit}
+                          title={!canEdit ? EDIT_LOCKED_MESSAGE : undefined}
+                          onChange={(e) => {
+                            const rawValue = e.target.value;
+                            const nextStatus =
+                              rawValue === "UNSET" ? null : (rawValue as AttendanceStatus);
+                            updateAttendanceData(student.id, { status: nextStatus });
+                          }}
                           className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-900 shadow-sm outline-none transition-all duration-200 focus:border-accent/50 focus:ring-2 focus:ring-accent/10 disabled:opacity-50"
                         >
-                          {displayStatus === null && (
-                            <option value="UNSET">Не началось</option>
+                          {isFuture ? (
+                            <>
+                              <option value="UNSET">Не началось</option>
+                              {futureStatusOptions.map((item) => (
+                                <option key={item.value} value={item.value}>
+                                  {item.label}
+                                </option>
+                              ))}
+                            </>
+                          ) : (
+                            <>
+                              {displayStatus === null && (
+                                <option value="UNSET">Не началось</option>
+                              )}
+                              {ATTENDANCE_STATUSES.map((item) => (
+                                <option key={item.value} value={item.value}>
+                                  {item.label}
+                                </option>
+                              ))}
+                            </>
                           )}
-                          {ATTENDANCE_STATUSES.map((item) => (
-                            <option key={item.value} value={item.value}>
-                              {item.label}
-                            </option>
-                          ))}
                         </select>
                         {isFuture && (
                           <p className="mt-1 text-[11px] text-slate-400">
-                            {FUTURE_LOCKED_MESSAGE}
+                            {FUTURE_HELPER_MESSAGE}
                           </p>
                         )}
                       </td>
@@ -433,6 +463,9 @@ export function AttendanceClient({
                               className={`rounded-lg px-2.5 py-1 text-xs font-medium border ${ATTENDANCE_STATUS_CLASSES[displayStatus ?? "PRESENT"]}`}
                             >
                               {ATTENDANCE_STATUS_LABELS[displayStatus ?? "PRESENT"]}
+                              {(displayStatus === "EXCUSED" ||
+                                displayStatus === "CANCELLED_BY_CENTER") &&
+                                " · Не списывается"}
                             </span>
                           )}
                         </td>

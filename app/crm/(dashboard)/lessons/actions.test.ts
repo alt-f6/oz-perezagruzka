@@ -2048,3 +2048,78 @@ describe("reassignTeacher", () => {
     });
   });
 });
+
+describe("updateLesson", () => {
+  it("requires ADMIN or MANAGER", async () => {
+    const { updateLesson } = await import("./actions");
+    dbMock.classSession.findUnique.mockResolvedValue({
+      type: "INDIVIDUAL",
+      _count: { attendance: 0 },
+    });
+    dbMock.classSession.update.mockResolvedValue({});
+
+    await updateLesson("session_1", { isFree: true });
+
+    expect(rbacMock.requireRole).toHaveBeenCalledWith(["ADMIN", "MANAGER"]);
+  });
+
+  it("rejects once any attendance for the session has been marked", async () => {
+    const { updateLesson } = await import("./actions");
+    dbMock.classSession.findUnique.mockResolvedValue({
+      type: "INDIVIDUAL",
+      _count: { attendance: 1 },
+    });
+
+    const result = await updateLesson("session_1", { isFree: true });
+
+    expect(result.error).toMatch(/отметки посещаемости/);
+    expect(dbMock.classSession.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects setting pricePerLesson on a GROUP session", async () => {
+    const { updateLesson } = await import("./actions");
+    dbMock.classSession.findUnique.mockResolvedValue({
+      type: "GROUP",
+      _count: { attendance: 0 },
+    });
+
+    const result = await updateLesson("session_1", { pricePerLesson: 500 });
+
+    expect(result.error).toBeTruthy();
+    expect(dbMock.classSession.update).not.toHaveBeenCalled();
+  });
+
+  it("updates price and isFree for an unmarked INDIVIDUAL session", async () => {
+    const { updateLesson } = await import("./actions");
+    dbMock.classSession.findUnique.mockResolvedValue({
+      type: "INDIVIDUAL",
+      _count: { attendance: 0 },
+    });
+    dbMock.classSession.update.mockResolvedValue({});
+
+    const result = await updateLesson("session_1", { pricePerLesson: 1200, isFree: false });
+
+    expect(result.error).toBeUndefined();
+    expect(dbMock.classSession.update).toHaveBeenCalledWith({
+      where: { id: "session_1" },
+      data: { pricePerLesson: 1200, isFree: false },
+    });
+  });
+
+  it("updates only isFree for an unmarked GROUP session", async () => {
+    const { updateLesson } = await import("./actions");
+    dbMock.classSession.findUnique.mockResolvedValue({
+      type: "GROUP",
+      _count: { attendance: 0 },
+    });
+    dbMock.classSession.update.mockResolvedValue({});
+
+    const result = await updateLesson("session_1", { isFree: true });
+
+    expect(result.error).toBeUndefined();
+    expect(dbMock.classSession.update).toHaveBeenCalledWith({
+      where: { id: "session_1" },
+      data: { isFree: true },
+    });
+  });
+});

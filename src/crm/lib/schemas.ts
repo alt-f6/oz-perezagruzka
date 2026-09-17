@@ -256,6 +256,19 @@ export const lessonSchema = z
     { message: "Укажите время для каждого выбранного дня", path: ["daySlots"] },
   );
 
+// updateLesson payload (app/crm/(dashboard)/lessons/actions.ts). Both fields
+// optional -- a caller may update just isFree, just the price, or both.
+export const updateLessonSchema = z.object({
+  pricePerLesson: z.coerce
+    .number()
+    .min(0, { message: "Цена не может быть отрицательной" })
+    .max(1_000_000, { message: "Слишком большая цена" })
+    .optional(),
+  isFree: z.boolean().optional(),
+});
+
+export type UpdateLessonValues = z.infer<typeof updateLessonSchema>;
+
 // Teacher weekly availability payload. `weekStart` is a Monday `YYYY-MM-DD`
 // week key (validated against the Monday convention in the server action, not
 // here, since callers pass a raw key). `slots` is the 105-char '0'/'1' bitmask

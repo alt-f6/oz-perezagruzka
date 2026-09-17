@@ -9,6 +9,7 @@ import {
   gradeSubmissionSchema,
   bulkCancelWithReasonSchema,
   reassignTeacherSchema,
+  updateLessonSchema,
   type LessonValues,
 } from "@/crm/lib/schemas";
 import { db } from "@/shared/lib/db";
@@ -592,6 +593,63 @@ export async function bulkCancelSessionsWithBilling(input: {
   revalidatePath("/schedule");
   revalidatePath("/groups");
   return { cancelledCount, skippedCount };
+}
+
+export type UpdateLessonResult = { error: string } | { error?: undefined };
+
+/**
+ * Narrow, price/isFree-only edit for a lesson that hasn't been marked yet.
+ * ADMIN/MANAGER only. Blocked once any Attendance row for the session has a
+ * non-null status -- editing pricing after real marking would silently
+ * desync it from whatever was already charged; staff must revert attendance
+ * to null first (existing setAttendance flow) if they truly need to change
+ * pricing, then re-mark it. GROUP sessions never take their own price (that's
+ * Group.pricePerLesson) -- only isFree is settable for a single occurrence.
+ */
+export async function updateLesson(
+  classSessionId: string,
+  values: { pricePerLesson?: number; isFree?: boolean },
+): Promise<UpdateLessonResult> {
+  await requireRole(["ADMIN", "MANAGER"]);
+
+  const parsed = updateLessonSchema.safeParse(values);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Некорректные данные занятия" };
+  }
+
+  const session = await db.classSession.findUnique({
+    where: { id: classSessionId },
+    select: {
+      type: true,
+      _count: { select: { attendance: { where: { status: { not: null } } } } },
+    },
+  });
+  if (!session) {
+    return { error: "Занятие не найдено" };
+  }
+  if (session._count.attendance > 0) {
+    return { error: "Нельзя изменить стоимость или бесплатность после отметки посещаемости" };
+  }
+  if (session.type === "GROUP" && parsed.data.pricePerLesson !== undefined) {
+    return { error: "Цена группового занятия задаётся в настройках группы" };
+  }
+
+  const data: { pricePerLesson?: number; isFree?: boolean } = {};
+  if (session.type === "INDIVIDUAL" && parsed.data.pricePerLesson !== undefined) {
+    data.pricePerLesson = parsed.data.pricePerLesson;
+  }
+  if (parsed.data.isFree !== undefined) {
+    data.isFree = parsed.data.isFree;
+  }
+
+  try {
+    await db.classSession.update({ where: { id: classSessionId }, data });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Не удалось обновить занятие" };
+  }
+
+  revalidatePath(`/lessons/${classSessionId}`);
+  return {};
 }
 
 export async function setAttendance(

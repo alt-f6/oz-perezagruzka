@@ -956,7 +956,7 @@ describe("setAttendance", () => {
     const markSpy = vi
       .spyOn(BillingService, "markAttendanceAndCharge")
       .mockRejectedValue(new Error("insufficient balance"));
-    dbMock.attendance.upsert.mockRejectedValue(new Error("db unavailable"));
+    dbMock.attendance.upsert.mockRejectedValueOnce(new Error("db unavailable"));
 
     const result = await setAttendance("lesson_1", "student_1", { status: "PRESENT" });
 

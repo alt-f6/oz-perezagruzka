@@ -173,7 +173,7 @@ export async function getStudentLedger(studentId: string): Promise<LedgerRow[]> 
         group: { select: { name: true } },
         teacher: { select: { fullName: true } },
         attendance: { where: { studentId }, select: { status: true } },
-        transactions: { where: { studentId, type: "LESSON_CHARGE" }, select: { amount: true } },
+        transactions: { where: { studentId }, select: { amount: true } },
       },
     }),
     db.transaction.findMany({
@@ -194,7 +194,7 @@ export async function getStudentLedger(studentId: string): Promise<LedgerRow[]> 
       isGroup: s.type === "GROUP",
       teacherName: s.teacher?.fullName ?? null,
       attendanceStatus: s.attendance[0]?.status ?? null,
-      amount: s.transactions[0] ? Number(s.transactions[0].amount) : 0,
+      amount: s.transactions.reduce((sum, t) => sum + Number(t.amount), 0),
     }));
 
   const transactionRows = standaloneTransactions.map((t) => ({
@@ -239,20 +239,23 @@ export async function getPendingChargePreview(
 ): Promise<PendingChargePreview> {
   const now = new Date();
 
-  const sessions = await db.classSession.findMany({
-    where: {
-      status: { not: "cancelled" },
-      OR: [{ studentId }, { group: { students: { some: { studentId } } } }],
-    },
-    select: {
-      scheduledAt: true,
-      durationMinutes: true,
-      isFree: true,
-      pricePerLesson: true,
-      group: { select: { pricePerLesson: true } },
-      attendance: { where: { studentId }, select: { status: true } },
-    },
-  });
+  const [sessions, freezes] = await Promise.all([
+    db.classSession.findMany({
+      where: {
+        status: { not: "cancelled" },
+        OR: [{ studentId }, { group: { students: { some: { studentId } } } }],
+      },
+      select: {
+        scheduledAt: true,
+        durationMinutes: true,
+        isFree: true,
+        pricePerLesson: true,
+        group: { select: { pricePerLesson: true } },
+        attendance: { where: { studentId }, select: { status: true } },
+      },
+    }),
+    db.freeze.findMany({ where: { studentId }, select: { startDate: true, endDate: true } }),
+  ]);
 
   const unmarked = sessions.filter(
     (s) =>
@@ -260,7 +263,17 @@ export async function getPendingChargePreview(
       s.attendance.length === 0,
   );
 
-  const projectedCharge = unmarked.reduce((sum, s) => sum + Number(resolveSessionPrice(s)), 0);
+  // Mirrors BillingService.markAttendanceAndCharge's freeze check: a Freeze
+  // covering the session's UTC calendar day suppresses the charge entirely,
+  // so the preview must contribute 0 for that session too -- it still counts
+  // toward `count` since staff still need to mark it.
+  const projectedCharge = unmarked.reduce((sum, s) => {
+    const sessionDay = new Date(
+      Date.UTC(s.scheduledAt.getUTCFullYear(), s.scheduledAt.getUTCMonth(), s.scheduledAt.getUTCDate()),
+    );
+    const isFrozen = freezes.some((f) => f.startDate <= sessionDay && sessionDay <= f.endDate);
+    return sum + (isFrozen ? 0 : Number(resolveSessionPrice(s)));
+  }, 0);
 
   return { count: unmarked.length, projectedBalance: currentBalance - projectedCharge };
 }

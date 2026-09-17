@@ -4,6 +4,7 @@ const dbMock = vi.hoisted(() => ({
   transaction: { aggregate: vi.fn(), findMany: vi.fn() },
   groupStudent: { findMany: vi.fn() },
   classSession: { findFirst: vi.fn(), findMany: vi.fn() },
+  freeze: { findMany: vi.fn() },
 }));
 
 vi.mock("@/shared/lib/db", () => ({ db: dbMock }));
@@ -16,6 +17,7 @@ const {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  dbMock.freeze.findMany.mockResolvedValue([]);
 });
 
 describe("remainingLessonsFor", () => {
@@ -264,6 +266,40 @@ describe("getStudentLedger", () => {
     ]);
   });
 
+  it("sums a session's LESSON_CHARGE with a compensating ADJUSTMENT sharing its classSessionId instead of dropping the adjustment", async () => {
+    // scripts/revert-premature-attendance.ts creates exactly this shape: an
+    // erroneous -1000 LESSON_CHARGE (never deleted -- append-only ledger)
+    // offset by a +400 ADJUSTMENT carrying the same classSessionId. Both must
+    // be summed into the one session row (-600), not just the first one.
+    dbMock.classSession.findMany.mockResolvedValue([
+      {
+        id: "session_1",
+        scheduledAt: new Date("2026-08-01T10:00:00.000Z"),
+        durationMinutes: 60,
+        type: "INDIVIDUAL",
+        isFree: false,
+        pricePerLesson: 1000,
+        group: null,
+        teacher: { fullName: "Иван Иванов" },
+        attendance: [{ status: "PRESENT" }],
+        transactions: [{ amount: -1000 }, { amount: 400 }],
+      },
+    ]);
+    dbMock.transaction.findMany.mockResolvedValue([]);
+
+    const { getStudentLedger } = await import("./abonement.service");
+    const rows = await getStudentLedger("student_1");
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        id: "session_1",
+        kind: "SESSION",
+        amount: -600,
+        runningBalance: -600,
+      }),
+    ]);
+  });
+
   it("excludes a session that hasn't concluded yet", async () => {
     dbMock.classSession.findMany.mockResolvedValue([
       {
@@ -331,6 +367,50 @@ describe("getPendingChargePreview", () => {
     const result = await getPendingChargePreview("student_1", 2000);
 
     expect(result).toEqual({ count: 0, projectedBalance: 2000 });
+  });
+
+  it("counts but does not charge for an unmarked session covered by an active Freeze", async () => {
+    // Mirrors BillingService.markAttendanceAndCharge's freeze suppression:
+    // a Freeze covering the session's UTC calendar day means the real charge
+    // would be 0 -- the preview must agree, while still surfacing the
+    // session via `count` so staff know to mark it.
+    const frozenScheduledAt = new Date(Date.now() - 2 * 60 * 60_000);
+    const frozenDay = new Date(
+      Date.UTC(
+        frozenScheduledAt.getUTCFullYear(),
+        frozenScheduledAt.getUTCMonth(),
+        frozenScheduledAt.getUTCDate(),
+      ),
+    );
+    dbMock.classSession.findMany.mockResolvedValue([
+      {
+        scheduledAt: frozenScheduledAt,
+        durationMinutes: 60,
+        isFree: false,
+        pricePerLesson: 1000,
+        group: null,
+        attendance: [],
+      },
+      {
+        // Fixed, distant past date so it can never land on the same UTC
+        // calendar day as the frozen session above (which is `now`-relative).
+        scheduledAt: new Date("2020-01-01T10:00:00.000Z"),
+        durationMinutes: 60,
+        isFree: false,
+        pricePerLesson: 700,
+        group: null,
+        attendance: [],
+      },
+    ]);
+    dbMock.freeze.findMany.mockResolvedValue([{ startDate: frozenDay, endDate: frozenDay }]);
+
+    const { getPendingChargePreview } = await import("./abonement.service");
+    const result = await getPendingChargePreview("student_1", 2000);
+
+    // Both sessions are unmarked (count: 2), but only the non-frozen 700
+    // session contributes to the projected charge -- the frozen 1000 session
+    // contributes 0, matching what BillingService would actually charge.
+    expect(result).toEqual({ count: 2, projectedBalance: 1300 });
   });
 
   it("excludes an isFree session from the projected charge", async () => {

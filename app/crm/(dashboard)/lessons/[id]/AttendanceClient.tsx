@@ -18,6 +18,7 @@ import {
 } from "@/crm/lib/types";
 import { formatMoscowDate, formatMoscowTime } from "@/shared/lib/timezone";
 import { assignMakeupLesson, setAttendance } from "../actions";
+import { LessonPricingEditor } from "./LessonPricingEditor";
 import { SubmissionFileCell } from "./SubmissionFileCell";
 
 const ATTENDANCE_STATUSES: { value: AttendanceStatus; label: string }[] = [
@@ -201,6 +202,16 @@ export function AttendanceClient({
           <TimezoneBadge />
         </div>
       </div>
+
+      {(userRole === "ADMIN" || userRole === "MANAGER") && (
+        <LessonPricingEditor
+          classSessionId={lesson.id}
+          type={lesson.type ?? "GROUP"}
+          pricePerLesson={lesson.pricePerLesson ?? null}
+          isFree={lesson.isFree ?? false}
+          locked={attendance.some((a) => a.status !== null)}
+        />
+      )}
 
       {!canEdit && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">

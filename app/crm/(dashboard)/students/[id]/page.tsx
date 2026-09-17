@@ -3,9 +3,14 @@ import { db } from "@/shared/lib/db";
 import { buildAbsoluteUrl } from "@/shared/lib/url";
 import { requireRoleForPage } from "@/shared/lib/rbac";
 import { assertStudentVisibleToTeacher } from "@/crm/lib/access";
-import { computeAbonementSummary } from "@/crm/lib/services/abonement.service";
+import {
+  computeAbonementSummary,
+  getStudentLedger,
+  getPendingChargePreview,
+} from "@/crm/lib/services/abonement.service";
 import { PaymentModal } from "@/crm/components/PaymentModal";
 import { AbonementSection } from "./AbonementSection";
+import { LedgerSection } from "./LedgerSection";
 import { OfferLinkButton } from "./OfferLinkButton";
 import { ExamTrackerSection } from "./ExamTrackerSection";
 import { FreezeSection } from "./FreezeSection";
@@ -56,18 +61,15 @@ export default async function StudentDetailPage({
     notFound();
   }
 
-  const computedBalance = isTeacher
-    ? null
-    : Number(
-        (
-          await db.transaction.aggregate({
-            where: { studentId: id },
-            _sum: { amount: true },
-          })
-        )._sum.amount ?? 0,
-      );
-
   const abonementSummary = isTeacher ? null : await computeAbonementSummary(id);
+  const computedBalance = abonementSummary?.balance ?? null;
+
+  const [ledgerRows, pendingCharge] = isTeacher
+    ? [[], null]
+    : await Promise.all([
+        getStudentLedger(id),
+        getPendingChargePreview(id, abonementSummary!.balance),
+      ]);
 
   const [examGoals, examResults, parentLinks, freezes] = await Promise.all([
     db.studentExamGoal.findMany({ where: { studentId: id } }),
@@ -167,6 +169,10 @@ export default async function StudentDetailPage({
       </div>
 
       {!isTeacher && abonementSummary && <AbonementSection summary={abonementSummary} />}
+
+      {!isTeacher && (
+        <LedgerSection rows={ledgerRows} pendingCharge={pendingCharge} />
+      )}
 
       {!isTeacher && (
         <StudentProfileSection

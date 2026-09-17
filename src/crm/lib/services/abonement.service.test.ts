@@ -168,4 +168,22 @@ describe("computeAbonementSummary", () => {
     ]);
     expect(result.minRemainingLessons).toBeNull();
   });
+
+  it("MIXED: reports both group and individual breakdowns when the student has both", async () => {
+    dbMock.transaction.aggregate.mockResolvedValue({ _sum: { amount: 1000 } });
+    dbMock.groupStudent.findMany.mockResolvedValue([
+      { group: { id: "g1", name: "Группа А", pricePerLesson: 250 } },
+    ]);
+    dbMock.classSession.findFirst.mockResolvedValue({ pricePerLesson: 500 });
+
+    const result = await computeAbonementSummary("student_1");
+
+    expect(result.mode).toBe("MIXED");
+    expect(result.groups).toEqual([
+      { groupId: "g1", groupName: "Группа А", pricePerLesson: 250, remainingLessons: 4 },
+    ]);
+    expect(result.individual).toEqual({ pricePerLesson: 500, remainingLessons: 2 });
+    // Lowest figure across BOTH breakdowns, still against the one shared balance.
+    expect(result.minRemainingLessons).toBe(2);
+  });
 });

@@ -13,7 +13,7 @@ export interface AbonementIndividualBreakdown {
   remainingLessons: number;
 }
 
-export type AbonementMode = "SINGLE_GROUP" | "MULTI_GROUP" | "INDIVIDUAL" | "NONE";
+export type AbonementMode = "SINGLE_GROUP" | "MULTI_GROUP" | "INDIVIDUAL" | "MIXED" | "NONE";
 
 export interface AbonementSummary {
   balance: number;
@@ -54,61 +54,62 @@ export function computeMinGroupRemainingLessons(
 
 /**
  * Full abonement summary for a student's profile card. The student's balance
- * is SHARED across every group they're in -- a student in 2 groups does not
- * have "2x the lessons" the balance alone would suggest. Each group's
- * remaining-lessons figure is computed against the same shared balance and
- * reported side-by-side (never summed), so the UI can never imply doubled
- * prepaid lessons.
+ * is SHARED across every group they're in AND any individual-lesson rate --
+ * a student with a group and an individual rate does not have "2x the
+ * lessons" the balance alone would suggest. Every breakdown is computed
+ * against the same shared balance and reported side-by-side (never summed).
  */
 export async function computeAbonementSummary(studentId: string): Promise<AbonementSummary> {
-  const [balanceAgg, groupLinks] = await Promise.all([
+  const [balanceAgg, groupLinks, individualPrice] = await Promise.all([
     db.transaction.aggregate({ where: { studentId }, _sum: { amount: true } }),
     db.groupStudent.findMany({
       where: { studentId, group: { deletedAt: null } },
       select: { group: { select: { id: true, name: true, pricePerLesson: true } } },
     }),
+    getLastIndividualLessonPrice(studentId),
   ]);
   const balance = Number(balanceAgg._sum.amount ?? 0);
 
-  if (groupLinks.length > 0) {
-    const groups: AbonementGroupBreakdown[] = groupLinks.map(({ group }) => {
-      const pricePerLesson = Number(group.pricePerLesson);
-      return {
-        groupId: group.id,
-        groupName: group.name,
-        pricePerLesson,
-        remainingLessons: remainingLessonsFor(balance, pricePerLesson),
-      };
-    });
-    const figures = groups
-      .map((g) => g.remainingLessons)
-      .filter((n): n is number => n !== null);
-
+  const groups: AbonementGroupBreakdown[] = groupLinks.map(({ group }) => {
+    const pricePerLesson = Number(group.pricePerLesson);
     return {
-      balance,
-      mode: groups.length === 1 ? "SINGLE_GROUP" : "MULTI_GROUP",
-      groups,
-      individual: null,
-      minRemainingLessons: figures.length > 0 ? Math.min(...figures) : null,
+      groupId: group.id,
+      groupName: group.name,
+      pricePerLesson,
+      remainingLessons: remainingLessonsFor(balance, pricePerLesson),
     };
-  }
+  });
 
-  // No group membership: fall back to the student's most recent individual
-  // (1-on-1) lesson rate, if any.
-  const pricePerLesson = await getLastIndividualLessonPrice(studentId);
+  const individualRemaining =
+    individualPrice !== null ? remainingLessonsFor(balance, individualPrice) : null;
+  const individual: AbonementIndividualBreakdown | null =
+    individualPrice !== null && individualRemaining !== null
+      ? { pricePerLesson: individualPrice, remainingLessons: individualRemaining }
+      : null;
 
-  if (pricePerLesson !== null) {
-    const remainingLessons = remainingLessonsFor(balance, pricePerLesson);
-    return {
-      balance,
-      mode: "INDIVIDUAL",
-      groups: [],
-      individual: remainingLessons !== null ? { pricePerLesson, remainingLessons } : null,
-      minRemainingLessons: remainingLessons,
-    };
-  }
+  const figures = [
+    ...groups.map((g) => g.remainingLessons),
+    ...(individual ? [individual.remainingLessons] : []),
+  ].filter((n): n is number => n !== null);
 
-  return { balance, mode: "NONE", groups: [], individual: null, minRemainingLessons: null };
+  const mode: AbonementMode =
+    groups.length > 0 && individual
+      ? "MIXED"
+      : groups.length > 1
+        ? "MULTI_GROUP"
+        : groups.length === 1
+          ? "SINGLE_GROUP"
+          : individual
+            ? "INDIVIDUAL"
+            : "NONE";
+
+  return {
+    balance,
+    mode,
+    groups,
+    individual,
+    minRemainingLessons: figures.length > 0 ? Math.min(...figures) : null,
+  };
 }
 
 /**

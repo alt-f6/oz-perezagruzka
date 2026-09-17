@@ -32,7 +32,8 @@ export function AbonementSection({ summary }: { summary: AbonementSummary }) {
 
       <p className="text-sm text-slate-500">
         Баланс: <span className="font-medium text-slate-800">{summary.balance.toLocaleString("ru-RU")} ₽</span>
-        {summary.mode === "MULTI_GROUP" && " — общий для всех групп ниже"}
+        {(summary.mode === "MULTI_GROUP" || summary.mode === "MIXED") &&
+          " — общий для всех форматов ниже"}
       </p>
 
       {summary.mode === "NONE" && (
@@ -42,7 +43,7 @@ export function AbonementSection({ summary }: { summary: AbonementSummary }) {
         </p>
       )}
 
-      {summary.mode === "INDIVIDUAL" && summary.individual && (
+      {(summary.mode === "INDIVIDUAL" || summary.mode === "MIXED") && summary.individual && (
         <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3.5 py-2.5">
           <div>
             <p className="text-sm font-medium text-slate-800">Индивидуальные занятия</p>
@@ -56,7 +57,9 @@ export function AbonementSection({ summary }: { summary: AbonementSummary }) {
         </div>
       )}
 
-      {(summary.mode === "SINGLE_GROUP" || summary.mode === "MULTI_GROUP") && (
+      {(summary.mode === "SINGLE_GROUP" ||
+        summary.mode === "MULTI_GROUP" ||
+        summary.mode === "MIXED") && (
         <div className="space-y-2">
           {summary.groups.map((g) => (
             <div

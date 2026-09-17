@@ -319,6 +319,11 @@ model ClassSession {
   // group.pricePerLesson). Nullable; unset individual lessons bill 0.
   pricePerLesson    Decimal?  @db.Decimal(10, 2)
   isTrial           Boolean   @default(false)
+  // Waives billing for this specific occurrence regardless of its resolved
+  // price (group or own pricePerLesson) -- see resolveSessionPrice. Distinct
+  // from isTrial: a trial lesson still bills a (discounted) price; isFree
+  // never bills anything.
+  isFree            Boolean   @default(false)
   status            String    @default("scheduled")
   reminderSentAt    DateTime? // set by the lesson-reminders cron so a session is only reminded once
   recurrenceGroupId String? // shared by every occurrence created together from a recurring-lesson batch

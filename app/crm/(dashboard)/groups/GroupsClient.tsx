@@ -61,6 +61,12 @@ export function GroupsClient({
   );
   const [clearScheduleCandidateId, setClearScheduleCandidateId] = useState<string | null>(null);
   const [isClearingSchedule, setIsClearingSchedule] = useState(false);
+  const [zeroPriceWarning, setZeroPriceWarning] = useState<
+    | { kind: "create"; payload: Parameters<typeof createGroup>[0] }
+    | { kind: "update"; groupId: string; payload: Parameters<typeof updateGroup>[1] }
+    | null
+  >(null);
+  const [overridingZeroPrice, setOverridingZeroPrice] = useState(false);
   const [isUpdatingStudents, setIsUpdatingStudents] = useState(false);
   const [selectedStudentId, setSelectedStudentId] = useState<string>("");
 
@@ -94,6 +100,24 @@ export function GroupsClient({
     resolver: zodResolver(groupSchema),
   });
 
+  const submitCreateGroup = async (
+    payload: Parameters<typeof createGroup>[0],
+  ): Promise<boolean> => {
+    const result = await createGroup(payload);
+    if (result?.error) {
+      showToast(result.error, "error");
+      return false;
+    }
+    if ("zeroPriceWarning" in result && result.zeroPriceWarning) {
+      setZeroPriceWarning({ kind: "create", payload });
+      return false;
+    }
+    showToast("Группа создана");
+    reset();
+    setIsModalOpen(false);
+    return true;
+  };
+
   const onSubmit = async (
     data: GroupValues,
     event?: React.BaseSyntheticEvent,
@@ -108,7 +132,7 @@ export function GroupsClient({
       const priceInput = formData.get("price");
       const price = priceInput ? Number(priceInput) : undefined;
 
-      const result = await createGroup({
+      await submitCreateGroup({
         ...data,
         teacherId,
         price,
@@ -116,15 +140,6 @@ export function GroupsClient({
         grade: (formData.get("grade") as string) || "",
         examType: (formData.get("examType") as string) || "",
       });
-
-      if (result?.error) {
-        showToast(result.error, "error");
-        return;
-      }
-
-      showToast("Группа создана");
-      reset();
-      setIsModalOpen(false);
     } catch {
       showToast("Не удалось создать группу", "error");
     }
@@ -229,6 +244,24 @@ export function GroupsClient({
     });
   };
 
+  const submitUpdateGroup = async (
+    groupId: string,
+    payload: Parameters<typeof updateGroup>[1],
+  ): Promise<boolean> => {
+    const result = await updateGroup(groupId, payload);
+    if (result?.error) {
+      showToast(result.error, "error");
+      return false;
+    }
+    if ("zeroPriceWarning" in result && result.zeroPriceWarning) {
+      setZeroPriceWarning({ kind: "update", groupId, payload });
+      return false;
+    }
+    showToast("Группа обновлена");
+    setEditGroup(null);
+    return true;
+  };
+
   const handleEditGroup = async (
     data: {
       name: string;
@@ -242,7 +275,7 @@ export function GroupsClient({
     if (!editGroup) return;
     setIsSavingEdit(true);
     try {
-      const result = await updateGroup(editGroup.id, {
+      await submitUpdateGroup(editGroup.id, {
         name: data.name,
         teacherId: data.teacherId || null,
         price: Number(data.price),
@@ -250,16 +283,29 @@ export function GroupsClient({
         grade: data.grade,
         examType: data.examType,
       });
-      if (result?.error) {
-        showToast(result.error, "error");
-      } else {
-        showToast("Группа обновлена");
-        setEditGroup(null);
-      }
     } catch {
       showToast("Не удалось обновить группу", "error");
     } finally {
       setIsSavingEdit(false);
+    }
+  };
+
+  const confirmZeroPrice = async () => {
+    if (!zeroPriceWarning) return;
+    setOverridingZeroPrice(true);
+    try {
+      const saved =
+        zeroPriceWarning.kind === "create"
+          ? await submitCreateGroup({ ...zeroPriceWarning.payload, acknowledgeZeroPrice: true })
+          : await submitUpdateGroup(zeroPriceWarning.groupId, {
+              ...zeroPriceWarning.payload,
+              acknowledgeZeroPrice: true,
+            });
+      if (saved) setZeroPriceWarning(null);
+    } catch {
+      showToast("Не удалось сохранить группу", "error");
+    } finally {
+      setOverridingZeroPrice(false);
     }
   };
 
@@ -418,6 +464,17 @@ export function GroupsClient({
           clearScheduleCandidateId && handleClearSchedule(clearScheduleCandidateId)
         }
         onClose={() => setClearScheduleCandidateId(null)}
+      />
+
+      <ConfirmDialog
+        open={zeroPriceWarning !== null}
+        danger
+        title="Цена занятия — 0 ₽"
+        confirmLabel="Сохранить с ценой 0 ₽"
+        busy={overridingZeroPrice}
+        message="Цена занятия в этой группе будет 0 ₽ — списания за посещаемость не будет. Продолжить?"
+        onConfirm={confirmZeroPrice}
+        onClose={() => setZeroPriceWarning(null)}
       />
 
       {!isTeacher && (

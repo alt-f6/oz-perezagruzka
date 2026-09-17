@@ -85,6 +85,9 @@ export const createGroupSchema = groupSchema.extend({
     .min(0, { message: "Цена не может быть отрицательной" })
     .max(1_000_000, { message: "Слишком большая цена" })
     .optional(),
+  // Set true only after the operator explicitly confirmed creating a group
+  // at 0 ₽ -- createGroup otherwise surfaces a warning instead of persisting.
+  acknowledgeZeroPrice: z.boolean().optional(),
   ...groupDomainFields,
 });
 
@@ -97,6 +100,7 @@ export const updateGroupSchema = groupSchema.extend({
     .number()
     .min(0, { message: "Цена не может быть отрицательной" })
     .max(1_000_000, { message: "Слишком большая цена" }),
+  acknowledgeZeroPrice: z.boolean().optional(),
   ...groupDomainFields,
 });
 

@@ -14,6 +14,10 @@ import { createLogger } from "@/shared/lib/logger";
 
 const logger = createLogger("crm.groups.actions");
 
+export type GroupPriceActionResult =
+  | { error: string }
+  | { error?: undefined; zeroPriceWarning?: true };
+
 /**
  * A client can only ever supply a teacherId string; whether it actually
  * names an active teacher must be re-checked server-side on every write.
@@ -55,13 +59,19 @@ export async function createGroup(
     subject?: string;
     grade?: string | number;
     examType?: string;
+    acknowledgeZeroPrice?: boolean;
   },
-): Promise<ActionResult> {
+): Promise<GroupPriceActionResult> {
   const sessionUser = await requireRole(["ADMIN", "MANAGER"]);
 
   const parsed = createGroupSchema.safeParse(values);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Некорректные данные группы" };
+  }
+
+  const finalPrice = parsed.data.price ?? 0;
+  if (finalPrice === 0 && !parsed.data.acknowledgeZeroPrice) {
+    return { zeroPriceWarning: true };
   }
 
   const finalTeacherId = parsed.data.teacherId || sessionUser.id;
@@ -71,7 +81,7 @@ export async function createGroup(
       data: {
         name: parsed.data.name,
         teacherId: finalTeacherId,
-        pricePerLesson: parsed.data.price ?? 0,
+        pricePerLesson: finalPrice,
         subject: parsed.data.subject || null,
         grade: parsed.data.grade ?? null,
         examType: parsed.data.examType ?? null,
@@ -175,13 +185,18 @@ export async function updateGroup(
     subject?: string;
     grade?: string | number;
     examType?: string;
+    acknowledgeZeroPrice?: boolean;
   },
-): Promise<ActionResult> {
+): Promise<GroupPriceActionResult> {
   await requireRole(["ADMIN", "MANAGER"]);
 
   const parsed = updateGroupSchema.safeParse(values);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Некорректные данные группы" };
+  }
+
+  if (parsed.data.price === 0 && !parsed.data.acknowledgeZeroPrice) {
+    return { zeroPriceWarning: true };
   }
 
   try {

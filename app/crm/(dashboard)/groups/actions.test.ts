@@ -148,6 +148,17 @@ describe("deleteGroup", () => {
   });
 });
 
+describe("createGroup", () => {
+  it("returns a zeroPriceWarning instead of creating when price is 0 and unacknowledged", async () => {
+    const { createGroup } = await import("./actions");
+
+    const result = await createGroup({ name: "Новая группа", price: 0 });
+
+    expect(result).toEqual({ zeroPriceWarning: true });
+    expect(dbMock.group.update).not.toHaveBeenCalled();
+  });
+});
+
 describe("updateGroup", () => {
   it("validates input and rejects a bad teacherId before writing", async () => {
     dbMock.user.findUnique.mockResolvedValue(null);
@@ -184,5 +195,35 @@ describe("updateGroup", () => {
         examType: null,
       },
     });
+  });
+});
+
+describe("updateGroup — zero-price guardrail", () => {
+  it("returns a zeroPriceWarning instead of updating when price is 0 and unacknowledged", async () => {
+    const { updateGroup } = await import("./actions");
+
+    const result = await updateGroup("group_1", {
+      name: "Группа",
+      teacherId: null,
+      price: 0,
+    });
+
+    expect(result).toEqual({ zeroPriceWarning: true });
+    expect(dbMock.group.update).not.toHaveBeenCalled();
+  });
+
+  it("proceeds once acknowledgeZeroPrice is set", async () => {
+    runWithTx();
+    const { updateGroup } = await import("./actions");
+
+    const result = await updateGroup("group_1", {
+      name: "Группа",
+      teacherId: null,
+      price: 0,
+      acknowledgeZeroPrice: true,
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(dbMock.group.update).toHaveBeenCalled();
   });
 });

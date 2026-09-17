@@ -324,6 +324,54 @@ describe("createLesson", () => {
     });
   });
 
+  it("bypasses missingPriceWarning for an INDIVIDUAL lesson marked isFree", async () => {
+    dbMock.student.findFirst.mockResolvedValue({
+      id: "22222222-2222-4222-8222-222222222222",
+      fullName: "Иванов Иван",
+    });
+    dbMock.user.findFirst.mockResolvedValue({ id: "33333333-3333-4333-8333-333333333333" });
+    dbMock.classSession.findFirst.mockResolvedValue(null);
+    dbMock.classSession.createMany.mockResolvedValue({ count: 1 });
+
+    const result = await createLesson({
+      type: "INDIVIDUAL",
+      studentId: "22222222-2222-4222-8222-222222222222",
+      teacherId: "33333333-3333-4333-8333-333333333333",
+      date: "2026-09-01",
+      time: "15:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+      isFree: true,
+    });
+
+    expect(result).toEqual({});
+    expect(dbMock.classSession.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ isFree: true, pricePerLesson: 0 })],
+    });
+  });
+
+  it("persists isFree through to createMany for a GROUP lesson", async () => {
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
+    dbMock.classSession.createMany.mockResolvedValue({ count: 1 });
+
+    await createLesson({
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2026-09-01",
+      time: "15:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      recurrenceEndDate: "",
+      isFree: true,
+    });
+
+    expect(dbMock.classSession.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ isFree: true })],
+    });
+  });
+
   it("persists isTrial through to createMany when set", async () => {
     dbMock.group.findUnique.mockResolvedValue({ teacherId: "teacher_1" });
     dbMock.classSession.createMany.mockResolvedValue({ count: 1 });

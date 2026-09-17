@@ -151,6 +151,7 @@ export async function createLesson(
     studentId: string | null;
     pricePerLesson: number | null;
     isTrial: boolean;
+    isFree: boolean;
   };
 
   if (parsed.data.type === "INDIVIDUAL") {
@@ -178,9 +179,11 @@ export async function createLesson(
     // supplies it. No Student rate field or subject-rate table exists, so
     // the student's most recent individual-lesson price IS the resolved
     // rate; a student with no such history requires an explicit operator
-    // acknowledgement before the lesson is created at 0 ₽.
+    // acknowledgement before the lesson is created at 0 ₽ -- unless the
+    // lesson is explicitly marked free, which needs no rate at all.
+    const isFree = parsed.data.isFree ?? false;
     const resolvedPrice = await getLastIndividualLessonPrice(studentId);
-    if (resolvedPrice === null && !parsed.data.acknowledgeMissingPrice) {
+    if (!isFree && resolvedPrice === null && !parsed.data.acknowledgeMissingPrice) {
       return {
         missingPriceWarning: { studentId, studentName: student.fullName },
       };
@@ -193,6 +196,7 @@ export async function createLesson(
       studentId,
       pricePerLesson: resolvedPrice ?? 0,
       isTrial: parsed.data.isTrial ?? false,
+      isFree,
     };
   } else {
     const group = await db.group.findUnique({
@@ -212,6 +216,7 @@ export async function createLesson(
       studentId: null,
       pricePerLesson: null,
       isTrial: parsed.data.isTrial ?? false,
+      isFree: parsed.data.isFree ?? false,
     };
   }
 
@@ -311,6 +316,7 @@ export async function createLesson(
         studentId: sessionLink.studentId,
         pricePerLesson: sessionLink.pricePerLesson,
         isTrial: sessionLink.isTrial,
+        isFree: sessionLink.isFree,
         teacherId,
         scheduledAt,
         durationMinutes,

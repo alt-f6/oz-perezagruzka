@@ -145,6 +145,15 @@ export function LessonFormFields({
         Пробное занятие
       </label>
 
+      <label className="flex items-center gap-2 text-sm text-slate-600">
+        <input
+          type="checkbox"
+          disabled={isSubmitting}
+          {...register("isFree")}
+        />
+        Бесплатное занятие (не будет списываться)
+      </label>
+
       {lessonType === "GROUP" ? (
         <div>
           <label className="label">Группа</label>

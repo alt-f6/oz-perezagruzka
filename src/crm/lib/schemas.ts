@@ -192,6 +192,10 @@ export const lessonSchema = z
     // "Пробное занятие" toggle -- available on both GROUP and INDIVIDUAL
     // lessons.
     isTrial: z.boolean().optional(),
+    // Waives billing for this session regardless of its resolved price.
+    // For INDIVIDUAL sessions, also bypasses the missing-price-history
+    // warning below -- a free lesson doesn't need a personal rate on file.
+    isFree: z.boolean().optional(),
     date: z.string().min(1, { message: "Укажите дату" }),
     time: z.string().min(1, { message: "Укажите время" }),
     durationMinutes: lessonDurationSchema,

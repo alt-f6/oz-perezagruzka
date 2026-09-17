@@ -82,6 +82,7 @@ export interface ClassSession {
   pricePerLesson?: number | null;
   recurrenceGroupId?: string | null;
   isTrial?: boolean;
+  isFree?: boolean;
 }
 
 export interface ClassSessionWithGroup extends ClassSession {

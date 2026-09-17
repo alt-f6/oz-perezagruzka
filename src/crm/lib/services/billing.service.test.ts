@@ -49,7 +49,8 @@ function runWithTx(tx: TxMock) {
 const classSessionFixture = {
   id: "session_1",
   scheduledAt: new Date("2026-08-03T10:00:00.000Z"),
-  group: { pricePerLesson: 1000 },
+  isFree: false,
+  group: { pricePerLesson: 1000, name: "Тестовая группа" },
 };
 
 beforeEach(() => {
@@ -75,6 +76,7 @@ describe("BillingService.markAttendanceAndCharge", () => {
         amount: -1000,
         type: "LESSON_CHARGE",
         idempotencyKey: "lesson_charge:session_1:student_1",
+        description: "Списание за занятие: Тестовая группа (03.08.2026 МСК)",
       },
     });
   });
@@ -125,6 +127,7 @@ describe("BillingService.markAttendanceAndCharge", () => {
         amount: -1000,
         type: "LESSON_CHARGE",
         idempotencyKey: "lesson_charge:session_1:student_1",
+        description: "Списание за занятие: Тестовая группа (03.08.2026 МСК)",
       },
     });
   });
@@ -237,6 +240,7 @@ describe("BillingService.markAttendanceAndCharge — freeze UTC day-boundary edg
         amount: -1000,
         type: "LESSON_CHARGE",
         idempotencyKey: "lesson_charge:session_1:student_1",
+        description: "Списание за занятие: Тестовая группа (03.08.2026 МСК)",
       },
     });
   });
@@ -255,6 +259,7 @@ describe("BillingService.markAttendanceAndCharge — freeze UTC day-boundary edg
         amount: -1000,
         type: "LESSON_CHARGE",
         idempotencyKey: "lesson_charge:session_1:student_1",
+        description: "Списание за занятие: Тестовая группа (06.08.2026 МСК)",
       },
     });
   });

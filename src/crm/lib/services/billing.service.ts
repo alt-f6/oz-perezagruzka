@@ -5,6 +5,7 @@ import { getNotificationProvider } from "@/crm/lib/services/notification.service
 import { createLogger } from "@/shared/lib/logger";
 import { isAttendanceWindowOpen } from "@/crm/lib/lessonTime";
 import { resolveSessionPrice } from "@/crm/lib/pricing";
+import { formatMoscowDate } from "@/shared/lib/timezone";
 
 const log = createLogger("billing");
 
@@ -31,7 +32,9 @@ export class BillingService {
 
         const description = classSession.isTrial
           ? `Пробное занятие: ${classSession.group?.name ?? classSession.student?.fullName ?? "Индивидуальное занятие"}`
-          : undefined;
+          : `Списание за занятие: ${
+              classSession.group?.name ?? classSession.student?.subject ?? "Индивидуальное занятие"
+            } (${formatMoscowDate(classSession.scheduledAt)} МСК)`;
 
         const isBillableStatus = status === "PRESENT" || status === "ABSENT";
 

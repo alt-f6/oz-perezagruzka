@@ -260,6 +260,73 @@ describe("BillingService.markAttendanceAndCharge — freeze UTC day-boundary edg
   });
 });
 
+describe("BillingService.markAttendanceAndCharge — zero-price guard", () => {
+  it("rejects PRESENT at 0 ₽ when the session isn't marked free", async () => {
+    const tx = makeTx({
+      classSession: { ...classSessionFixture, isFree: false, group: { pricePerLesson: 0 } },
+    });
+    runWithTx(tx);
+
+    await expect(
+      BillingService.markAttendanceAndCharge("session_1", "student_1", "PRESENT"),
+    ).rejects.toThrow(/бесплатное/);
+    expect(tx.attendance.upsert).not.toHaveBeenCalled();
+    expect(tx.transaction.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects ABSENT at 0 ₽ when the session isn't marked free", async () => {
+    const tx = makeTx({
+      classSession: { ...classSessionFixture, isFree: false, group: { pricePerLesson: 0 } },
+    });
+    runWithTx(tx);
+
+    await expect(
+      BillingService.markAttendanceAndCharge("session_1", "student_1", "ABSENT"),
+    ).rejects.toThrow(/бесплатное/);
+  });
+
+  it("allows PRESENT at 0 ₽ and creates no charge when the session is marked isFree", async () => {
+    const tx = makeTx({
+      classSession: { ...classSessionFixture, isFree: true, group: { pricePerLesson: 1000 } },
+    });
+    runWithTx(tx);
+
+    await expect(
+      BillingService.markAttendanceAndCharge("session_1", "student_1", "PRESENT"),
+    ).resolves.toBeDefined();
+    expect(tx.transaction.create).not.toHaveBeenCalled();
+    expect(tx.attendance.upsert).toHaveBeenCalledWith({
+      where: { classSessionId_studentId: { classSessionId: "session_1", studentId: "student_1" } },
+      update: { status: "PRESENT", priceAtTime: 0 },
+      create: { classSessionId: "session_1", studentId: "student_1", status: "PRESENT", priceAtTime: 0 },
+    });
+  });
+
+  it("still allows EXCUSED at 0 ₽ (non-billable status, no guard)", async () => {
+    const tx = makeTx({
+      classSession: { ...classSessionFixture, isFree: false, group: { pricePerLesson: 0 } },
+    });
+    runWithTx(tx);
+
+    await expect(
+      BillingService.markAttendanceAndCharge("session_1", "student_1", "EXCUSED"),
+    ).resolves.toBeDefined();
+  });
+
+  it("does not reject a 0 ₽ charge that a freeze already suppresses", async () => {
+    const tx = makeTx({
+      classSession: { ...classSessionFixture, isFree: false, group: { pricePerLesson: 0 } },
+      freeze: { id: "freeze_1" },
+    });
+    runWithTx(tx);
+
+    await expect(
+      BillingService.markAttendanceAndCharge("session_1", "student_1", "PRESENT"),
+    ).resolves.toBeDefined();
+    expect(tx.transaction.create).not.toHaveBeenCalled();
+  });
+});
+
 describe("BillingService.markAttendanceAndCharge — insufficient balance notification", () => {
   it("sends a debt reminder to parents when the post-charge balance is negative", async () => {
     const tx = makeTx({ classSession: classSessionFixture });

@@ -4,6 +4,7 @@ import { prisma } from "@/crm/lib/prisma";
 import { getNotificationProvider } from "@/crm/lib/services/notification.service";
 import { createLogger } from "@/shared/lib/logger";
 import { isAttendanceWindowOpen } from "@/crm/lib/lessonTime";
+import { resolveSessionPrice } from "@/crm/lib/pricing";
 
 const log = createLogger("billing");
 
@@ -25,10 +26,8 @@ export class BillingService {
 
         // GROUP sessions bill the group's price; INDIVIDUAL (1-on-1) sessions
         // have no group and bill their own per-lesson price (0 when unset).
-        const currentPrice =
-          classSession.group?.pricePerLesson ??
-          classSession.pricePerLesson ??
-          new Prisma.Decimal(0);
+        // isFree always wins, regardless of what price is on record.
+        const currentPrice = resolveSessionPrice(classSession);
 
         const description = classSession.isTrial
           ? `Пробное занятие: ${classSession.group?.name ?? classSession.student?.fullName ?? "Индивидуальное занятие"}`
@@ -64,7 +63,20 @@ export class BillingService {
             })
           : null;
 
-        const shouldCharge = isBillableStatus && !activeFreeze;
+        // Zero-price billing guard: a billable, non-frozen, non-free lesson
+        // must never silently charge 0 ₽ -- that almost always means a
+        // missing price, not a genuinely free lesson. isFree is the only
+        // sanctioned way to charge nothing.
+        if (
+          isBillableStatus &&
+          !activeFreeze &&
+          !classSession.isFree &&
+          Number(currentPrice) === 0
+        ) {
+          throw new Error("Нельзя списать 0 ₽ за занятие, не помеченное как бесплатное");
+        }
+
+        const shouldCharge = isBillableStatus && !activeFreeze && !classSession.isFree;
         const transactionAmount = shouldCharge ? -Number(currentPrice) : 0;
 
         const attendance = await tx.attendance.upsert({

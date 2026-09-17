@@ -835,10 +835,18 @@ describe("setAttendance", () => {
 
   it("allows a TEACHER who owns the lesson directly (session.teacherId) to save a grade", async () => {
     rbacMock.requireRole.mockResolvedValue(TEACHER);
+    // The grading-implies-PRESENT path routes through BillingService, and
+    // the module-level prisma mock's fixed classSession fixture (price 0,
+    // isFree unset) would otherwise trip the zero-price guard -- irrelevant
+    // to what this test is checking (ownership), so stub it out.
+    const markSpy = vi
+      .spyOn(BillingService, "markAttendanceAndCharge")
+      .mockResolvedValue({ id: "att_1" } as never);
 
     const result = await setAttendance("lesson_1", "student_1", { grade: 4 });
 
     expect(result.error).toBeUndefined();
+    markSpy.mockRestore();
   });
 
   it("allows a TEACHER who owns the lesson only via the group's current teacher", async () => {
@@ -987,10 +995,17 @@ describe("setAttendance", () => {
       durationMinutes: 60,
       group: { teacherId: "teacher_1" },
     });
+    // See comment on the TEACHER-ownership test above: stub billing so the
+    // module-level zero-price fixture doesn't trip the (irrelevant-here)
+    // zero-price guard.
+    const markSpy = vi
+      .spyOn(BillingService, "markAttendanceAndCharge")
+      .mockResolvedValue({ id: "att_1" } as never);
 
     const result = await setAttendance("lesson_1", "student_1", { grade: 5 });
 
     expect(result.error).toBeUndefined();
+    markSpy.mockRestore();
   });
 
   it("allows a TEACHER to edit a lesson still in progress (started 30min ago, 60min duration)", async () => {
@@ -1001,10 +1016,17 @@ describe("setAttendance", () => {
       durationMinutes: 60,
       group: { teacherId: "teacher_1" },
     });
+    // See comment on the TEACHER-ownership test above: stub billing so the
+    // module-level zero-price fixture doesn't trip the (irrelevant-here)
+    // zero-price guard.
+    const markSpy = vi
+      .spyOn(BillingService, "markAttendanceAndCharge")
+      .mockResolvedValue({ id: "att_1" } as never);
 
     const result = await setAttendance("lesson_1", "student_1", { grade: 5 });
 
     expect(result.error).toBeUndefined();
+    markSpy.mockRestore();
   });
 
   it("blocks a TEACHER from editing a lesson that concluded 30min ago (started 90min ago, 60min duration)", async () => {
@@ -1248,6 +1270,40 @@ describe("setAttendance", () => {
 
     expect(result.error).toBeUndefined();
     expect(markSpy).toHaveBeenCalledWith("lesson_1", "student_1", "EXCUSED");
+    markSpy.mockRestore();
+  });
+
+  it("fails the whole save with a clear hard error when the zero-price billing guard fires -- no fallback attendance write (explicit status: PRESENT)", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    const markSpy = vi
+      .spyOn(BillingService, "markAttendanceAndCharge")
+      .mockRejectedValue(
+        new Error("Нельзя списать 0 ₽ за занятие, не помеченное как бесплатное"),
+      );
+
+    const result = await setAttendance("lesson_1", "student_1", { status: "PRESENT" });
+
+    expect(result.error).toBeTruthy();
+    expect(result.error).toMatch(/бесплатн/);
+    expect(dbMock.attendance.upsert).not.toHaveBeenCalled();
+    markSpy.mockRestore();
+  });
+
+  it("fails cleanly (no partial grade write either) when the zero-price billing guard fires via the grading-implies-PRESENT path", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    const markSpy = vi
+      .spyOn(BillingService, "markAttendanceAndCharge")
+      .mockRejectedValue(
+        new Error("Нельзя списать 0 ₽ за занятие, не помеченное как бесплатное"),
+      );
+
+    const result = await setAttendance("lesson_1", "student_1", { grade: 5 });
+
+    expect(result.error).toBeTruthy();
+    expect(result.error).toMatch(/бесплатн/);
+    expect(markSpy).toHaveBeenCalledWith("lesson_1", "student_1", "PRESENT");
+    expect(dbMock.attendance.upsert).not.toHaveBeenCalled();
+    expect(dbMock.attendance.update).not.toHaveBeenCalled();
     markSpy.mockRestore();
   });
 });

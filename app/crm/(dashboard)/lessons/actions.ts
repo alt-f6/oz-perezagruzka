@@ -786,6 +786,23 @@ export async function setAttendance(
       });
     }
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+
+    // The zero-price billing guard (BillingService.markAttendanceAndCharge)
+    // rejects before any write, by design -- staff must fix the session's
+    // price/isFree first. Falling through to the generic billing-failure
+    // fallback below would silently persist an unbilled PRESENT anyway (via
+    // fallbackStatus), show a misleading "check the balance" message, and --
+    // once that status exists -- lock updateLesson's price/isFree editor,
+    // trapping staff with no way to fix the price without first reverting
+    // attendance to null. Fail the whole save cleanly instead.
+    if (billingAttempted && message.includes("не помеченное как бесплатное")) {
+      return {
+        error:
+          "У занятия нулевая цена, и оно не помечено как бесплатное. Установите цену или отметьте занятие бесплатным, затем повторите отметку.",
+      };
+    }
+
     // Billing (balance/freeze/pricing) is a downstream concern -- a billing
     // failure must never block the teacher from recording that a student
     // attended, was graded, or got homework/comments noted. Fall back to a

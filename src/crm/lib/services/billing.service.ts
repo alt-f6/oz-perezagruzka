@@ -1,4 +1,4 @@
-import { Prisma, type AttendanceStatus } from "@prisma/client";
+import type { AttendanceStatus } from "@prisma/client";
 import { randomUUID } from "crypto";
 import { prisma } from "@/crm/lib/prisma";
 import { getNotificationProvider } from "@/crm/lib/services/notification.service";

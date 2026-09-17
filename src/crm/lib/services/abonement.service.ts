@@ -1,4 +1,7 @@
 import { db } from "@/shared/lib/db";
+import { isLessonConcluded } from "@/crm/lib/lessonTime";
+import { resolveSessionPrice } from "@/crm/lib/pricing";
+import type { AttendanceStatus } from "@prisma/client";
 
 export interface AbonementGroupBreakdown {
   groupId: string;
@@ -128,4 +131,136 @@ export async function getLastIndividualLessonPrice(studentId: string): Promise<n
   return lastIndividualSession?.pricePerLesson != null
     ? Number(lastIndividualSession.pricePerLesson)
     : null;
+}
+
+export interface LedgerRow {
+  id: string;
+  date: string;
+  kind: "SESSION" | "TRANSACTION";
+  title: string;
+  isGroup: boolean;
+  teacherName: string | null;
+  attendanceStatus: AttendanceStatus | null;
+  amount: number;
+  runningBalance: number;
+}
+
+/**
+ * Chronological student ledger: every past/concluded session relevant to the
+ * student (individual, or group via membership), each joined to their own
+ * Attendance status and any LESSON_CHARGE, merged with standalone
+ * PAYMENT/ADJUSTMENT/REFUND transactions. Session rows are ordered by
+ * scheduledAt (when the lesson happened), standalone transactions by
+ * createdAt -- a running balance is then accumulated in that combined
+ * display order. Sessions with ClassSession.status "cancelled" never
+ * appear (nothing happened for anyone); a per-student EXCUSED/
+ * CANCELLED_BY_CENTER mark still shows, with its own status badge.
+ */
+export async function getStudentLedger(studentId: string): Promise<LedgerRow[]> {
+  const now = new Date();
+
+  const [sessions, standaloneTransactions] = await Promise.all([
+    db.classSession.findMany({
+      where: {
+        status: { not: "cancelled" },
+        OR: [{ studentId }, { group: { students: { some: { studentId } } } }],
+      },
+      select: {
+        id: true,
+        scheduledAt: true,
+        durationMinutes: true,
+        type: true,
+        group: { select: { name: true } },
+        teacher: { select: { fullName: true } },
+        attendance: { where: { studentId }, select: { status: true } },
+        transactions: { where: { studentId, type: "LESSON_CHARGE" }, select: { amount: true } },
+      },
+    }),
+    db.transaction.findMany({
+      where: { studentId, classSessionId: null, type: { in: ["PAYMENT", "ADJUSTMENT", "REFUND"] } },
+      select: { id: true, amount: true, type: true, description: true, createdAt: true },
+    }),
+  ]);
+
+  const sessionRows = sessions
+    .filter((s) =>
+      isLessonConcluded({ scheduledAt: s.scheduledAt, durationMinutes: s.durationMinutes }, now),
+    )
+    .map((s) => ({
+      id: s.id,
+      date: s.scheduledAt.toISOString(),
+      kind: "SESSION" as const,
+      title: s.group?.name ?? "Индивидуальное занятие",
+      isGroup: s.type === "GROUP",
+      teacherName: s.teacher?.fullName ?? null,
+      attendanceStatus: s.attendance[0]?.status ?? null,
+      amount: s.transactions[0] ? Number(s.transactions[0].amount) : 0,
+    }));
+
+  const transactionRows = standaloneTransactions.map((t) => ({
+    id: t.id,
+    date: t.createdAt.toISOString(),
+    kind: "TRANSACTION" as const,
+    title:
+      t.description ??
+      (t.type === "PAYMENT" ? "Оплата" : t.type === "REFUND" ? "Возврат" : "Корректировка"),
+    isGroup: false,
+    teacherName: null,
+    attendanceStatus: null,
+    amount: Number(t.amount),
+  }));
+
+  const merged = [...sessionRows, ...transactionRows].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  );
+
+  let running = 0;
+  return merged.map((row) => {
+    running += row.amount;
+    return { ...row, runningBalance: running };
+  });
+}
+
+export interface PendingChargePreview {
+  count: number;
+  projectedBalance: number;
+}
+
+/**
+ * Preview for the ledger's "unmarked lessons" banner: how many of the
+ * student's past/concluded sessions have no Attendance row for them yet, and
+ * what their balance would become if every one of those were charged at its
+ * resolved price. Uses the exact same resolveSessionPrice BillingService
+ * charges with, so this preview can never disagree with the real charge.
+ */
+export async function getPendingChargePreview(
+  studentId: string,
+  currentBalance: number,
+): Promise<PendingChargePreview> {
+  const now = new Date();
+
+  const sessions = await db.classSession.findMany({
+    where: {
+      status: { not: "cancelled" },
+      OR: [{ studentId }, { group: { students: { some: { studentId } } } }],
+    },
+    select: {
+      scheduledAt: true,
+      durationMinutes: true,
+      isFree: true,
+      pricePerLesson: true,
+      group: { select: { pricePerLesson: true } },
+      attendance: { where: { studentId }, select: { status: true } },
+    },
+  });
+
+  const unmarked = sessions.filter(
+    (s) =>
+      isLessonConcluded({ scheduledAt: s.scheduledAt, durationMinutes: s.durationMinutes }, now) &&
+      s.attendance.length === 0,
+  );
+
+  const projectedCharge = unmarked.reduce((sum, s) => sum + Number(resolveSessionPrice(s)), 0);
+
+  return { count: unmarked.length, projectedBalance: currentBalance - projectedCharge };
 }

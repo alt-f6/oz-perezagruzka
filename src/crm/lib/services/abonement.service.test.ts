@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const dbMock = vi.hoisted(() => ({
-  transaction: { aggregate: vi.fn() },
+  transaction: { aggregate: vi.fn(), findMany: vi.fn() },
   groupStudent: { findMany: vi.fn() },
-  classSession: { findFirst: vi.fn() },
+  classSession: { findFirst: vi.fn(), findMany: vi.fn() },
 }));
 
 vi.mock("@/shared/lib/db", () => ({ db: dbMock }));
@@ -185,5 +185,169 @@ describe("computeAbonementSummary", () => {
     expect(result.individual).toEqual({ pricePerLesson: 500, remainingLessons: 2 });
     // Lowest figure across BOTH breakdowns, still against the one shared balance.
     expect(result.minRemainingLessons).toBe(2);
+  });
+});
+
+describe("getStudentLedger", () => {
+  it("merges session charges and standalone payments chronologically with a running balance", async () => {
+    dbMock.classSession.findMany.mockResolvedValue([
+      {
+        id: "session_1",
+        scheduledAt: new Date("2026-08-01T10:00:00.000Z"),
+        durationMinutes: 60,
+        type: "GROUP",
+        isFree: false,
+        pricePerLesson: null,
+        group: { name: "Группа А", pricePerLesson: 500 },
+        teacher: { fullName: "Иван Иванов" },
+        attendance: [{ status: "PRESENT" }],
+        transactions: [{ amount: -500 }],
+      },
+    ]);
+    dbMock.transaction.findMany.mockResolvedValue([
+      {
+        id: "tx_1",
+        amount: 1000,
+        type: "PAYMENT",
+        description: null,
+        createdAt: new Date("2026-07-30T09:00:00.000Z"),
+      },
+    ]);
+
+    const { getStudentLedger } = await import("./abonement.service");
+    const rows = await getStudentLedger("student_1");
+
+    expect(rows).toEqual([
+      expect.objectContaining({ id: "tx_1", kind: "TRANSACTION", amount: 1000, runningBalance: 1000 }),
+      expect.objectContaining({
+        id: "session_1",
+        kind: "SESSION",
+        title: "Группа А",
+        isGroup: true,
+        teacherName: "Иван Иванов",
+        attendanceStatus: "PRESENT",
+        amount: -500,
+        runningBalance: 500,
+      }),
+    ]);
+  });
+
+  it("shows an unmarked past session with a null attendanceStatus and zero financial impact", async () => {
+    dbMock.classSession.findMany.mockResolvedValue([
+      {
+        id: "session_1",
+        scheduledAt: new Date(Date.now() - 2 * 60 * 60_000),
+        durationMinutes: 60,
+        type: "INDIVIDUAL",
+        isFree: false,
+        pricePerLesson: 1000,
+        group: null,
+        teacher: { fullName: "Иван Иванов" },
+        attendance: [],
+        transactions: [],
+      },
+    ]);
+    dbMock.transaction.findMany.mockResolvedValue([]);
+
+    const { getStudentLedger } = await import("./abonement.service");
+    const rows = await getStudentLedger("student_1");
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        id: "session_1",
+        title: "Индивидуальное занятие",
+        isGroup: false,
+        attendanceStatus: null,
+        amount: 0,
+        runningBalance: 0,
+      }),
+    ]);
+  });
+
+  it("excludes a session that hasn't concluded yet", async () => {
+    dbMock.classSession.findMany.mockResolvedValue([
+      {
+        id: "session_future",
+        scheduledAt: new Date(Date.now() + 2 * 60 * 60_000),
+        durationMinutes: 60,
+        type: "INDIVIDUAL",
+        isFree: false,
+        pricePerLesson: 1000,
+        group: null,
+        teacher: null,
+        attendance: [],
+        transactions: [],
+      },
+    ]);
+    dbMock.transaction.findMany.mockResolvedValue([]);
+
+    const { getStudentLedger } = await import("./abonement.service");
+    const rows = await getStudentLedger("student_1");
+
+    expect(rows).toEqual([]);
+  });
+});
+
+describe("getPendingChargePreview", () => {
+  it("counts unmarked past sessions and projects the balance after charging them", async () => {
+    dbMock.classSession.findMany.mockResolvedValue([
+      {
+        scheduledAt: new Date(Date.now() - 2 * 60 * 60_000),
+        durationMinutes: 60,
+        isFree: false,
+        pricePerLesson: 1000,
+        group: null,
+        attendance: [],
+      },
+      {
+        scheduledAt: new Date(Date.now() - 3 * 60 * 60_000),
+        durationMinutes: 60,
+        isFree: false,
+        pricePerLesson: null,
+        group: { pricePerLesson: 500 },
+        attendance: [],
+      },
+    ]);
+
+    const { getPendingChargePreview } = await import("./abonement.service");
+    const result = await getPendingChargePreview("student_1", 2000);
+
+    expect(result).toEqual({ count: 2, projectedBalance: 500 });
+  });
+
+  it("does not count a session the student has already been marked for", async () => {
+    dbMock.classSession.findMany.mockResolvedValue([
+      {
+        scheduledAt: new Date(Date.now() - 2 * 60 * 60_000),
+        durationMinutes: 60,
+        isFree: false,
+        pricePerLesson: 1000,
+        group: null,
+        attendance: [{ status: "PRESENT" }],
+      },
+    ]);
+
+    const { getPendingChargePreview } = await import("./abonement.service");
+    const result = await getPendingChargePreview("student_1", 2000);
+
+    expect(result).toEqual({ count: 0, projectedBalance: 2000 });
+  });
+
+  it("excludes an isFree session from the projected charge", async () => {
+    dbMock.classSession.findMany.mockResolvedValue([
+      {
+        scheduledAt: new Date(Date.now() - 2 * 60 * 60_000),
+        durationMinutes: 60,
+        isFree: true,
+        pricePerLesson: 1000,
+        group: null,
+        attendance: [],
+      },
+    ]);
+
+    const { getPendingChargePreview } = await import("./abonement.service");
+    const result = await getPendingChargePreview("student_1", 2000);
+
+    expect(result).toEqual({ count: 1, projectedBalance: 2000 });
   });
 });

@@ -311,6 +311,28 @@ describe("ScheduleClient", () => {
     expect(toastMock).not.toHaveBeenCalledWith("Занятие создано");
   });
 
+  it("filters to only needs-attention lessons when the toggle is checked", async () => {
+    const user = userEvent.setup();
+    render(
+      <ScheduleClient
+        lessons={[
+          makeLesson({ id: "s1", needsAttention: true }),
+          makeLesson({ id: "s2", needsAttention: false }),
+        ]}
+        groups={groups}
+        teachers={teachers}
+      />,
+    );
+
+    expect(screen.getByTestId("session-block-s1")).toBeInTheDocument();
+    expect(screen.getByTestId("session-block-s2")).toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Требуют отметки"));
+
+    expect(screen.getByTestId("session-block-s1")).toBeInTheDocument();
+    expect(screen.queryByTestId("session-block-s2")).not.toBeInTheDocument();
+  });
+
   it("shows a compact teacher label on month-view chips", async () => {
     const user = userEvent.setup();
     const lesson = makeLesson({

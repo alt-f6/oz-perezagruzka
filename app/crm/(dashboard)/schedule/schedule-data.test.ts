@@ -76,4 +76,54 @@ describe("loadScheduleData — fail-safe fetching", () => {
     // Teachers can't create lessons, so the (expensive) student list is skipped.
     expect(studentFindMany).not.toHaveBeenCalled();
   });
+
+  it("flags a concluded group lesson with no attendance marked as needsAttention", async () => {
+    classSessionFindMany.mockResolvedValue([
+      {
+        id: "l1",
+        type: "GROUP",
+        groupId: "g1",
+        studentId: null,
+        scheduledAt: new Date(Date.now() - 2 * 60 * 60_000),
+        durationMinutes: 60,
+        status: "scheduled",
+        isTrial: false,
+        _count: { attendance: 0 },
+      },
+    ]);
+    groupFindMany.mockResolvedValue([
+      { id: "g1", name: "Группа 1", teacherId: "t1", students: [{ studentId: "s1" }, { studentId: "s2" }] },
+    ]);
+    const { loadScheduleData } = await import("./schedule-data");
+
+    const res = await loadScheduleData({ id: "u1", role: "ADMIN" });
+
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.data.lessons[0].needsAttention).toBe(true);
+  });
+
+  it("does not flag a future lesson as needsAttention", async () => {
+    classSessionFindMany.mockResolvedValue([
+      {
+        id: "l1",
+        type: "GROUP",
+        groupId: "g1",
+        studentId: null,
+        scheduledAt: new Date(Date.now() + 2 * 60 * 60_000),
+        durationMinutes: 60,
+        status: "scheduled",
+        isTrial: false,
+        _count: { attendance: 0 },
+      },
+    ]);
+    groupFindMany.mockResolvedValue([
+      { id: "g1", name: "Группа 1", teacherId: "t1", students: [{ studentId: "s1" }] },
+    ]);
+    const { loadScheduleData } = await import("./schedule-data");
+
+    const res = await loadScheduleData({ id: "u1", role: "ADMIN" });
+
+    expect(res.ok).toBe(true);
+    if (res.ok) expect(res.data.lessons[0].needsAttention).toBe(false);
+  });
 });

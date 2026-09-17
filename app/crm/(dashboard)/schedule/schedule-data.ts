@@ -1,5 +1,7 @@
 import { db } from "@/shared/lib/db";
 import { createLogger } from "@/shared/lib/logger";
+import { isLessonConcluded } from "@/crm/lib/lessonTime";
+import { classifyLessonAttendance, needsAttention } from "@/crm/lib/lessonFilters";
 import type {
   ScheduleGroup,
   ScheduleLesson,
@@ -107,6 +109,7 @@ export async function loadScheduleData(sessionUser: {
           group: { select: { id: true, name: true } },
           student: { select: { id: true, fullName: true } },
           teacher: { select: { fullName: true } },
+          _count: { select: { attendance: true } },
         },
       }),
       db.group.findMany({
@@ -145,10 +148,31 @@ export async function loadScheduleData(sessionUser: {
       studentIds: group.students.map((s) => s.studentId),
     }));
 
+    const groupStudentCountById = new Map(groups.map((g) => [g.id, g.studentIds?.length ?? 0]));
+    const now = new Date();
+    const lessonsWithAttentionFlag = lessons.map((lesson) => {
+      const enrolledCount =
+        lesson.type === "INDIVIDUAL"
+          ? lesson.studentId
+            ? 1
+            : 0
+          : (groupStudentCountById.get(lesson.groupId ?? "") ?? 0);
+      const attendanceStatus = classifyLessonAttendance({
+        sessionStatus: lesson.status,
+        concluded: isLessonConcluded(
+          { scheduledAt: lesson.scheduledAt, durationMinutes: lesson.durationMinutes },
+          now,
+        ),
+        enrolledCount,
+        markedCount: lesson._count?.attendance ?? 0,
+      });
+      return { ...lesson, needsAttention: needsAttention(attendanceStatus) };
+    });
+
     return {
       ok: true,
       data: {
-        lessons: lessons as unknown as ScheduleLesson[],
+        lessons: lessonsWithAttentionFlag as unknown as ScheduleLesson[],
         groups,
         teachers: teachers as ScheduleTeacher[],
         students: students as ScheduleStudent[],

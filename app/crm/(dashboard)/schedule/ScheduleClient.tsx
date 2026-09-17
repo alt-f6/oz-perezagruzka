@@ -50,6 +50,7 @@ export interface ScheduleLesson {
   status: string;
   durationMinutes: number;
   isTrial?: boolean;
+  needsAttention?: boolean;
   group?: { id: string; name: string } | null;
   student?: { id: string; fullName: string } | null;
   teacher?: { fullName: string } | null;
@@ -136,6 +137,7 @@ export function ScheduleClient({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showCancelled, setShowCancelled] = useState(false);
   const [trialOnly, setTrialOnly] = useState(false);
+  const [needsAttentionOnly, setNeedsAttentionOnly] = useState(false);
   // Set when createLesson reports the chosen time is outside the teacher's
   // declared working hours; drives the override-confirmation dialog so the
   // lesson is never created silently against unavailability.
@@ -318,6 +320,7 @@ export function ScheduleClient({
           (!teacherFilter || l.teacherId === teacherFilter) &&
           (showCancelled || l.status !== "cancelled") &&
           (!trialOnly || l.isTrial) &&
+          (!needsAttentionOnly || l.needsAttention) &&
           (!studentFilter ||
             l.studentId === studentFilter ||
             (l.groupId != null &&
@@ -329,6 +332,7 @@ export function ScheduleClient({
       teacherFilter,
       showCancelled,
       trialOnly,
+      needsAttentionOnly,
       studentFilter,
       groupRosterById,
     ],
@@ -539,6 +543,16 @@ export function ScheduleClient({
             aria-label="Показать отменённые"
           />
           Показать отменённые
+        </label>
+
+        <label className="flex items-center gap-2 text-sm text-slate-600">
+          <input
+            type="checkbox"
+            checked={needsAttentionOnly}
+            onChange={(e) => setNeedsAttentionOnly(e.target.checked)}
+            aria-label="Требуют отметки"
+          />
+          Требуют отметки ({lessons.filter((l) => l.needsAttention).length})
         </label>
 
         <label className="flex items-center gap-2 text-sm text-slate-600">

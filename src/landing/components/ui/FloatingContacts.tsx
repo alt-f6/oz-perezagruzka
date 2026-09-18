@@ -1,7 +1,7 @@
 // Fixed bottom-right 1-click contact widget: a phone call button (always
-// shown — the number is a fixed business line, not env-gated) stacked above
-// a MAX messenger button (env-gated like the old WhatsApp/Telegram buttons
-// it replaces). z-40 keeps both below the cookie banner's z-50.
+// shown — the number is a fixed business line) stacked above a MAX messenger
+// button that deep-links straight to the admin's MAX profile chat. z-40
+// keeps both below the cookie banner's z-50.
 //
 // Buttons are smaller on mobile (h-14/56px) than desktop (sm:h-20/80px) --
 // at 80px they sat on top of card headings while scrolling narrow layouts.
@@ -13,7 +13,7 @@
 // gap over the desktop phone button's sm:bottom-6) once the banner switches
 // to its shorter flex-row layout at sm: and above.
 const PHONE_NUMBER = "+79527025050";
-const MAX_URL = process.env.NEXT_PUBLIC_MAX_URL || "https://max.ru";
+const MAX_URL = "https://max.ru/u/f9LHodD0cOJFAN37PAQiEinX6YoxfWwsSR-Qp1bCZbapmsrpmJEvyLgTaO8";
 
 export default function FloatingContacts() {
   return (

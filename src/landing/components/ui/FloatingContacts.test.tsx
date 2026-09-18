@@ -16,7 +16,10 @@ describe("FloatingContacts", () => {
     render(<FloatingContacts />);
 
     const link = screen.getByRole("link", { name: "Написать в MAX" });
-    expect(link).toHaveAttribute("href", "https://max.ru");
+    expect(link).toHaveAttribute(
+      "href",
+      "https://max.ru/u/f9LHodD0cOJFAN37PAQiEinX6YoxfWwsSR-Qp1bCZbapmsrpmJEvyLgTaO8",
+    );
     expect(link.className).toContain("fixed");
     expect(link.className).toContain("z-40");
   });

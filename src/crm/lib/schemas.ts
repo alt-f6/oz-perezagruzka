@@ -182,6 +182,22 @@ function recurrenceTargetDays(
 // teacher, with no dummy group required.
 export const lessonTypeSchema = z.enum(["GROUP", "INDIVIDUAL"]);
 
+// Manual per-lesson price for an INDIVIDUAL session (see lessonSchema below).
+// Plain z.number() (not z.coerce/z.preprocess, unlike the sibling price
+// schemas in this file): lessonSchema is bound via zodResolver in the
+// create-lesson forms, and a field whose zod input/output types diverge
+// (as z.coerce/z.preprocess do -- their input is `unknown`) breaks that
+// resolver's generic typing (TS2719, "two different types with this name
+// exist, but they are unrelated"). The DOM input's string value is instead
+// converted to a number client-side via react-hook-form's `setValueAs`
+// (see LessonFormFields.tsx's registration of this field), so the value
+// that ever reaches this schema is already a number or undefined.
+export const individualLessonPriceSchema = z
+  .number()
+  .min(0, { message: "Цена не может быть отрицательной" })
+  .max(1_000_000, { message: "Слишком большая цена" })
+  .optional();
+
 export const lessonSchema = z
   .object({
     // Optional (not `.default`) so the zod input and output types stay aligned
@@ -200,6 +216,11 @@ export const lessonSchema = z
     // For INDIVIDUAL sessions, also bypasses the missing-price-history
     // warning below -- a free lesson doesn't need a personal rate on file.
     isFree: z.boolean().optional(),
+    // Manual per-lesson price for an INDIVIDUAL session. When supplied, it is
+    // used directly and skips both getLastIndividualLessonPrice's history
+    // lookup and the missing-price-history warning -- staff typing a price
+    // up front should never be blocked by "no price history".
+    pricePerLesson: individualLessonPriceSchema,
     date: z.string().min(1, { message: "Укажите дату" }),
     time: z.string().min(1, { message: "Укажите время" }),
     durationMinutes: lessonDurationSchema,

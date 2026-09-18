@@ -220,6 +220,31 @@ export function LessonFormFields({
               <p className="field-error">{errors.teacherId.message}</p>
             )}
           </div>
+
+          <div>
+            <label className="label">Цена занятия, ₽</label>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              placeholder="Например, 1200"
+              disabled={isSubmitting}
+              {...register("pricePerLesson", {
+                // The schema's field is a plain z.number().optional() (see
+                // individualLessonPriceSchema in schemas.ts), so the raw
+                // string this <input> hands react-hook-form is converted to
+                // a number/undefined here instead of via zod coercion.
+                setValueAs: (v) => (v === "" || v === null || v === undefined ? undefined : Number(v)),
+              })}
+              className="input"
+            />
+            <p className="mt-1 text-xs text-slate-400">
+              Оставьте пустым, чтобы использовать последнюю цену этого ученика.
+            </p>
+            {errors.pricePerLesson && (
+              <p className="field-error">{errors.pricePerLesson.message}</p>
+            )}
+          </div>
         </>
       )}
 

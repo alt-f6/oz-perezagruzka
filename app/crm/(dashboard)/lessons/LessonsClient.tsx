@@ -125,6 +125,7 @@ export function LessonsClient({
     studentName: string;
     values: LessonValues;
   } | null>(null);
+  const [missingPriceInput, setMissingPriceInput] = useState("");
   const [overriding, setOverriding] = useState(false);
   const [cancelCandidate, setCancelCandidate] = useState<CancelCandidate | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -224,8 +225,18 @@ export function LessonsClient({
     if (!missingPriceWarning) return;
     setOverriding(true);
     try {
-      const created = await submitCreate(missingPriceWarning.values, { missingPrice: true });
-      if (created) setMissingPriceWarning(null);
+      const enteredPrice = missingPriceInput.trim();
+      const created = await submitCreate(
+        {
+          ...missingPriceWarning.values,
+          ...(enteredPrice ? { pricePerLesson: Number(enteredPrice) } : {}),
+        },
+        enteredPrice ? {} : { missingPrice: true },
+      );
+      if (created) {
+        setMissingPriceWarning(null);
+        setMissingPriceInput("");
+      }
     } catch {
       showToast("Не удалось создать занятие", "error");
     } finally {
@@ -621,17 +632,33 @@ export function LessonsClient({
         open={missingPriceWarning !== null}
         danger
         title="У ученика нет истории цены"
-        confirmLabel="Создать с ценой 0 ₽"
+        confirmLabel={missingPriceInput.trim() ? "Создать с этой ценой" : "Создать с ценой 0 ₽"}
         busy={overriding}
         message={
-          <span>
-            Для ученика «{missingPriceWarning?.studentName}» ещё нет ни одного
-            индивидуального занятия с ценой — стоимость нового занятия будет
-            установлена в 0 ₽. Скорректировать её можно позже.
+          <span className="space-y-2">
+            <span className="block">
+              Для ученика «{missingPriceWarning?.studentName}» ещё нет ни одного
+              индивидуального занятия с ценой. Укажите цену для этого занятия —
+              или оставьте поле пустым, чтобы создать его с ценой 0 ₽ (можно
+              скорректировать позже).
+            </span>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              placeholder="Например, 1200"
+              value={missingPriceInput}
+              disabled={overriding}
+              onChange={(e) => setMissingPriceInput(e.target.value)}
+              className="input"
+            />
           </span>
         }
         onConfirm={confirmOverrideMissingPrice}
-        onClose={() => setMissingPriceWarning(null)}
+        onClose={() => {
+          setMissingPriceWarning(null);
+          setMissingPriceInput("");
+        }}
       />
     </div>
   );

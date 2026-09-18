@@ -183,11 +183,20 @@ export async function createLesson(
     // acknowledgement before the lesson is created at 0 ₽ -- unless the
     // lesson is explicitly marked free, which needs no rate at all.
     const isFree = parsed.data.isFree ?? false;
-    const resolvedPrice = await getLastIndividualLessonPrice(studentId);
-    if (!isFree && resolvedPrice === null && !parsed.data.acknowledgeMissingPrice) {
-      return {
-        missingPriceWarning: { studentId, studentName: student.fullName },
-      };
+    // A manually entered price always wins: staff typing a rate up front
+    // must never be blocked by "no price history", and never needs the
+    // missing-price-history warning below.
+    const manualPrice = parsed.data.pricePerLesson;
+    let resolvedPrice: number | null;
+    if (isFree || manualPrice !== undefined) {
+      resolvedPrice = manualPrice ?? null;
+    } else {
+      resolvedPrice = await getLastIndividualLessonPrice(studentId);
+      if (resolvedPrice === null && !parsed.data.acknowledgeMissingPrice) {
+        return {
+          missingPriceWarning: { studentId, studentName: student.fullName },
+        };
+      }
     }
 
     teacherId = chosenTeacherId;

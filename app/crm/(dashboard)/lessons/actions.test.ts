@@ -324,6 +324,35 @@ describe("createLesson", () => {
     });
   });
 
+  it("persists a manually entered price for an INDIVIDUAL lesson with no price history", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    dbMock.student.findFirst.mockResolvedValue({
+      id: "66666666-6666-4666-8666-666666666666",
+      fullName: "Ivan",
+    });
+    dbMock.user.findFirst.mockResolvedValue({ id: "77777777-7777-4777-8777-777777777777" });
+    dbMock.classSession.findFirst.mockResolvedValue(null); // no price history
+    dbMock.classSession.findMany.mockResolvedValue([]); // no schedule conflicts
+    dbMock.teacherAvailability.findMany.mockResolvedValue([]);
+
+    const result = await createLesson({
+      type: "INDIVIDUAL",
+      studentId: "66666666-6666-4666-8666-666666666666",
+      teacherId: "77777777-7777-4777-8777-777777777777",
+      date: "2026-10-01",
+      time: "10:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      pricePerLesson: 1200,
+    });
+
+    expect(result.error).toBeUndefined();
+    expect("missingPriceWarning" in result && result.missingPriceWarning).toBeFalsy();
+    expect(dbMock.classSession.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ pricePerLesson: 1200 })],
+    });
+  });
+
   it("bypasses missingPriceWarning for an INDIVIDUAL lesson marked isFree", async () => {
     dbMock.student.findFirst.mockResolvedValue({
       id: "22222222-2222-4222-8222-222222222222",

@@ -721,9 +721,9 @@ export async function setAttendance(
 
   // Zero Future Billing invariant: PRESENT/ABSENT can never be set -- nor
   // implicitly triggered by a grading-field save below -- before a lesson's
-  // attendance window opens. No role exception (unlike the past-lesson lock
-  // above, which exempts ADMIN). EXCUSED/CANCELLED_BY_CENTER stay unblocked
-  // since BillingService never charges them regardless of timing.
+  // attendance window opens. No role exception. EXCUSED/CANCELLED_BY_CENTER
+  // stay unblocked since BillingService never charges them regardless of
+  // timing.
   if (!windowOpen && requestsBillableStatus) {
     return { error: "Нельзя отметить посещаемость занятия до его начала" };
   }

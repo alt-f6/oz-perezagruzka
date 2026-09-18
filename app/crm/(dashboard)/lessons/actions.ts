@@ -796,6 +796,16 @@ export async function setAttendance(
     // trapping staff with no way to fix the price without first reverting
     // attendance to null. Fail the whole save cleanly instead.
     if (billingAttempted && message.includes("не помеченное как бесплатное")) {
+      // TEACHER can't set a price or mark a lesson free themselves (that's
+      // updateLesson, ADMIN/MANAGER-only) -- pointing them at "set the
+      // price" would send them to a control they don't have. Redirect to
+      // an administrator instead of repeating the ADMIN/MANAGER-facing copy.
+      if (sessionUser.role === "TEACHER") {
+        return {
+          error:
+            "Стоимость урока не указана. Обратитесь к администратору для установки цены перед отметкой посещаемости.",
+        };
+      }
       return {
         error:
           "У занятия нулевая цена, и оно не помечено как бесплатное. Установите цену или отметьте занятие бесплатным, затем повторите отметку.",

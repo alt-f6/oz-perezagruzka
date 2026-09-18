@@ -202,6 +202,16 @@ export function AttendanceClient({
         />
       )}
 
+      {isTeacher &&
+        lesson.type === "INDIVIDUAL" &&
+        !lesson.isFree &&
+        (lesson.pricePerLesson === null || Number(lesson.pricePerLesson) === 0) && (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+            Стоимость урока не указана. Обратитесь к администратору для установки цены перед
+            отметкой посещаемости.
+          </p>
+        )}
+
       {students.length === 0 ? (
         <div className="empty-state bg-white">
           {lesson.group

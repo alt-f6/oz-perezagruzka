@@ -988,6 +988,34 @@ describe("setAttendance", () => {
     markSpy.mockRestore();
   });
 
+  it("gives a TEACHER a non-technical notice (not a balance-check message) when the lesson has no price", async () => {
+    rbacMock.requireRole.mockResolvedValue(TEACHER);
+    const markSpy = vi
+      .spyOn(BillingService, "markAttendanceAndCharge")
+      .mockRejectedValue(new Error("Нельзя списать 0 ₽ за занятие, не помеченное как бесплатное"));
+
+    const result = await setAttendance("lesson_1", "student_1", { status: "PRESENT" });
+
+    expect(result.error).toBe(
+      "Стоимость урока не указана. Обратитесь к администратору для установки цены перед отметкой посещаемости.",
+    );
+    markSpy.mockRestore();
+  });
+
+  it("keeps the actionable ADMIN/MANAGER message when the lesson has no price", async () => {
+    rbacMock.requireRole.mockResolvedValue(ADMIN);
+    const markSpy = vi
+      .spyOn(BillingService, "markAttendanceAndCharge")
+      .mockRejectedValue(new Error("Нельзя списать 0 ₽ за занятие, не помеченное как бесплатное"));
+
+    const result = await setAttendance("lesson_1", "student_1", { status: "PRESENT" });
+
+    expect(result.error).toBe(
+      "У занятия нулевая цена, и оно не помечено как бесплатное. Установите цену или отметьте занятие бесплатным, затем повторите отметку.",
+    );
+    markSpy.mockRestore();
+  });
+
   it("returns a handled error when both billing and the attendance fallback fail", async () => {
     rbacMock.requireRole.mockResolvedValue(TEACHER);
     const markSpy = vi
@@ -1357,7 +1385,7 @@ describe("setAttendance", () => {
     const result = await setAttendance("lesson_1", "student_1", { status: "PRESENT" });
 
     expect(result.error).toBeTruthy();
-    expect(result.error).toMatch(/бесплатн/);
+    expect(result.error).toMatch(/администратор/);
     expect(dbMock.attendance.upsert).not.toHaveBeenCalled();
     markSpy.mockRestore();
   });
@@ -1373,7 +1401,7 @@ describe("setAttendance", () => {
     const result = await setAttendance("lesson_1", "student_1", { grade: 5 });
 
     expect(result.error).toBeTruthy();
-    expect(result.error).toMatch(/бесплатн/);
+    expect(result.error).toMatch(/администратор/);
     expect(markSpy).toHaveBeenCalledWith("lesson_1", "student_1", "PRESENT");
     expect(dbMock.attendance.upsert).not.toHaveBeenCalled();
     expect(dbMock.attendance.update).not.toHaveBeenCalled();

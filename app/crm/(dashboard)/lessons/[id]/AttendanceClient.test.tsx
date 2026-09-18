@@ -33,28 +33,6 @@ const baseLessonFixture: ClassSessionWithGroup = {
   group: { id: "g1", name: "Группа 1", teacherId: "t1" },
 };
 
-const pastLessonFixture: ClassSessionWithGroup = {
-  ...baseLessonFixture,
-  scheduledAt: "2020-01-01T12:00:00.000Z",
-};
-
-// Started 30 minutes ago with a 60-minute duration -- still ongoing, so it
-// must NOT be locked even for a TEACHER (boundary is end time, not start
-// time).
-const ongoingLessonFixture: ClassSessionWithGroup = {
-  ...baseLessonFixture,
-  scheduledAt: new Date(Date.now() - 30 * 60_000).toISOString(),
-  durationMinutes: 60,
-};
-
-// Started 90 minutes ago with a 60-minute duration -- concluded 30 minutes
-// ago, so it must be locked for a TEACHER.
-const concludedLessonFixture: ClassSessionWithGroup = {
-  ...baseLessonFixture,
-  scheduledAt: new Date(Date.now() - 90 * 60_000).toISOString(),
-  durationMinutes: 60,
-};
-
 // Starts in 20 minutes -- outside the 15-minute pre-lesson attendance
 // window, so attendance can't be marked yet.
 const futureLessonFixture: ClassSessionWithGroup = {

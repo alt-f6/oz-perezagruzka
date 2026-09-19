@@ -2371,4 +2371,34 @@ describe("updateLesson", () => {
     expect(result.error).toMatch(/уже занят/);
     expect(dbMock.classSession.update).not.toHaveBeenCalled();
   });
+
+  it("rejects a duration-only extension that would overlap another of the teacher's sessions, even though the start time is unchanged", async () => {
+    const { updateLesson } = await import("./actions");
+    // Lesson currently 10:00-10:30 Moscow (60-min slot below is really 30 --
+    // use exact figures): scheduledAt 10:00 Moscow (07:00Z), durationMinutes 30.
+    dbMock.classSession.findUnique.mockResolvedValue({
+      type: "INDIVIDUAL",
+      teacherId: "teacher_1",
+      scheduledAt: new Date("2026-09-25T07:00:00.000Z"), // 10:00 Moscow
+      durationMinutes: 30,
+      _count: { attendance: 0 },
+    });
+    // Another of the teacher's sessions starts right after the *current*
+    // 30-minute window (10:30-11:00 Moscow == 07:30Z-08:00Z). Extending the
+    // lesson under test to 60 minutes (10:00-11:00 Moscow) would overlap it,
+    // even though its own start time never moves.
+    dbMock.classSession.findMany.mockResolvedValue([
+      { scheduledAt: new Date("2026-09-25T07:30:00.000Z"), durationMinutes: 30 },
+    ]);
+
+    // Same date/time as already stored -- only durationMinutes changes.
+    const result = await updateLesson("session_1", {
+      date: "2026-09-25",
+      time: "10:00",
+      durationMinutes: 60,
+    });
+
+    expect(result.error).toMatch(/уже занят/);
+    expect(dbMock.classSession.update).not.toHaveBeenCalled();
+  });
 });

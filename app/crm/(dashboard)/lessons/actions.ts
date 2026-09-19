@@ -616,7 +616,10 @@ export type UpdateLessonResult = { error: string } | { error?: undefined };
  * to change it, then re-mark it. GROUP sessions never take their own price
  * (that's Group.pricePerLesson) -- only isFree is settable for a single
  * occurrence. A reschedule reuses createLesson's own teacher-collision check
- * (excluding the session being moved) and resets reminderSentAt so the
+ * (excluding the session being moved), run against the lesson's final
+ * effective window -- final scheduledAt + final durationMinutes -- whenever
+ * either actually changes, so a duration-only extension that leaves the
+ * start time untouched is still re-checked. Resets reminderSentAt so the
  * lesson-reminders cron re-notifies for the new time.
  */
 export async function updateLesson(
@@ -672,45 +675,61 @@ export async function updateLesson(
 
   const auditRows: { field: string; oldValue: string; newValue: string }[] = [];
 
-  if (parsed.data.date && parsed.data.time) {
-    const newScheduledAt = moscowDateTimeToUtc(parsed.data.date, parsed.data.time);
-    const newDuration = parsed.data.durationMinutes ?? session.durationMinutes;
+  const newScheduledAt =
+    parsed.data.date && parsed.data.time
+      ? moscowDateTimeToUtc(parsed.data.date, parsed.data.time)
+      : undefined;
+  const scheduledAtChanged =
+    newScheduledAt !== undefined && newScheduledAt.getTime() !== session.scheduledAt.getTime();
+  const durationChanged =
+    parsed.data.durationMinutes !== undefined &&
+    parsed.data.durationMinutes !== session.durationMinutes;
 
-    if (newScheduledAt.getTime() !== session.scheduledAt.getTime()) {
-      const conflict = await findTeacherScheduleConflict(
-        session.teacherId,
-        [{ scheduledAt: newScheduledAt, durationMinutes: newDuration }],
-        [classSessionId],
-      );
-      if (conflict) {
-        return {
-          error: `Преподаватель уже занят ${formatMoscowDate(conflict.scheduledAt)} в ${formatMoscowTime(
-            conflict.scheduledAt,
-          )}. Выберите другое время.`,
-        };
-      }
-      data.scheduledAt = newScheduledAt;
+  // The collision check must cover the lesson's actual final occupied
+  // window -- start time AND duration -- whenever either one actually
+  // changes. Checking only on a start-time change would miss a duration-only
+  // extension (start left alone) that grows the window into another of the
+  // teacher's sessions; the reverse (only checking on duration change) would
+  // miss a plain move. Whichever half didn't change keeps its stored value,
+  // so a duration-only edit is still checked against the *existing*
+  // (unchanged) start time, and vice versa.
+  if (scheduledAtChanged || durationChanged) {
+    const finalScheduledAt = newScheduledAt ?? session.scheduledAt;
+    const finalDuration = parsed.data.durationMinutes ?? session.durationMinutes;
+
+    const conflict = await findTeacherScheduleConflict(
+      session.teacherId,
+      [{ scheduledAt: finalScheduledAt, durationMinutes: finalDuration }],
+      [classSessionId],
+    );
+    if (conflict) {
+      return {
+        error: `Преподаватель уже занят ${formatMoscowDate(conflict.scheduledAt)} в ${formatMoscowTime(
+          conflict.scheduledAt,
+        )}. Выберите другое время.`,
+      };
+    }
+
+    if (scheduledAtChanged) {
+      data.scheduledAt = finalScheduledAt;
       // Only a future move needs to re-arm the reminders cron; a backfilled
       // past move never should have (and shouldn't newly) send a reminder.
-      data.reminderSentAt = newScheduledAt > new Date() ? null : undefined;
+      data.reminderSentAt = finalScheduledAt > new Date() ? null : undefined;
       auditRows.push({
         field: "scheduledAt",
         oldValue: session.scheduledAt.toISOString(),
-        newValue: newScheduledAt.toISOString(),
+        newValue: finalScheduledAt.toISOString(),
       });
     }
-  }
 
-  if (
-    parsed.data.durationMinutes !== undefined &&
-    parsed.data.durationMinutes !== session.durationMinutes
-  ) {
-    data.durationMinutes = parsed.data.durationMinutes;
-    auditRows.push({
-      field: "durationMinutes",
-      oldValue: String(session.durationMinutes),
-      newValue: String(parsed.data.durationMinutes),
-    });
+    if (durationChanged) {
+      data.durationMinutes = finalDuration;
+      auditRows.push({
+        field: "durationMinutes",
+        oldValue: String(session.durationMinutes),
+        newValue: String(finalDuration),
+      });
+    }
   }
 
   try {

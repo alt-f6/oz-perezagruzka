@@ -311,6 +311,70 @@ describe("ScheduleClient", () => {
     expect(toastMock).not.toHaveBeenCalledWith("Занятие создано");
   });
 
+  it("surfaces a second warning (not the stale first one) after acknowledging the first, and creates once both are acknowledged", async () => {
+    // Regression: missingPriceWarning followed by availabilityWarning on the
+    // ack-retry used to leave BOTH warning states set, and the stale
+    // missingPrice dialog painted over the real (availability) one forever.
+    const studentId = "550e8400-e29b-41d4-a716-446655440001";
+    const teacherId = "550e8400-e29b-41d4-a716-446655440002";
+    const user = userEvent.setup();
+
+    actionsMock.createLesson
+      .mockResolvedValueOnce({
+        missingPriceWarning: { studentId, studentName: "Назар Михеев" },
+      })
+      .mockResolvedValueOnce({
+        availabilityWarning: {
+          teacherId,
+          occurrences: [{ scheduledAt: todayAt(9, 0), label: "сегодня в 09:00" }],
+        },
+      })
+      .mockResolvedValueOnce({});
+
+    render(
+      <ScheduleClient
+        lessons={[]}
+        groups={groups}
+        teachers={[{ id: teacherId, fullName: "Иван Иванов" }]}
+        students={[{ id: studentId, fullName: "Назар Михеев" }]}
+        userRole="ADMIN"
+      />,
+    );
+
+    await user.click(screen.getByText("Новое занятие"));
+    await user.click(screen.getByRole("button", { name: "Индивидуальное занятие" }));
+    await user.selectOptions(screen.getByDisplayValue("Выберите ученика..."), studentId);
+    await user.selectOptions(screen.getByDisplayValue("Выберите преподавателя..."), teacherId);
+    await user.click(screen.getByText("Выберите дату"));
+    fireEvent.click(document.querySelector(`[data-day="${todayKey()}"]`) as HTMLElement);
+    await user.click(screen.getByRole("button", { name: "09:00" }));
+    await user.click(screen.getByRole("button", { name: "Далее" }));
+    await user.click(screen.getByRole("button", { name: "Создать" }));
+
+    expect(await screen.findByText("У ученика нет истории цены")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Создать с ценой 0 ₽" }));
+
+    // The stale price-history dialog must be gone, and the real, second
+    // warning must be the one visible.
+    expect(screen.queryByText("У ученика нет истории цены")).not.toBeInTheDocument();
+    expect(
+      await screen.findByText("Преподаватель не отметил это время рабочим"),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Всё равно создать" }));
+
+    // The toast is mocked, so just assert it was called, not that the text appears in DOM
+    expect(toastMock).toHaveBeenCalledWith("Занятие создано");
+    // Both acknowledgements must have been carried through to the final call.
+    expect(actionsMock.createLesson).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        acknowledgeMissingPrice: true,
+        acknowledgeUnavailable: true,
+      }),
+    );
+  });
+
   it("filters to only needs-attention lessons when the toggle is checked", async () => {
     const user = userEvent.setup();
     render(

@@ -138,27 +138,20 @@ export function ScheduleClient({
   const [showCancelled, setShowCancelled] = useState(false);
   const [trialOnly, setTrialOnly] = useState(false);
   const [needsAttentionOnly, setNeedsAttentionOnly] = useState(false);
-  // Set when createLesson reports the chosen time is outside the teacher's
-  // declared working hours; drives the override-confirmation dialog so the
-  // lesson is never created silently against unavailability.
-  const [availabilityWarning, setAvailabilityWarning] = useState<{
-    occurrences: { scheduledAt: string; label: string }[];
+  // Set when createLesson reports a soft warning instead of persisting --
+  // exactly one of missingPrice/closedPayout/availability is active at a
+  // time. `ack` carries every acknowledgement confirmed so far in this
+  // retry chain, so acknowledging warning #2 doesn't forget warning #1's
+  // acknowledgement on the next resubmit.
+  type PendingWarning =
+    | { kind: "missingPrice"; studentName: string }
+    | { kind: "closedPayout"; occurrences: { scheduledAt: string; label: string }[] }
+    | { kind: "availability"; occurrences: { scheduledAt: string; label: string }[] };
+
+  const [pendingWarning, setPendingWarning] = useState<{
+    warning: PendingWarning;
     values: LessonValues;
-  } | null>(null);
-  // Set when createLesson reports a backfilled past occurrence lands in a
-  // month whose payout period is already closed for the resolved teacher.
-  const [closedPayoutWarning, setClosedPayoutWarning] = useState<{
-    occurrences: { scheduledAt: string; label: string }[];
-    values: LessonValues;
-  } | null>(null);
-  // Set when createLesson reports the chosen INDIVIDUAL-lesson student has no
-  // prior individual-lesson price on record; the operator must explicitly
-  // confirm creating at 0 ₽. Without handling this, createLesson resolves
-  // without an `.error` and without persisting anything, so a success toast
-  // would fire for a lesson that was never actually created.
-  const [missingPriceWarning, setMissingPriceWarning] = useState<{
-    studentName: string;
-    values: LessonValues;
+    ack: { unavailable?: boolean; closedPayout?: boolean; missingPrice?: boolean };
   } | null>(null);
   const [overriding, setOverriding] = useState(false);
 
@@ -185,7 +178,7 @@ export function ScheduleClient({
   });
 
   // Returns true when the lesson was actually created. `ack` re-submits past
-  // whichever soft warning the operator just confirmed.
+  // every soft warning acknowledged so far in this retry chain.
   const submitCreate = async (
     values: LessonValues,
     ack: { unavailable?: boolean; closedPayout?: boolean; missingPrice?: boolean } = {},
@@ -198,15 +191,17 @@ export function ScheduleClient({
     });
     if (result?.error) {
       showToast(result.error, "error");
+      setPendingWarning(null);
       return false;
     }
     // missingPriceWarning is checked before the other two: createLesson
     // returns it from inside the INDIVIDUAL branch, before occurrences are
     // even expanded, so it's always the first warning surfaced.
     if ("missingPriceWarning" in result && result.missingPriceWarning) {
-      setMissingPriceWarning({
-        studentName: result.missingPriceWarning.studentName,
+      setPendingWarning({
+        warning: { kind: "missingPrice", studentName: result.missingPriceWarning.studentName },
         values,
+        ack,
       });
       return false;
     }
@@ -214,16 +209,18 @@ export function ScheduleClient({
     // first here too -- an operator overriding one warning may still hit the
     // other on the next submit.
     if ("closedPayoutWarning" in result && result.closedPayoutWarning) {
-      setClosedPayoutWarning({
-        occurrences: result.closedPayoutWarning.occurrences,
+      setPendingWarning({
+        warning: { kind: "closedPayout", occurrences: result.closedPayoutWarning.occurrences },
         values,
+        ack,
       });
       return false;
     }
     if ("availabilityWarning" in result && result.availabilityWarning) {
-      setAvailabilityWarning({
-        occurrences: result.availabilityWarning.occurrences,
+      setPendingWarning({
+        warning: { kind: "availability", occurrences: result.availabilityWarning.occurrences },
         values,
+        ack,
       });
       return false;
     }
@@ -232,6 +229,7 @@ export function ScheduleClient({
     );
     reset();
     setIsModalOpen(false);
+    setPendingWarning(null);
     return true;
   };
 
@@ -243,38 +241,22 @@ export function ScheduleClient({
     }
   };
 
-  const confirmOverrideAvailability = async () => {
-    if (!availabilityWarning) return;
+  // Single confirm handler for whichever warning is currently pending. Merges
+  // the newly-confirmed flag into the ack set already accumulated for this
+  // chain, so a second (or third) warning never re-litigates one already
+  // confirmed.
+  const confirmPendingWarning = async () => {
+    if (!pendingWarning) return;
+    const { warning, values, ack } = pendingWarning;
+    const nextAck = {
+      ...ack,
+      ...(warning.kind === "availability" ? { unavailable: true } : {}),
+      ...(warning.kind === "closedPayout" ? { closedPayout: true } : {}),
+      ...(warning.kind === "missingPrice" ? { missingPrice: true } : {}),
+    };
     setOverriding(true);
     try {
-      const created = await submitCreate(availabilityWarning.values, { unavailable: true });
-      if (created) setAvailabilityWarning(null);
-    } catch {
-      showToast("Не удалось создать занятие", "error");
-    } finally {
-      setOverriding(false);
-    }
-  };
-
-  const confirmOverrideClosedPayout = async () => {
-    if (!closedPayoutWarning) return;
-    setOverriding(true);
-    try {
-      const created = await submitCreate(closedPayoutWarning.values, { closedPayout: true });
-      if (created) setClosedPayoutWarning(null);
-    } catch {
-      showToast("Не удалось создать занятие", "error");
-    } finally {
-      setOverriding(false);
-    }
-  };
-
-  const confirmOverrideMissingPrice = async () => {
-    if (!missingPriceWarning) return;
-    setOverriding(true);
-    try {
-      const created = await submitCreate(missingPriceWarning.values, { missingPrice: true });
-      if (created) setMissingPriceWarning(null);
+      await submitCreate(values, nextAck);
     } catch {
       showToast("Не удалось создать занятие", "error");
     } finally {
@@ -803,64 +785,54 @@ export function ScheduleClient({
       )}
 
       <ConfirmDialog
-        open={availabilityWarning !== null}
+        open={pendingWarning !== null}
         danger
-        title="Преподаватель не отметил это время рабочим"
-        confirmLabel="Всё равно создать"
+        title={
+          pendingWarning?.warning.kind === "missingPrice"
+            ? "У ученика нет истории цены"
+            : pendingWarning?.warning.kind === "closedPayout"
+              ? "Расчётный период уже закрыт"
+              : "Преподаватель не отметил это время рабочим"
+        }
+        confirmLabel={
+          pendingWarning?.warning.kind === "missingPrice"
+            ? "Создать с ценой 0 ₽"
+            : "Всё равно создать"
+        }
         busy={overriding}
         message={
-          <span>
-            Внимание: преподаватель не отметил этот слот как рабочий:
-            <br />
-            {(availabilityWarning?.occurrences ?? []).map((o) => (
-              <span key={o.scheduledAt} className="mt-1 block font-medium text-slate-800">
-                • {o.label}
-              </span>
-            ))}
-          </span>
+          pendingWarning?.warning.kind === "missingPrice" ? (
+            <span>
+              Для ученика «{pendingWarning.warning.studentName}» ещё нет ни одного
+              индивидуального занятия с ценой — стоимость нового занятия будет
+              установлена в 0 ₽. Скорректировать её можно позже.
+            </span>
+          ) : pendingWarning?.warning.kind === "closedPayout" ? (
+            <span>
+              Внимание: для этого преподавателя уже зафиксирована выплата за месяц,
+              в который попадают эти занятия — создание задним числом изменит начисления
+              за уже закрытый период:
+              <br />
+              {pendingWarning.warning.occurrences.map((o) => (
+                <span key={o.scheduledAt} className="mt-1 block font-medium text-slate-800">
+                  • {o.label}
+                </span>
+              ))}
+            </span>
+          ) : pendingWarning?.warning.kind === "availability" ? (
+            <span>
+              Внимание: преподаватель не отметил этот слот как рабочий:
+              <br />
+              {pendingWarning.warning.occurrences.map((o) => (
+                <span key={o.scheduledAt} className="mt-1 block font-medium text-slate-800">
+                  • {o.label}
+                </span>
+              ))}
+            </span>
+          ) : null
         }
-        onConfirm={confirmOverrideAvailability}
-        onClose={() => setAvailabilityWarning(null)}
-      />
-
-      <ConfirmDialog
-        open={closedPayoutWarning !== null}
-        danger
-        title="Расчётный период уже закрыт"
-        confirmLabel="Всё равно создать"
-        busy={overriding}
-        message={
-          <span>
-            Внимание: для этого преподавателя уже зафиксирована выплата за месяц,
-            в который попадают эти занятия — создание задним числом изменит начисления
-            за уже закрытый период:
-            <br />
-            {(closedPayoutWarning?.occurrences ?? []).map((o) => (
-              <span key={o.scheduledAt} className="mt-1 block font-medium text-slate-800">
-                • {o.label}
-              </span>
-            ))}
-          </span>
-        }
-        onConfirm={confirmOverrideClosedPayout}
-        onClose={() => setClosedPayoutWarning(null)}
-      />
-
-      <ConfirmDialog
-        open={missingPriceWarning !== null}
-        danger
-        title="У ученика нет истории цены"
-        confirmLabel="Создать с ценой 0 ₽"
-        busy={overriding}
-        message={
-          <span>
-            Для ученика «{missingPriceWarning?.studentName}» ещё нет ни одного
-            индивидуального занятия с ценой — стоимость нового занятия будет
-            установлена в 0 ₽. Скорректировать её можно позже.
-          </span>
-        }
-        onConfirm={confirmOverrideMissingPrice}
-        onClose={() => setMissingPriceWarning(null)}
+        onConfirm={confirmPendingWarning}
+        onClose={() => setPendingWarning(null)}
       />
     </div>
   );

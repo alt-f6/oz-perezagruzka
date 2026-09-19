@@ -121,6 +121,7 @@ model User {
   invites           Invite[]              @relation("InviteInviter")
   parentProfile     Parent?               @relation("ParentUser")
   gradedSubmissions Submission[]          @relation("GradedSubmissions")
+  lessonAuditLogs   LessonAuditLog[]
 
   // Lead conversion: a Lead becomes a User (role STUDENT) upon payment
   convertedFromLead Lead?
@@ -334,6 +335,7 @@ model ClassSession {
   attendance   Attendance[]
   transactions Transaction[]
   submissions  Submission[]
+  auditLogs    LessonAuditLog[]
 
   makeupTargetFor MakeupLesson[] @relation("TargetClassSession")
 
@@ -405,6 +407,24 @@ model MakeupLesson {
   targetClassSession ClassSession @relation("TargetClassSession", fields: [targetClassSessionId], references: [id], onDelete: Cascade)
 
   @@index([targetClassSessionId])
+}
+
+// Append-only audit trail for in-place lesson edits that change a
+// scheduled time (see updateLesson's scheduledAt/durationMinutes path).
+// Never updated or deleted -- one row per changed field per edit.
+model LessonAuditLog {
+  id             String   @id @default(uuid())
+  classSessionId String
+  field          String
+  oldValue       String?
+  newValue       String?
+  changedById    String
+  changedAt      DateTime @default(now())
+
+  classSession ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+  changedBy    User         @relation(fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([classSessionId, changedAt])
 }
 
 model Freeze {

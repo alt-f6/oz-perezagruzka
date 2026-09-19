@@ -19,6 +19,7 @@ import {
 import { formatMoscowDate, formatMoscowTime } from "@/shared/lib/timezone";
 import { assignMakeupLesson, setAttendance } from "../actions";
 import { LessonPricingEditor } from "./LessonPricingEditor";
+import { LessonScheduleEditor } from "./LessonScheduleEditor";
 import { SubmissionFileCell } from "./SubmissionFileCell";
 
 const ATTENDANCE_STATUSES: { value: AttendanceStatus; label: string }[] = [
@@ -193,13 +194,21 @@ export function AttendanceClient({
       </div>
 
       {(userRole === "ADMIN" || userRole === "MANAGER") && (
-        <LessonPricingEditor
-          classSessionId={lesson.id}
-          type={lesson.type ?? "GROUP"}
-          pricePerLesson={lesson.pricePerLesson ?? null}
-          isFree={lesson.isFree ?? false}
-          locked={attendance.some((a) => a.status !== null)}
-        />
+        <div className="flex flex-wrap items-start gap-2">
+          <LessonPricingEditor
+            classSessionId={lesson.id}
+            type={lesson.type ?? "GROUP"}
+            pricePerLesson={lesson.pricePerLesson ?? null}
+            isFree={lesson.isFree ?? false}
+            locked={attendance.some((a) => a.status !== null)}
+          />
+          <LessonScheduleEditor
+            classSessionId={lesson.id}
+            scheduledAt={lesson.scheduledAt}
+            durationMinutes={lesson.durationMinutes}
+            locked={attendance.some((a) => a.status !== null)}
+          />
+        </div>
       )}
 
       {isTeacher &&

@@ -35,6 +35,7 @@ export default async function LessonDetailPage({
       studentId: true,
       teacherId: true,
       scheduledAt: true,
+      durationMinutes: true,
       status: true,
       pricePerLesson: true,
       isFree: true,

@@ -27,6 +27,7 @@ const dbMock = vi.hoisted(() => ({
   teacherPayout: { findFirst: vi.fn() },
   makeupLesson: { upsert: vi.fn() },
   transaction: { create: vi.fn() },
+  lessonAuditLog: { createMany: vi.fn() },
   $transaction: vi.fn(),
 }));
 
@@ -2292,5 +2293,82 @@ describe("updateLesson", () => {
       where: { id: "session_1" },
       data: { isFree: true },
     });
+  });
+
+  it("reschedules an unmarked session, resets reminderSentAt, and writes an audit row", async () => {
+    const { updateLesson } = await import("./actions");
+    const oldScheduledAt = new Date("2026-09-20T10:00:00.000Z");
+    dbMock.classSession.findUnique.mockResolvedValue({
+      type: "INDIVIDUAL",
+      teacherId: "teacher_1",
+      scheduledAt: oldScheduledAt,
+      durationMinutes: 60,
+      _count: { attendance: 0 },
+    });
+    dbMock.classSession.findMany.mockResolvedValue([]); // no conflicting sessions
+    dbMock.$transaction.mockImplementation(async (fn: any) => fn(dbMock));
+    dbMock.classSession.update.mockResolvedValue({});
+    dbMock.lessonAuditLog.createMany.mockResolvedValue({ count: 1 });
+
+    const result = await updateLesson("session_1", {
+      date: "2026-09-25",
+      time: "12:00",
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(dbMock.classSession.update).toHaveBeenCalledWith({
+      where: { id: "session_1" },
+      data: expect.objectContaining({
+        scheduledAt: expect.any(Date),
+        reminderSentAt: null,
+      }),
+    });
+    expect(dbMock.lessonAuditLog.createMany).toHaveBeenCalledWith({
+      data: [
+        expect.objectContaining({
+          classSessionId: "session_1",
+          field: "scheduledAt",
+          changedById: "user_1",
+        }),
+      ],
+    });
+  });
+
+  it("rejects a reschedule once attendance has been marked", async () => {
+    const { updateLesson } = await import("./actions");
+    dbMock.classSession.findUnique.mockResolvedValue({
+      type: "INDIVIDUAL",
+      teacherId: "teacher_1",
+      scheduledAt: new Date("2026-09-20T10:00:00.000Z"),
+      durationMinutes: 60,
+      _count: { attendance: 1 },
+    });
+
+    const result = await updateLesson("session_1", { date: "2026-09-25", time: "12:00" });
+
+    expect(result.error).toMatch(/отметки посещаемости/);
+    expect(dbMock.classSession.update).not.toHaveBeenCalled();
+  });
+
+  it("rejects a reschedule that collides with the teacher's other sessions", async () => {
+    const { updateLesson } = await import("./actions");
+    dbMock.classSession.findUnique.mockResolvedValue({
+      type: "INDIVIDUAL",
+      teacherId: "teacher_1",
+      scheduledAt: new Date("2026-09-20T10:00:00.000Z"),
+      durationMinutes: 60,
+      _count: { attendance: 0 },
+    });
+    // 10:00 Moscow == 07:00Z; a 60-min existing session starting 30 minutes
+    // later (07:30Z, i.e. 10:30 Moscow) overlaps it, same 30-min-overlap
+    // shape as the createLesson TIME-03 collision test above.
+    dbMock.classSession.findMany.mockResolvedValue([
+      { scheduledAt: new Date("2026-09-25T07:30:00.000Z"), durationMinutes: 60 },
+    ]);
+
+    const result = await updateLesson("session_1", { date: "2026-09-25", time: "10:00" });
+
+    expect(result.error).toMatch(/уже занят/);
+    expect(dbMock.classSession.update).not.toHaveBeenCalled();
   });
 });

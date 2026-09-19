@@ -15,7 +15,7 @@ import {
 import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import { BillingService } from "@/crm/lib/services/billing.service";
-import { formatMoscowDate, formatMoscowTime } from "@/shared/lib/timezone";
+import { formatMoscowDate, formatMoscowTime, moscowDateTimeToUtc } from "@/shared/lib/timezone";
 import { isAttendanceWindowOpen } from "@/crm/lib/lessonTime";
 import type { ActionResult } from "@/crm/lib/types";
 import {
@@ -92,7 +92,7 @@ function intervalsOverlap(
  * window is padded by the max lesson length so an existing session starting
  * just before the first occurrence is still caught.
  */
-async function findTeacherScheduleConflict(
+export async function findTeacherScheduleConflict(
   teacherId: string,
   occurrences: Occurrence[],
   excludeSessionIds?: string[],
@@ -607,19 +607,29 @@ export async function bulkCancelSessionsWithBilling(input: {
 export type UpdateLessonResult = { error: string } | { error?: undefined };
 
 /**
- * Narrow, price/isFree-only edit for a lesson that hasn't been marked yet.
- * ADMIN/MANAGER only. Blocked once any Attendance row for the session has a
- * non-null status -- editing pricing after real marking would silently
- * desync it from whatever was already charged; staff must revert attendance
- * to null first (existing setAttendance flow) if they truly need to change
- * pricing, then re-mark it. GROUP sessions never take their own price (that's
- * Group.pricePerLesson) -- only isFree is settable for a single occurrence.
+ * Narrow edit for a lesson that hasn't been marked yet: price/isFree, and/or
+ * an in-place reschedule (date/time/duration). ADMIN/MANAGER only. Blocked
+ * entirely once any Attendance row for the session has a non-null status --
+ * editing anything (pricing or timing) after real marking would silently
+ * desync it from whatever was already charged/notified; staff must revert
+ * attendance to null first (existing setAttendance flow) if they truly need
+ * to change it, then re-mark it. GROUP sessions never take their own price
+ * (that's Group.pricePerLesson) -- only isFree is settable for a single
+ * occurrence. A reschedule reuses createLesson's own teacher-collision check
+ * (excluding the session being moved) and resets reminderSentAt so the
+ * lesson-reminders cron re-notifies for the new time.
  */
 export async function updateLesson(
   classSessionId: string,
-  values: { pricePerLesson?: number; isFree?: boolean },
+  values: {
+    pricePerLesson?: number;
+    isFree?: boolean;
+    date?: string;
+    time?: string;
+    durationMinutes?: number;
+  },
 ): Promise<UpdateLessonResult> {
-  await requireRole(["ADMIN", "MANAGER"]);
+  const sessionUser = await requireRole(["ADMIN", "MANAGER"]);
 
   const parsed = updateLessonSchema.safeParse(values);
   if (!parsed.success) {
@@ -630,6 +640,9 @@ export async function updateLesson(
     where: { id: classSessionId },
     select: {
       type: true,
+      teacherId: true,
+      scheduledAt: true,
+      durationMinutes: true,
       _count: { select: { attendance: { where: { status: { not: null } } } } },
     },
   });
@@ -637,13 +650,19 @@ export async function updateLesson(
     return { error: "Занятие не найдено" };
   }
   if (session._count.attendance > 0) {
-    return { error: "Нельзя изменить стоимость или бесплатность после отметки посещаемости" };
+    return { error: "Нельзя изменить занятие после отметки посещаемости" };
   }
   if (session.type === "GROUP" && parsed.data.pricePerLesson !== undefined) {
     return { error: "Цена группового занятия задаётся в настройках группы" };
   }
 
-  const data: { pricePerLesson?: number; isFree?: boolean } = {};
+  const data: {
+    pricePerLesson?: number;
+    isFree?: boolean;
+    scheduledAt?: Date;
+    durationMinutes?: number;
+    reminderSentAt?: null;
+  } = {};
   if (session.type === "INDIVIDUAL" && parsed.data.pricePerLesson !== undefined) {
     data.pricePerLesson = parsed.data.pricePerLesson;
   }
@@ -651,13 +670,72 @@ export async function updateLesson(
     data.isFree = parsed.data.isFree;
   }
 
+  const auditRows: { field: string; oldValue: string; newValue: string }[] = [];
+
+  if (parsed.data.date && parsed.data.time) {
+    const newScheduledAt = moscowDateTimeToUtc(parsed.data.date, parsed.data.time);
+    const newDuration = parsed.data.durationMinutes ?? session.durationMinutes;
+
+    if (newScheduledAt.getTime() !== session.scheduledAt.getTime()) {
+      const conflict = await findTeacherScheduleConflict(
+        session.teacherId,
+        [{ scheduledAt: newScheduledAt, durationMinutes: newDuration }],
+        [classSessionId],
+      );
+      if (conflict) {
+        return {
+          error: `Преподаватель уже занят ${formatMoscowDate(conflict.scheduledAt)} в ${formatMoscowTime(
+            conflict.scheduledAt,
+          )}. Выберите другое время.`,
+        };
+      }
+      data.scheduledAt = newScheduledAt;
+      // Only a future move needs to re-arm the reminders cron; a backfilled
+      // past move never should have (and shouldn't newly) send a reminder.
+      data.reminderSentAt = newScheduledAt > new Date() ? null : undefined;
+      auditRows.push({
+        field: "scheduledAt",
+        oldValue: session.scheduledAt.toISOString(),
+        newValue: newScheduledAt.toISOString(),
+      });
+    }
+  }
+
+  if (
+    parsed.data.durationMinutes !== undefined &&
+    parsed.data.durationMinutes !== session.durationMinutes
+  ) {
+    data.durationMinutes = parsed.data.durationMinutes;
+    auditRows.push({
+      field: "durationMinutes",
+      oldValue: String(session.durationMinutes),
+      newValue: String(parsed.data.durationMinutes),
+    });
+  }
+
   try {
-    await db.classSession.update({ where: { id: classSessionId }, data });
+    if (auditRows.length > 0) {
+      await db.$transaction(async (tx) => {
+        await tx.classSession.update({ where: { id: classSessionId }, data });
+        await tx.lessonAuditLog.createMany({
+          data: auditRows.map((row) => ({
+            classSessionId,
+            field: row.field,
+            oldValue: row.oldValue,
+            newValue: row.newValue,
+            changedById: sessionUser.id,
+          })),
+        });
+      });
+    } else {
+      await db.classSession.update({ where: { id: classSessionId }, data });
+    }
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Не удалось обновить занятие" };
   }
 
   revalidatePath(`/lessons/${classSessionId}`);
+  revalidatePath("/schedule");
   return {};
 }
 

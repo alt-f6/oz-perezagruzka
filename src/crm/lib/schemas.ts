@@ -277,16 +277,24 @@ export const lessonSchema = z
     { message: "Укажите время для каждого выбранного дня", path: ["daySlots"] },
   );
 
-// updateLesson payload (app/crm/(dashboard)/lessons/actions.ts). Both fields
-// optional -- a caller may update just isFree, just the price, or both.
-export const updateLessonSchema = z.object({
-  pricePerLesson: z.coerce
-    .number()
-    .min(0, { message: "Цена не может быть отрицательной" })
-    .max(1_000_000, { message: "Слишком большая цена" })
-    .optional(),
-  isFree: z.boolean().optional(),
-});
+// updateLesson payload (app/crm/(dashboard)/lessons/actions.ts). All fields
+// optional -- a caller may update pricing, rescheduling, or both in one call.
+// date/time (not a single scheduledAt) match the create-lesson form's own
+// fields, both resolved via moscowDateTimeToUtc -- see LessonScheduleEditor.
+export const updateLessonSchema = z
+  .object({
+    pricePerLesson: z.coerce
+      .number()
+      .min(0, { message: "Цена не может быть отрицательной" })
+      .max(1_000_000, { message: "Слишком большая цена" })
+      .optional(),
+    isFree: z.boolean().optional(),
+    date: z.string().min(1, { message: "Укажите дату" }).optional(),
+    time: z.string().min(1, { message: "Укажите время" }).optional(),
+    durationMinutes: lessonDurationSchema.optional(),
+  })
+  .refine((data) => !data.date || !!data.time, { message: "Укажите время", path: ["time"] })
+  .refine((data) => !data.time || !!data.date, { message: "Укажите дату", path: ["date"] });
 
 export type UpdateLessonValues = z.infer<typeof updateLessonSchema>;
 

@@ -1,7 +1,9 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useEffect, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { todayKey } from "@/crm/lib/calendarGrid";
+import { moscowDateKey, moscowDateTimeToUtc } from "@/shared/lib/timezone";
 
 const toastMock = vi.hoisted(() => vi.fn());
 vi.mock("@/crm/components/ToastProvider", () => ({ useToast: () => toastMock }));
@@ -11,19 +13,57 @@ const actionsMock = vi.hoisted(() => ({
 }));
 vi.mock("../lessons/actions", () => actionsMock);
 
+const routerMock = vi.hoisted(() => ({ push: vi.fn() }));
+let currentSearchParams = new URLSearchParams("");
+// Real Next.js soft-navigates on router.push to the same route: it updates
+// what useSearchParams() returns and re-renders subscribers without a full
+// reload. The plain `() => currentSearchParams` mock can't reproduce that --
+// pushing wouldn't trigger a re-render -- so ScheduleClient's own
+// view/date-switcher buttons (which call router.push, not a local setState)
+// would appear to do nothing in tests. This tiny store + useState subscriber
+// makes push() actually flow back into what the component reads, matching
+// real browser behavior closely enough for the existing click-driven tests.
+const searchParamsSubscribers = new Set<(next: URLSearchParams) => void>();
+function pushSearchParams(url: string) {
+  const qs = url.includes("?") ? url.slice(url.indexOf("?") + 1) : "";
+  currentSearchParams = new URLSearchParams(qs);
+  searchParamsSubscribers.forEach((notify) => notify(currentSearchParams));
+}
+routerMock.push.mockImplementation((url: string) => {
+  pushSearchParams(url);
+});
+vi.mock("next/navigation", () => ({
+  useRouter: () => routerMock,
+  usePathname: () => "/schedule",
+  useSearchParams: () => {
+    const [params, setParams] = useState(currentSearchParams);
+    useEffect(() => {
+      searchParamsSubscribers.add(setParams);
+      return () => {
+        searchParamsSubscribers.delete(setParams);
+      };
+    }, []);
+    return params;
+  },
+}));
+
 const { ScheduleClient, PIXELS_PER_HOUR } = await import("./ScheduleClient");
 
 const groups = [{ id: "g1", name: "Группа 1" }];
 const teachers = [{ id: "t1", fullName: "Иван Иванов" }];
 
 // Returns the UTC instant whose Europe/Moscow (UTC+3) wall-clock is hour:minute
-// today — i.e. what the CRM actually persists for a Moscow-selected time. The
-// schedule renders times in Moscow, so this keeps the fixture's intended
-// wall-clock (e.g. 15:00) matching the rendered label regardless of TZ.
+// on today's MOSCOW calendar date (matching moscowDateKey(new Date()), which
+// is what ScheduleClient now defaults selectedDate to). A naive
+// "new Date() with UTC hours overwritten" would instead anchor to today's
+// UTC calendar date, which silently disagrees with the Moscow calendar date
+// for the ~3h/day window where the two are on different days -- exactly the
+// window that made these tests flaky.
 function todayAt(hour: number, minute: number): string {
-  const d = new Date();
-  d.setUTCHours(hour - 3, minute, 0, 0);
-  return d.toISOString();
+  return moscowDateTimeToUtc(
+    moscowDateKey(new Date()),
+    `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`,
+  ).toISOString();
 }
 
 function makeLesson(overrides: Partial<Parameters<typeof ScheduleClient>[0]["lessons"][number]>) {
@@ -41,6 +81,7 @@ function makeLesson(overrides: Partial<Parameters<typeof ScheduleClient>[0]["les
 
 beforeEach(() => {
   vi.clearAllMocks();
+  currentSearchParams = new URLSearchParams("");
 });
 
 describe("ScheduleClient", () => {
@@ -395,6 +436,40 @@ describe("ScheduleClient", () => {
 
     expect(screen.getByTestId("session-block-s1")).toBeInTheDocument();
     expect(screen.queryByTestId("session-block-s2")).not.toBeInTheDocument();
+  });
+
+  it("defaults to today's Moscow date when the URL has no date param, and pushes (not replaces) on navigation", async () => {
+    const user = userEvent.setup();
+    render(<ScheduleClient lessons={[]} groups={groups} teachers={teachers} />);
+
+    // Next-day nav button is the ChevronRight icon button; it has no
+    // accessible name, so it's located via the lucide icon class rather than
+    // a label, and asserted via the pushed URL to stay resilient to markup.
+    const nextDayButton = document
+      .querySelector("svg.lucide-chevron-right")
+      ?.closest("button") as HTMLButtonElement;
+    await user.click(nextDayButton);
+
+    expect(routerMock.push).toHaveBeenCalledTimes(1);
+    const [url, opts] = routerMock.push.mock.calls[0];
+    expect(url).toMatch(/^\/schedule\?/);
+    expect(new URL(url, "http://x").searchParams.get("date")).toBeTruthy();
+    expect(opts).toEqual({ scroll: false });
+  });
+
+  it("reads the initial date and view from the URL instead of defaulting to today", () => {
+    currentSearchParams = new URLSearchParams("date=2026-01-15&view=week");
+    render(
+      <ScheduleClient
+        lessons={[makeLesson({ id: "s1", scheduledAt: "2026-01-15T09:00:00.000Z" })]}
+        groups={groups}
+        teachers={teachers}
+      />,
+    );
+
+    // Week view renders the week grid; the session for the URL's date must
+    // be visible without any date-navigation click.
+    expect(screen.getByTestId("week-session-s1")).toBeInTheDocument();
   });
 
   it("shows a compact teacher label on month-view chips", async () => {

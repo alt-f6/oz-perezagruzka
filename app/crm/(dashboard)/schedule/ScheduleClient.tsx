@@ -11,6 +11,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { LessonWizard } from "@/crm/components/LessonWizard";
@@ -128,8 +129,26 @@ export function ScheduleClient({
 }) {
   const isTeacher = userRole === "TEACHER";
   const showToast = useToast();
-  const [selectedDate, setSelectedDate] = useState<string>(toDateKey(new Date()));
-  const [view, setView] = useState<ViewMode>("day");
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // The URL is the single source of truth for date/view -- this is what
+  // makes browser Back/Forward work (see updateUrl below, which always uses
+  // router.push so each navigation is a real history entry). Default to
+  // today in Moscow only when the URL doesn't already pin a date.
+  const urlDate = searchParams.get("date");
+  const selectedDate =
+    urlDate && /^\d{4}-\d{2}-\d{2}$/.test(urlDate) ? urlDate : moscowDateKey(new Date());
+  const urlView = searchParams.get("view");
+  const view: ViewMode = urlView === "week" || urlView === "month" ? urlView : "day";
+
+  const updateUrl = (patch: { date?: string; view?: ViewMode }) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (patch.date !== undefined) params.set("date", patch.date);
+    if (patch.view !== undefined) params.set("view", patch.view);
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
   const [groupFilter, setGroupFilter] = useState("");
   const [teacherFilter, setTeacherFilter] = useState("");
   const [studentFilter, setStudentFilter] = useState("");
@@ -345,7 +364,7 @@ export function ScheduleClient({
   const changeDate = (days: number) => {
     const d = parseDateKey(selectedDate);
     d.setDate(d.getDate() + days);
-    setSelectedDate(toDateKey(d));
+    updateUrl({ date: toDateKey(d) });
   };
 
   const navigate = (direction: 1 | -1) => {
@@ -354,7 +373,7 @@ export function ScheduleClient({
     else {
       const d = parseDateKey(selectedDate);
       d.setMonth(d.getMonth() + direction);
-      setSelectedDate(toDateKey(d));
+      updateUrl({ date: toDateKey(d) });
     }
   };
 
@@ -426,7 +445,7 @@ export function ScheduleClient({
             <input
               type="date"
               value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              onChange={(e) => updateUrl({ date: e.target.value })}
               className="cursor-pointer bg-transparent outline-none"
             />
           </div>
@@ -444,7 +463,7 @@ export function ScheduleClient({
             <button
               key={mode}
               type="button"
-              onClick={() => setView(mode)}
+              onClick={() => updateUrl({ view: mode })}
               className={`rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-all duration-200 ${
                 view === mode
                   ? "bg-accent text-white shadow-sm"
@@ -719,10 +738,7 @@ export function ScheduleClient({
               <button
                 key={key}
                 type="button"
-                onClick={() => {
-                  setSelectedDate(key);
-                  setView("day");
-                }}
+                onClick={() => updateUrl({ date: key, view: "day" })}
                 className={`min-h-[84px] rounded-xl border border-slate-200 bg-white p-2 text-left shadow-card transition-all duration-200 hover:border-accent/25 hover:shadow-card-hover ${
                   isCurrentMonth ? "" : "opacity-40"
                 }`}

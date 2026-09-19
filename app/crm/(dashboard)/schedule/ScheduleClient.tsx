@@ -30,7 +30,7 @@ import {
 import { formatTimeRange } from "@/crm/lib/lessonTime";
 import { lessonSchema, type LessonValues } from "@/crm/lib/schemas";
 import { moscowDateKey, moscowWallClock } from "@/shared/lib/timezone";
-import { createLesson } from "../lessons/actions";
+import { createLesson, duplicateWeekScheduleAction } from "../lessons/actions";
 
 export const PIXELS_PER_HOUR = 64;
 // Floor so short lessons (durationMinutes is user-set, not fixed at 60) still
@@ -283,6 +283,51 @@ export function ScheduleClient({
     }
   };
 
+  // Preview + confirm flow for duplicating a whole week's schedule 7 days
+  // forward -- see duplicateWeekScheduleAction. `weekStart` (used inside
+  // these handlers) is computed further down this component from the
+  // currently selected/URL-anchored date; it's already assigned by the time
+  // either handler actually runs (both only fire from a user click, well
+  // after the full render/closure setup has completed).
+  const [duplicatePreview, setDuplicatePreview] = useState<{
+    weekStartKey: string;
+    eligibleCount: number;
+    clonedCount: number;
+    skippedCount: number;
+  } | null>(null);
+  const [duplicating, setDuplicating] = useState(false);
+
+  const openDuplicatePreview = async () => {
+    const weekStartKey = toDateKey(weekStart);
+    const result = await duplicateWeekScheduleAction({ sourceWeekStart: weekStartKey, dryRun: true });
+    if (!("eligibleCount" in result)) {
+      showToast(result.error, "error");
+      return;
+    }
+    setDuplicatePreview({ weekStartKey, ...result });
+  };
+
+  const confirmDuplicate = async () => {
+    if (!duplicatePreview) return;
+    setDuplicating(true);
+    try {
+      const result = await duplicateWeekScheduleAction({
+        sourceWeekStart: duplicatePreview.weekStartKey,
+        dryRun: false,
+      });
+      if (!("eligibleCount" in result)) {
+        showToast(result.error, "error");
+      } else {
+        showToast(`Скопировано занятий: ${result.clonedCount}`);
+        setDuplicatePreview(null);
+      }
+    } catch {
+      showToast("Не удалось скопировать расписание", "error");
+    } finally {
+      setDuplicating(false);
+    }
+  };
+
   // Maps a group's id to its roster (student ids), so a group session can be
   // matched against the selected student even though ScheduleLesson only
   // carries the group's id/name, not its full roster.
@@ -410,6 +455,11 @@ export function ScheduleClient({
             >
               <Plus size={16} />
               Новое занятие
+            </button>
+          )}
+          {!isTeacher && view === "week" && (
+            <button type="button" onClick={openDuplicatePreview} className="btn-secondary">
+              Скопировать расписание на следующую неделю
             </button>
           )}
         </div>
@@ -849,6 +899,23 @@ export function ScheduleClient({
         }
         onConfirm={confirmPendingWarning}
         onClose={() => setPendingWarning(null)}
+      />
+
+      <ConfirmDialog
+        open={duplicatePreview !== null}
+        title="Скопировать расписание на следующую неделю"
+        confirmLabel="Скопировать"
+        busy={duplicating}
+        message={
+          duplicatePreview
+            ? `Будет скопировано занятий: ${duplicatePreview.eligibleCount - duplicatePreview.skippedCount} из ${duplicatePreview.eligibleCount}` +
+              (duplicatePreview.skippedCount > 0
+                ? ` (уже существует и будет пропущено: ${duplicatePreview.skippedCount})`
+                : "")
+            : ""
+        }
+        onConfirm={confirmDuplicate}
+        onClose={() => setDuplicatePreview(null)}
       />
     </div>
   );

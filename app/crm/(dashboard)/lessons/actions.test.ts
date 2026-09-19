@@ -20,6 +20,7 @@ const dbMock = vi.hoisted(() => ({
     findMany: vi.fn(),
     updateMany: vi.fn(),
     delete: vi.fn(),
+    create: vi.fn(),
   },
   attendance: { findUnique: vi.fn(), update: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn() },
   submission: { findUnique: vi.fn(), update: vi.fn(), upsert: vi.fn() },
@@ -2446,5 +2447,117 @@ describe("updateLessonHomework", () => {
       where: { id: "session_1" },
       data: { homework: null },
     });
+  });
+});
+
+describe("duplicateWeekScheduleAction", () => {
+  const sourceWeekStart = "2026-01-05"; // a Monday
+
+  it("requires ADMIN or MANAGER", async () => {
+    const { duplicateWeekScheduleAction } = await import("./actions");
+    dbMock.classSession.findMany.mockResolvedValue([]);
+
+    await duplicateWeekScheduleAction({ sourceWeekStart });
+
+    expect(rbacMock.requireRole).toHaveBeenCalledWith(["ADMIN", "MANAGER"]);
+  });
+
+  it("excludes trial, cancelled, and makeup-target sessions from the source-week query", async () => {
+    const { duplicateWeekScheduleAction } = await import("./actions");
+    dbMock.classSession.findMany.mockResolvedValue([]);
+
+    await duplicateWeekScheduleAction({ sourceWeekStart });
+
+    expect(dbMock.classSession.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: "scheduled",
+          isTrial: false,
+          makeupTargetFor: { none: {} },
+        }),
+      }),
+    );
+  });
+
+  it("clones each eligible session exactly 7 days later", async () => {
+    const { duplicateWeekScheduleAction } = await import("./actions");
+    const sourceScheduledAt = new Date("2026-01-06T10:00:00.000Z");
+    dbMock.classSession.findMany.mockResolvedValue([
+      {
+        id: "s1",
+        type: "INDIVIDUAL",
+        groupId: null,
+        studentId: "student_1",
+        teacherId: "teacher_1",
+        scheduledAt: sourceScheduledAt,
+        durationMinutes: 60,
+        pricePerLesson: 1200,
+        isFree: false,
+      },
+    ]);
+    dbMock.$transaction.mockImplementation(async (fn: any) => fn(dbMock));
+    dbMock.classSession.findFirst.mockResolvedValue(null); // no existing duplicate
+    dbMock.classSession.create.mockResolvedValue({});
+
+    const result = await duplicateWeekScheduleAction({ sourceWeekStart });
+
+    expect(result.error).toBeUndefined();
+    expect(result).toMatchObject({ eligibleCount: 1, clonedCount: 1, skippedCount: 0 });
+    expect(dbMock.classSession.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        studentId: "student_1",
+        teacherId: "teacher_1",
+        scheduledAt: new Date("2026-01-13T10:00:00.000Z"),
+        reminderSentAt: null,
+      }),
+    });
+  });
+
+  it("skips (does not duplicate) a session that already exists at the exact target time", async () => {
+    const { duplicateWeekScheduleAction } = await import("./actions");
+    dbMock.classSession.findMany.mockResolvedValue([
+      {
+        id: "s1",
+        type: "GROUP",
+        groupId: "group_1",
+        studentId: null,
+        teacherId: "teacher_1",
+        scheduledAt: new Date("2026-01-06T10:00:00.000Z"),
+        durationMinutes: 60,
+        pricePerLesson: null,
+        isFree: false,
+      },
+    ]);
+    dbMock.$transaction.mockImplementation(async (fn: any) => fn(dbMock));
+    dbMock.classSession.findFirst.mockResolvedValue({ id: "existing" });
+
+    const result = await duplicateWeekScheduleAction({ sourceWeekStart });
+
+    expect(result).toMatchObject({ eligibleCount: 1, clonedCount: 0, skippedCount: 1 });
+    expect(dbMock.classSession.create).not.toHaveBeenCalled();
+  });
+
+  it("dryRun reports counts without creating anything", async () => {
+    const { duplicateWeekScheduleAction } = await import("./actions");
+    dbMock.classSession.findMany.mockResolvedValue([
+      {
+        id: "s1",
+        type: "GROUP",
+        groupId: "group_1",
+        studentId: null,
+        teacherId: "teacher_1",
+        scheduledAt: new Date("2026-01-06T10:00:00.000Z"),
+        durationMinutes: 60,
+        pricePerLesson: null,
+        isFree: false,
+      },
+    ]);
+    dbMock.$transaction.mockImplementation(async (fn: any) => fn(dbMock));
+    dbMock.classSession.findFirst.mockResolvedValue(null);
+
+    const result = await duplicateWeekScheduleAction({ sourceWeekStart, dryRun: true });
+
+    expect(result).toMatchObject({ eligibleCount: 1, clonedCount: 1, skippedCount: 0 });
+    expect(dbMock.classSession.create).not.toHaveBeenCalled();
   });
 });

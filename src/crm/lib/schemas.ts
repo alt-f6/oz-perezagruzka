@@ -302,6 +302,13 @@ export const updateLessonHomeworkSchema = z.object({
   homework: z.string().trim().max(5000, { message: "Слишком длинный текст" }).optional(),
 });
 
+export const duplicateWeekScheduleSchema = z.object({
+  sourceWeekStart: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, { message: "Некорректная дата начала недели" }),
+  dryRun: z.boolean().optional(),
+});
+
 // Teacher weekly availability payload. `weekStart` is a Monday `YYYY-MM-DD`
 // week key (validated against the Monday convention in the server action, not
 // here, since callers pass a raw key). `slots` is the 105-char '0'/'1' bitmask

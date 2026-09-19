@@ -11,6 +11,7 @@ import {
   reassignTeacherSchema,
   updateLessonSchema,
   updateLessonHomeworkSchema,
+  duplicateWeekScheduleSchema,
   type LessonValues,
 } from "@/crm/lib/schemas";
 import { db } from "@/shared/lib/db";
@@ -603,6 +604,114 @@ export async function bulkCancelSessionsWithBilling(input: {
   revalidatePath("/schedule");
   revalidatePath("/groups");
   return { cancelledCount, skippedCount };
+}
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+export type DuplicateWeekScheduleResult =
+  | { error: string }
+  | { error?: undefined; eligibleCount: number; clonedCount: number; skippedCount: number };
+
+/**
+ * Clones every eligible SCHEDULED, non-trial session from the Moscow week
+ * starting `sourceWeekStart` (a YYYY-MM-DD Monday key) into the following
+ * week, 7 days later at the same wall-clock time. Excludes trials
+ * (isTrial), cancelled sessions, and makeup sessions (identified as being
+ * the *target* of a MakeupLesson row -- makeupTargetFor: { none: {} }).
+ * Idempotent: a session already existing for the same teacher + group/
+ * student at the exact target time is skipped, not duplicated. Runs in
+ * CANCEL_CHUNK_SIZE-sized transactions (same pattern as
+ * bulkCancelSessionsWithBilling) so a large week can't time out one
+ * request. dryRun: true runs the full scan (including the per-session
+ * duplicate check) without writing, for the UI's confirmation preview.
+ */
+export async function duplicateWeekScheduleAction(
+  input: { sourceWeekStart: string; dryRun?: boolean },
+): Promise<DuplicateWeekScheduleResult> {
+  await requireRole(["ADMIN", "MANAGER"]);
+
+  const parsed = duplicateWeekScheduleSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Некорректные данные" };
+  }
+
+  const sourceStart = moscowDateTimeToUtc(parsed.data.sourceWeekStart, "00:00");
+  const sourceEnd = new Date(sourceStart.getTime() + WEEK_MS);
+
+  const candidates = await db.classSession.findMany({
+    where: {
+      status: "scheduled",
+      isTrial: false,
+      makeupTargetFor: { none: {} },
+      scheduledAt: { gte: sourceStart, lt: sourceEnd },
+    },
+    select: {
+      id: true,
+      type: true,
+      groupId: true,
+      studentId: true,
+      teacherId: true,
+      scheduledAt: true,
+      durationMinutes: true,
+      pricePerLesson: true,
+      isFree: true,
+    },
+  });
+
+  if (candidates.length === 0) {
+    return { eligibleCount: 0, clonedCount: 0, skippedCount: 0 };
+  }
+
+  let clonedCount = 0;
+  let skippedCount = 0;
+
+  for (const batch of chunk(candidates, CANCEL_CHUNK_SIZE)) {
+    const batchResult = await db.$transaction(async (tx) => {
+      let cloned = 0;
+      let skipped = 0;
+      for (const session of batch) {
+        const targetScheduledAt = new Date(session.scheduledAt.getTime() + WEEK_MS);
+        const existing = await tx.classSession.findFirst({
+          where: {
+            teacherId: session.teacherId,
+            scheduledAt: targetScheduledAt,
+            ...(session.groupId ? { groupId: session.groupId } : { studentId: session.studentId }),
+          },
+          select: { id: true },
+        });
+        if (existing) {
+          skipped += 1;
+          continue;
+        }
+        if (!parsed.data.dryRun) {
+          await tx.classSession.create({
+            data: {
+              type: session.type,
+              groupId: session.groupId,
+              studentId: session.studentId,
+              teacherId: session.teacherId,
+              scheduledAt: targetScheduledAt,
+              durationMinutes: session.durationMinutes,
+              pricePerLesson: session.pricePerLesson,
+              isFree: session.isFree,
+              reminderSentAt: null,
+            },
+          });
+        }
+        cloned += 1;
+      }
+      return { cloned, skipped };
+    });
+    clonedCount += batchResult.cloned;
+    skippedCount += batchResult.skipped;
+  }
+
+  if (!parsed.data.dryRun) {
+    revalidatePath("/schedule");
+    revalidatePath("/lessons");
+  }
+
+  return { eligibleCount: candidates.length, clonedCount, skippedCount };
 }
 
 export type UpdateLessonResult = { error: string } | { error?: undefined };

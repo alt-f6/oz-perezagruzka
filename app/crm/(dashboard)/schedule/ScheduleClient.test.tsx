@@ -10,6 +10,7 @@ vi.mock("@/crm/components/ToastProvider", () => ({ useToast: () => toastMock }))
 
 const actionsMock = vi.hoisted(() => ({
   createLesson: vi.fn(),
+  duplicateWeekScheduleAction: vi.fn(),
 }));
 vi.mock("../lessons/actions", () => actionsMock);
 
@@ -484,5 +485,18 @@ describe("ScheduleClient", () => {
     await user.click(screen.getByRole("button", { name: "Месяц" }));
     const chip = screen.getByTestId("month-chip-s1");
     expect(within(chip).getByText(/Иван Иванов/)).toBeInTheDocument();
+  });
+
+  it("shows an error toast (instead of an unhandled rejection) when the duplicate-schedule dry-run preview throws", async () => {
+    const user = userEvent.setup();
+    actionsMock.duplicateWeekScheduleAction.mockRejectedValue(new Error("network error"));
+    render(<ScheduleClient lessons={[]} groups={groups} teachers={teachers} />);
+
+    await user.click(screen.getByRole("button", { name: "Неделя" }));
+    await user.click(
+      screen.getByRole("button", { name: "Скопировать расписание на следующую неделю" }),
+    );
+
+    expect(toastMock).toHaveBeenCalledWith("Не удалось скопировать расписание", "error");
   });
 });

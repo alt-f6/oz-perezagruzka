@@ -666,44 +666,51 @@ export async function duplicateWeekScheduleAction(
   let skippedCount = 0;
 
   for (const batch of chunk(candidates, CANCEL_CHUNK_SIZE)) {
-    const batchResult = await db.$transaction(async (tx) => {
-      let cloned = 0;
-      let skipped = 0;
-      for (const session of batch) {
-        const targetScheduledAt = new Date(session.scheduledAt.getTime() + WEEK_MS);
-        const existing = await tx.classSession.findFirst({
-          where: {
-            teacherId: session.teacherId,
-            scheduledAt: targetScheduledAt,
-            ...(session.groupId ? { groupId: session.groupId } : { studentId: session.studentId }),
-          },
-          select: { id: true },
-        });
-        if (existing) {
-          skipped += 1;
-          continue;
-        }
-        if (!parsed.data.dryRun) {
-          await tx.classSession.create({
-            data: {
-              type: session.type,
-              groupId: session.groupId,
-              studentId: session.studentId,
+    try {
+      const batchResult = await db.$transaction(async (tx) => {
+        let cloned = 0;
+        let skipped = 0;
+        for (const session of batch) {
+          const targetScheduledAt = new Date(session.scheduledAt.getTime() + WEEK_MS);
+          const existing = await tx.classSession.findFirst({
+            where: {
               teacherId: session.teacherId,
               scheduledAt: targetScheduledAt,
-              durationMinutes: session.durationMinutes,
-              pricePerLesson: session.pricePerLesson,
-              isFree: session.isFree,
-              reminderSentAt: null,
+              ...(session.groupId ? { groupId: session.groupId } : { studentId: session.studentId }),
             },
+            select: { id: true },
           });
+          if (existing) {
+            skipped += 1;
+            continue;
+          }
+          if (!parsed.data.dryRun) {
+            await tx.classSession.create({
+              data: {
+                type: session.type,
+                groupId: session.groupId,
+                studentId: session.studentId,
+                teacherId: session.teacherId,
+                scheduledAt: targetScheduledAt,
+                durationMinutes: session.durationMinutes,
+                pricePerLesson: session.pricePerLesson,
+                isFree: session.isFree,
+                reminderSentAt: null,
+              },
+            });
+          }
+          cloned += 1;
         }
-        cloned += 1;
-      }
-      return { cloned, skipped };
-    });
-    clonedCount += batchResult.cloned;
-    skippedCount += batchResult.skipped;
+        return { cloned, skipped };
+      });
+      clonedCount += batchResult.cloned;
+      skippedCount += batchResult.skipped;
+    } catch (err) {
+      log.error("Не удалось скопировать часть занятий", err, {
+        sessionIds: batch.map((s) => s.id),
+      });
+      skippedCount += batch.length;
+    }
   }
 
   if (!parsed.data.dryRun) {

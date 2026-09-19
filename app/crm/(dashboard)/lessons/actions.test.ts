@@ -2560,4 +2560,36 @@ describe("duplicateWeekScheduleAction", () => {
     expect(result).toMatchObject({ eligibleCount: 1, clonedCount: 1, skippedCount: 0 });
     expect(dbMock.classSession.create).not.toHaveBeenCalled();
   });
+
+  it("continues to the next chunk (and reports its sessions as skipped, not thrown) when one chunk's transaction fails -- same resilience pattern as bulkCancelSessionsWithBilling", async () => {
+    const { duplicateWeekScheduleAction } = await import("./actions");
+    // CANCEL_CHUNK_SIZE is 20 -- 21 candidates forces exactly two chunks: a
+    // full 20-session first batch (whose transaction we make throw) and a
+    // trailing 1-session second batch (which must still be processed).
+    const candidates = Array.from({ length: 21 }, (_, i) => ({
+      id: `s${i + 1}`,
+      type: "INDIVIDUAL",
+      groupId: null,
+      studentId: `student_${i + 1}`,
+      teacherId: `teacher_${i + 1}`,
+      scheduledAt: new Date(Date.UTC(2026, 0, 6, 10, i, 0)),
+      durationMinutes: 60,
+      pricePerLesson: 1000,
+      isFree: false,
+    }));
+    dbMock.classSession.findMany.mockResolvedValue(candidates);
+    dbMock.classSession.findFirst.mockResolvedValue(null); // no existing duplicates
+    dbMock.classSession.create.mockResolvedValue({});
+    dbMock.$transaction
+      .mockRejectedValueOnce(new Error("transient db error"))
+      .mockImplementation(async (fn: any) => fn(dbMock));
+
+    const result = await duplicateWeekScheduleAction({ sourceWeekStart });
+
+    expect(result.error).toBeUndefined();
+    // First chunk (20 sessions) failed entirely -> all 20 counted as skipped.
+    // Second chunk (1 session) succeeded -> cloned.
+    expect(result).toMatchObject({ eligibleCount: 21, clonedCount: 1, skippedCount: 20 });
+    expect(dbMock.classSession.create).toHaveBeenCalledTimes(1);
+  });
 });

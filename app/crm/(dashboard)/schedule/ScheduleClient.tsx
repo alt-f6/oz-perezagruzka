@@ -298,13 +298,17 @@ export function ScheduleClient({
   const [duplicating, setDuplicating] = useState(false);
 
   const openDuplicatePreview = async () => {
-    const weekStartKey = toDateKey(weekStart);
-    const result = await duplicateWeekScheduleAction({ sourceWeekStart: weekStartKey, dryRun: true });
-    if (!("eligibleCount" in result)) {
-      showToast(result.error, "error");
-      return;
+    try {
+      const weekStartKey = toDateKey(weekStart);
+      const result = await duplicateWeekScheduleAction({ sourceWeekStart: weekStartKey, dryRun: true });
+      if (!("eligibleCount" in result)) {
+        showToast(result.error, "error");
+        return;
+      }
+      setDuplicatePreview({ weekStartKey, ...result });
+    } catch {
+      showToast("Не удалось скопировать расписание", "error");
     }
-    setDuplicatePreview({ weekStartKey, ...result });
   };
 
   const confirmDuplicate = async () => {

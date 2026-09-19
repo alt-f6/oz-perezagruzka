@@ -83,6 +83,7 @@ export interface ClassSession {
   recurrenceGroupId?: string | null;
   isTrial?: boolean;
   isFree?: boolean;
+  homework?: string | null;
 }
 
 export interface ClassSessionWithGroup extends ClassSession {

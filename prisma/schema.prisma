@@ -325,6 +325,9 @@ model ClassSession {
   // from isTrial: a trial lesson still bills a (discounted) price; isFree
   // never bills anything.
   isFree            Boolean   @default(false)
+  // Lesson-level assignment text ("what was assigned"), distinct from
+  // Attendance.homeworkCompleted (per-student "did they do it" checkbox).
+  homework          String?
   status            String    @default("scheduled")
   reminderSentAt    DateTime? // set by the lesson-reminders cron so a session is only reminded once
   recurrenceGroupId String? // shared by every occurrence created together from a recurring-lesson batch

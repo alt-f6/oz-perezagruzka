@@ -39,6 +39,7 @@ export default async function LessonDetailPage({
       status: true,
       pricePerLesson: true,
       isFree: true,
+      homework: true,
       teacher: { select: { fullName: true } },
       group: { select: { id: true, name: true, teacherId: true } },
       student: {

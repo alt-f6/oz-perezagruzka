@@ -18,6 +18,7 @@ import {
 } from "@/crm/lib/types";
 import { formatMoscowDate, formatMoscowTime } from "@/shared/lib/timezone";
 import { assignMakeupLesson, setAttendance } from "../actions";
+import { LessonHomeworkEditor } from "./LessonHomeworkEditor";
 import { LessonPricingEditor } from "./LessonPricingEditor";
 import { LessonScheduleEditor } from "./LessonScheduleEditor";
 import { SubmissionFileCell } from "./SubmissionFileCell";
@@ -210,6 +211,8 @@ export function AttendanceClient({
           />
         </div>
       )}
+
+      <LessonHomeworkEditor lessonId={lesson.id} homework={lesson.homework ?? null} />
 
       {isTeacher &&
         lesson.type === "INDIVIDUAL" &&

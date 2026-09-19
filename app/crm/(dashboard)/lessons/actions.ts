@@ -10,6 +10,7 @@ import {
   bulkCancelWithReasonSchema,
   reassignTeacherSchema,
   updateLessonSchema,
+  updateLessonHomeworkSchema,
   type LessonValues,
 } from "@/crm/lib/schemas";
 import { db } from "@/shared/lib/db";
@@ -755,6 +756,56 @@ export async function updateLesson(
 
   revalidatePath(`/lessons/${classSessionId}`);
   revalidatePath("/schedule");
+  return {};
+}
+
+/**
+ * Saves the lesson-level homework text (what was assigned to the whole
+ * class/individual student), distinct from Attendance.homeworkCompleted's
+ * per-student completion checkbox. ADMIN/MANAGER/TEACHER, same ownership
+ * rule as setAttendance -- a TEACHER may only edit a lesson they own
+ * (directly, or via the group's current teacher).
+ */
+export async function updateLessonHomework(
+  lessonId: string,
+  homework: string,
+): Promise<ActionResult> {
+  const sessionUser = await requireRole(["ADMIN", "MANAGER", "TEACHER"]);
+
+  const parsed = updateLessonHomeworkSchema.safeParse({ homework });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Некорректные данные" };
+  }
+
+  const lesson = await db.classSession.findUnique({
+    where: { id: lessonId },
+    select: { teacherId: true, group: { select: { teacherId: true } } },
+  });
+  if (!lesson) {
+    return { error: "Занятие не найдено" };
+  }
+  if (sessionUser.role === "TEACHER") {
+    const owned =
+      lesson.teacherId === sessionUser.id || lesson.group?.teacherId === sessionUser.id;
+    if (!owned) {
+      return { error: "Занятие не принадлежит преподавателю" };
+    }
+  }
+
+  const trimmed = parsed.data.homework?.trim();
+
+  try {
+    await db.classSession.update({
+      where: { id: lessonId },
+      data: { homework: trimmed ? trimmed : null },
+    });
+  } catch (err) {
+    return {
+      error: err instanceof Error ? err.message : "Не удалось сохранить домашнее задание",
+    };
+  }
+
+  revalidatePath(`/lessons/${lessonId}`);
   return {};
 }
 

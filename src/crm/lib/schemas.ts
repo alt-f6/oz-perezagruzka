@@ -298,6 +298,10 @@ export const updateLessonSchema = z
 
 export type UpdateLessonValues = z.infer<typeof updateLessonSchema>;
 
+export const updateLessonHomeworkSchema = z.object({
+  homework: z.string().trim().max(5000, { message: "Слишком длинный текст" }).optional(),
+});
+
 // Teacher weekly availability payload. `weekStart` is a Monday `YYYY-MM-DD`
 // week key (validated against the Monday convention in the server action, not
 // here, since callers pass a raw key). `slots` is the 105-char '0'/'1' bitmask

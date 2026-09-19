@@ -2402,3 +2402,49 @@ describe("updateLesson", () => {
     expect(dbMock.classSession.update).not.toHaveBeenCalled();
   });
 });
+
+describe("updateLessonHomework", () => {
+  it("requires ADMIN, MANAGER, or TEACHER", async () => {
+    const { updateLessonHomework } = await import("./actions");
+    dbMock.classSession.findUnique.mockResolvedValue({ teacherId: "user_1", group: null });
+    dbMock.classSession.update.mockResolvedValue({});
+
+    await updateLessonHomework("session_1", "Стр. 12, № 3-5");
+
+    expect(rbacMock.requireRole).toHaveBeenCalledWith(["ADMIN", "MANAGER", "TEACHER"]);
+  });
+
+  it("blocks a TEACHER who doesn't own the lesson (directly or via the group)", async () => {
+    const { updateLessonHomework } = await import("./actions");
+    rbacMock.requireRole.mockResolvedValue({ id: "user_2", role: "TEACHER" });
+    dbMock.classSession.findUnique.mockResolvedValue({
+      teacherId: "someone_else",
+      group: { teacherId: "someone_else" },
+    });
+
+    const result = await updateLessonHomework("session_1", "Текст ДЗ");
+
+    expect(result.error).toBeTruthy();
+    expect(dbMock.classSession.update).not.toHaveBeenCalled();
+  });
+
+  it("saves trimmed homework text, or null when cleared", async () => {
+    const { updateLessonHomework } = await import("./actions");
+    dbMock.classSession.findUnique.mockResolvedValue({ teacherId: "user_1", group: null });
+    dbMock.classSession.update.mockResolvedValue({});
+
+    const result = await updateLessonHomework("session_1", "  Стр. 12, № 3-5  ");
+
+    expect(result.error).toBeUndefined();
+    expect(dbMock.classSession.update).toHaveBeenCalledWith({
+      where: { id: "session_1" },
+      data: { homework: "Стр. 12, № 3-5" },
+    });
+
+    await updateLessonHomework("session_1", "   ");
+    expect(dbMock.classSession.update).toHaveBeenLastCalledWith({
+      where: { id: "session_1" },
+      data: { homework: null },
+    });
+  });
+});

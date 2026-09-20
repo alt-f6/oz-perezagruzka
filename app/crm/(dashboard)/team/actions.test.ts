@@ -5,6 +5,7 @@ const getSessionUserMock = vi.hoisted(() => vi.fn());
 const dbMock = vi.hoisted(() => ({
   user: { update: vi.fn(), findUnique: vi.fn() },
   invite: { create: vi.fn() },
+  activityLog: { create: vi.fn(), findMany: vi.fn(), count: vi.fn() },
 }));
 const revalidatePathMock = vi.hoisted(() => vi.fn());
 const buildAbsoluteUrlMock = vi.hoisted(() => vi.fn().mockResolvedValue("https://crm.example.com/register?token=tok"));
@@ -22,6 +23,7 @@ const { updateTeamMember, createInvite } = await import("./actions");
 
 beforeEach(() => {
   vi.clearAllMocks();
+  dbMock.activityLog.create.mockResolvedValue({});
 });
 
 describe("updateTeamMember", () => {
@@ -163,5 +165,49 @@ describe("createInvite", () => {
 
     expect(result.error).toBeTruthy();
     expect(dbMock.invite.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("activity logging", () => {
+  it("logs INVITE_CREATED after a successful invite", async () => {
+    getSessionUserMock.mockResolvedValue({ id: "admin_1", email: "a@x.com", role: "ADMIN" });
+    dbMock.invite.create.mockResolvedValue({ id: "invite_1", token: "tok" });
+
+    await createInvite("new-teacher@example.com", "TEACHER");
+
+    expect(dbMock.activityLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "INVITE_CREATED",
+          entityType: "INVITE",
+          entityId: "invite_1",
+          entityTitle: "new-teacher@example.com",
+        }),
+      }),
+    );
+  });
+
+  it("logs an UPDATE entry after successfully editing a team member", async () => {
+    requireRoleMock.mockResolvedValue({ id: "mgr_1", email: "m@x.com", role: "MANAGER" });
+    dbMock.user.update.mockResolvedValue({});
+
+    await updateTeamMember({
+      id: "11111111-1111-4111-8111-111111111111",
+      fullName: "Сергей Волков",
+      email: "",
+      phone: "",
+      subjects: "",
+    });
+
+    expect(dbMock.activityLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "UPDATE",
+          entityType: "TEACHER",
+          entityId: "11111111-1111-4111-8111-111111111111",
+          entityTitle: "Сергей Волков",
+        }),
+      }),
+    );
   });
 });

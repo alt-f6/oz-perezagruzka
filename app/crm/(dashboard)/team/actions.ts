@@ -8,6 +8,7 @@ import { requireRole } from "@/shared/lib/rbac";
 import { db } from "@/shared/lib/db";
 import { buildAbsoluteUrl } from "@/shared/lib/url";
 import { createLogger } from "@/shared/lib/logger";
+import { logActivity } from "@/crm/lib/audit";
 import { emailSchema } from "@/shared/validation/email";
 import { russianPhoneOptionalSchema } from "@/shared/validation/phone";
 import type { ActionResult } from "@/crm/lib/types";
@@ -72,6 +73,15 @@ export async function updateTeamMember(
     return { error: `Не удалось обновить сотрудника: ${message}` };
   }
 
+  await logActivity({
+    userId: sessionUser.id,
+    userRole: sessionUser.role,
+    action: "UPDATE",
+    entityType: "TEACHER",
+    entityId: parsed.data.id,
+    entityTitle: parsed.data.fullName,
+  });
+
   revalidatePath("/team");
   return {};
 }
@@ -134,7 +144,7 @@ export async function createInvite(
         invitedBy: sessionUser.id,
         expiresAt: new Date(Date.now() + INVITE_TTL_MS),
       },
-      select: { token: true },
+      select: { id: true, token: true },
     });
   } catch (error) {
     if (
@@ -146,6 +156,16 @@ export async function createInvite(
     const message = error instanceof Error ? error.message : "Неизвестная ошибка";
     return { error: `Ошибка создания инвайта: ${message}` };
   }
+
+  await logActivity({
+    userId: sessionUser.id,
+    userRole: sessionUser.role,
+    action: "INVITE_CREATED",
+    entityType: "INVITE",
+    entityId: invite.id,
+    entityTitle: parsedEmail.data,
+    details: { invitedRole: role },
+  });
 
   revalidatePath("/team");
 

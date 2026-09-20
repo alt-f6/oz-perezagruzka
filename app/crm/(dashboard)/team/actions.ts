@@ -27,7 +27,11 @@ const updateTeamMemberSchema = z.object({
 export async function updateTeamMember(
   values: z.infer<typeof updateTeamMemberSchema>,
 ): Promise<ActionResult> {
-  await requireRole(["ADMIN"]);
+  // MANAGER may update basic staff profiles too. Field-level protection
+  // against salary/rate edits is enforced by updateTeamMemberSchema itself
+  // (below) never declaring a rate/salary field -- Zod strips any unknown
+  // key from the input by default, so there's nothing else to strip here.
+  await requireRole(["ADMIN", "MANAGER"]);
 
   const parsed = updateTeamMemberSchema.safeParse(values);
   if (!parsed.success) {

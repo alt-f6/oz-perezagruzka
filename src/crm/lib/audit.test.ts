@@ -108,6 +108,27 @@ describe("logActivity", () => {
     );
   });
 
+  it("serializes Date values in details to ISO strings instead of dropping them", async () => {
+    const scheduledAt = new Date("2026-10-01T07:00:00.000Z");
+
+    await logActivity({
+      userId: "u1",
+      userName: "Admin",
+      userRole: "ADMIN",
+      action: "RESCHEDULE",
+      entityType: "LESSON",
+      details: { scheduledAt, note: "moved" },
+    });
+
+    expect(dbMock.activityLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          details: { scheduledAt: "2026-10-01T07:00:00.000Z", note: "moved" },
+        }),
+      }),
+    );
+  });
+
   it("never throws when db.activityLog.create rejects", async () => {
     dbMock.activityLog.create.mockRejectedValue(new Error("db down"));
 

@@ -7,10 +7,13 @@ const log = createLogger("crm.audit");
 const SENSITIVE_KEY_PATTERN = /password|hash|secret|token|cookie/i;
 
 function sanitize(value: unknown): unknown {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
   if (Array.isArray(value)) {
     return value.map(sanitize);
   }
-  if (value !== null && typeof value === "object" && !(value instanceof Date)) {
+  if (value !== null && typeof value === "object") {
     const result: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
       result[key] = SENSITIVE_KEY_PATTERN.test(key) ? "[REDACTED]" : sanitize(val);

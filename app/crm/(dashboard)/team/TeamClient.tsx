@@ -105,9 +105,16 @@ export function TeamClient({
 
     setGeneratedLink(null);
 
+    // Defense in depth: even though the role <select> below is hidden for a
+    // MANAGER (so `role` state can never actually become "ADMIN" through the
+    // UI), never forward anything but "TEACHER" for a non-ADMIN viewer --
+    // the server enforces this too (see team/actions.ts), this just keeps
+    // the client from ever attempting the disallowed call in the first place.
+    const effectiveRole = currentUserRole === "ADMIN" ? role : "TEACHER";
+
     startTransition(async () => {
       try {
-        const result = await createInvite(email, role);
+        const result = await createInvite(email, effectiveRole);
 
         if (result.error) {
           showToast(result.error, "error");
@@ -161,25 +168,37 @@ export function TeamClient({
             </div>
           </div>
 
-          <div>
-            <label className="label">
-              Роль в системе
-            </label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as "ADMIN" | "TEACHER")}
-              className="input py-2.5 font-medium"
-              disabled={isPending}
-            >
-              <option value="TEACHER">Преподаватель</option>
-              <option value="ADMIN">Администратор</option>
-            </select>
-            <p className="mt-1.5 text-xs text-slate-500">
-              {role === "ADMIN"
-                ? "Доступ к финансам, лидам, группам и студентам."
-                : "Доступ только к своему расписанию и отметке уроков."}
-            </p>
-          </div>
+          {currentUserRole === "ADMIN" ? (
+            <div>
+              <label className="label">
+                Роль в системе
+              </label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value as "ADMIN" | "TEACHER")}
+                className="input py-2.5 font-medium"
+                disabled={isPending}
+              >
+                <option value="TEACHER">Преподаватель</option>
+                <option value="ADMIN">Администратор</option>
+              </select>
+              <p className="mt-1.5 text-xs text-slate-500">
+                {role === "ADMIN"
+                  ? "Доступ к финансам, лидам, группам и студентам."
+                  : "Доступ только к своему расписанию и отметке уроков."}
+              </p>
+            </div>
+          ) : (
+            <div>
+              <label className="label">Роль в системе</label>
+              <p className="input flex items-center py-2.5 font-medium text-slate-500">
+                Преподаватель
+              </p>
+              <p className="mt-1.5 text-xs text-slate-500">
+                Кураторы могут приглашать только преподавателей.
+              </p>
+            </div>
+          )}
 
           <button
             type="submit"
@@ -290,14 +309,16 @@ export function TeamClient({
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setArchiveTarget(member)}
-                        className="icon-btn-danger h-8 w-8"
-                        title="Архивировать"
-                      >
-                        <Archive className="h-3.5 w-3.5" />
-                      </button>
+                      {currentUserRole === "ADMIN" && (
+                        <button
+                          type="button"
+                          onClick={() => setArchiveTarget(member)}
+                          className="icon-btn-danger h-8 w-8"
+                          title="Архивировать"
+                        >
+                          <Archive className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))
@@ -326,14 +347,16 @@ export function TeamClient({
                       >
                         {ROLE_LABELS[member.role]}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => setArchiveTarget(member)}
-                        className="icon-btn h-8 w-8"
-                        title="Восстановить"
-                      >
-                        <ArchiveRestore className="h-3.5 w-3.5" />
-                      </button>
+                      {currentUserRole === "ADMIN" && (
+                        <button
+                          type="button"
+                          onClick={() => setArchiveTarget(member)}
+                          className="icon-btn h-8 w-8"
+                          title="Восстановить"
+                        >
+                          <ArchiveRestore className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))

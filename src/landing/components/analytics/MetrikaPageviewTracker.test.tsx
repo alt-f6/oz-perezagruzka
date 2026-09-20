@@ -48,4 +48,17 @@ describe("MetrikaPageviewTracker", () => {
 
     expect(trackPageviewMock).toHaveBeenCalledWith("/terms?ref=email");
   });
+
+  it("does not fire when the effect is invoked twice with an unchanged URL (React Strict Mode double-invoke)", () => {
+    // Simulates React Strict Mode's development-only synthetic double
+    // invocation of effects on mount: the effect runs, its cleanup runs,
+    // then it runs again with identical pathname/searchParams. A naive
+    // "reset the skip flag in cleanup" implementation would misfire here.
+    const { rerender } = render(<MetrikaPageviewTracker />);
+    expect(trackPageviewMock).not.toHaveBeenCalled();
+
+    rerender(<MetrikaPageviewTracker />);
+
+    expect(trackPageviewMock).not.toHaveBeenCalled();
+  });
 });

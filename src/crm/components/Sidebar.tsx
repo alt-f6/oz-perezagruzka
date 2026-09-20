@@ -25,7 +25,7 @@ const NAV_ITEMS: { href: string; label: string; icon: typeof Users; roles: Role[
   { href: "/lessons", label: "Занятия", icon: CalendarDays, roles: ["ADMIN", "MANAGER", "TEACHER"] },
   { href: "/salary", label: "Зарплата", icon: DollarSign, roles: ["ADMIN"] },
   { href: "/leads", label: "Лиды", icon: TrendingUp, roles: ["ADMIN", "MANAGER"] },
-  { href: "/team", label: "Команда", icon: Briefcase, roles: ["ADMIN"] },
+  { href: "/team", label: "Команда", icon: Briefcase, roles: ["ADMIN", "MANAGER"] },
 ];
 
 // The AI tutor is an LMS route (app/lms/admin/tutor), served on a different

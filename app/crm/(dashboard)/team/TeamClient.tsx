@@ -35,7 +35,7 @@ interface Invite {
 interface TeamClientProps {
   initialMembers: Member[];
   initialInvites: Invite[];
-  currentUserRole: "ADMIN";
+  currentUserRole: "ADMIN" | "MANAGER";
 }
 
 const ROLE_LABELS = {

@@ -11,7 +11,7 @@ import { RbacError } from "@/shared/lib/rbac";
 const dbMock = vi.hoisted(() => ({
   group: { findUnique: vi.fn() },
   student: { findFirst: vi.fn() },
-  user: { findFirst: vi.fn() },
+  user: { findFirst: vi.fn(), findUnique: vi.fn() },
   classSession: {
     createMany: vi.fn(),
     findUnique: vi.fn(),
@@ -29,6 +29,7 @@ const dbMock = vi.hoisted(() => ({
   makeupLesson: { upsert: vi.fn() },
   transaction: { create: vi.fn() },
   lessonAuditLog: { createMany: vi.fn() },
+  activityLog: { create: vi.fn(), findMany: vi.fn(), count: vi.fn() },
   $transaction: vi.fn(),
 }));
 
@@ -64,6 +65,7 @@ vi.mock("@/crm/lib/services/notification.service", () => ({
 const {
   createLesson,
   deleteLesson,
+  updateLesson,
   bulkCancelSessions,
   bulkCancelSessionsWithBilling,
   reassignTeacher,
@@ -80,6 +82,11 @@ const ADMIN = { id: "user_1", email: "a@a.com", role: "ADMIN" };
 beforeEach(() => {
   vi.clearAllMocks();
   rbacMock.requireRole.mockResolvedValue(ADMIN);
+  dbMock.activityLog.create.mockResolvedValue({});
+  // Default: logActivity looks up the acting user's fullName when the caller
+  // doesn't pass one; a null resolve keeps that lookup silent (no console
+  // noise) instead of throwing on an unmocked function.
+  dbMock.user.findUnique.mockResolvedValue(null);
   // Default: the teacher has no existing sessions, so the conflict scan is empty.
   dbMock.classSession.findMany.mockResolvedValue([]);
   // Default: no published availability grid → availability guard is a no-op
@@ -769,6 +776,110 @@ describe("deleteLesson", () => {
       data: { status: "cancelled" },
     });
     expect(dbMock.classSession.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe("ActivityLog instrumentation", () => {
+  it("logs a CREATE entry for a new individual lesson", async () => {
+    dbMock.student.findFirst.mockResolvedValue({
+      id: "99999999-9999-4999-8999-999999999999",
+      fullName: "Олег Кузнецов",
+    });
+    dbMock.user.findFirst.mockResolvedValue({ id: "88888888-8888-4888-8888-888888888888" });
+    dbMock.classSession.findFirst.mockResolvedValue({ pricePerLesson: 1000 });
+    dbMock.classSession.createMany.mockResolvedValue({ count: 1 });
+
+    await createLesson({
+      type: "INDIVIDUAL",
+      studentId: "99999999-9999-4999-8999-999999999999",
+      teacherId: "88888888-8888-4888-8888-888888888888",
+      date: "2026-10-01",
+      time: "10:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+    });
+
+    expect(dbMock.activityLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "CREATE",
+          entityType: "LESSON",
+          entityTitle: "Олег Кузнецов",
+        }),
+      }),
+    );
+  });
+
+  it("logs a RESCHEDULE entry when the scheduled time changes", async () => {
+    dbMock.classSession.findUnique.mockResolvedValue({
+      type: "INDIVIDUAL",
+      teacherId: "teacher_1",
+      scheduledAt: new Date("2026-10-01T07:00:00.000Z"),
+      durationMinutes: 60,
+      _count: { attendance: 0 },
+    });
+    dbMock.classSession.update.mockResolvedValue({});
+    dbMock.$transaction.mockImplementation(async (cb: (tx: typeof dbMock) => unknown) => cb(dbMock));
+
+    await updateLesson("session_1", { date: "2026-10-02", time: "11:00" });
+
+    expect(dbMock.activityLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: "RESCHEDULE", entityType: "LESSON", entityId: "session_1" }),
+      }),
+    );
+  });
+
+  it("does not log RESCHEDULE when nothing actually changed", async () => {
+    dbMock.classSession.findUnique.mockResolvedValue({
+      type: "INDIVIDUAL",
+      teacherId: "teacher_1",
+      scheduledAt: new Date("2026-10-01T07:00:00.000Z"),
+      durationMinutes: 60,
+      _count: { attendance: 0 },
+    });
+    dbMock.classSession.update.mockResolvedValue({});
+
+    await updateLesson("session_1", { pricePerLesson: 1500 });
+
+    expect(dbMock.activityLog.create).not.toHaveBeenCalled();
+  });
+
+  it("logs a CANCEL entry for a soft-cancelled lesson", async () => {
+    dbMock.classSession.findUnique.mockResolvedValue({
+      status: "scheduled",
+      _count: { attendance: 0 },
+    });
+    dbMock.classSession.update.mockResolvedValue({});
+
+    await deleteLesson("session_2");
+
+    expect(dbMock.activityLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: "CANCEL", entityType: "LESSON", entityId: "session_2" }),
+      }),
+    );
+  });
+
+  it("logs a DELETE entry for an admin hard-delete purge", async () => {
+    dbMock.classSession.findUnique.mockResolvedValue({
+      status: "scheduled",
+      _count: { attendance: 1 },
+      attendance: [{ id: "att_1", studentId: "st1" }],
+      transactions: [{ id: "tx1", studentId: "st1", amount: -1000 }],
+    });
+    dbMock.$transaction.mockImplementation(async (cb: (tx: typeof dbMock) => unknown) => cb(dbMock));
+    dbMock.transaction.create.mockResolvedValue({});
+    dbMock.attendance.deleteMany.mockResolvedValue({});
+    dbMock.classSession.delete.mockResolvedValue({});
+
+    await deleteLesson("session_3");
+
+    expect(dbMock.activityLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: "DELETE", entityType: "LESSON", entityId: "session_3" }),
+      }),
+    );
   });
 });
 

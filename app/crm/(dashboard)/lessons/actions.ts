@@ -27,6 +27,7 @@ import {
 import { collectUnavailableOccurrences } from "@/crm/lib/services/availability.service";
 import { getLastIndividualLessonPrice } from "@/crm/lib/services/abonement.service";
 import { createLogger } from "@/shared/lib/logger";
+import { logActivity } from "@/crm/lib/audit";
 
 const log = createLogger("lessons.actions");
 
@@ -136,7 +137,7 @@ export async function findTeacherScheduleConflict(
 export async function createLesson(
   values: LessonValues,
 ): Promise<CreateLessonResult> {
-  await requireRole(["ADMIN", "MANAGER"]);
+  const sessionUser = await requireRole(["ADMIN", "MANAGER"]);
 
   const parsed = lessonSchema.safeParse(values);
   if (!parsed.success) {
@@ -156,6 +157,9 @@ export async function createLesson(
     isTrial: boolean;
     isFree: boolean;
   };
+  // Human-readable reference for the CREATE audit entry below -- resolved
+  // once we know which branch (INDIVIDUAL vs GROUP) actually ran.
+  let entityTitle: string | undefined;
 
   if (parsed.data.type === "INDIVIDUAL") {
     const studentId = parsed.data.studentId as string;
@@ -177,6 +181,7 @@ export async function createLesson(
     if (!teacher) {
       return { error: "Преподаватель не найден" };
     }
+    entityTitle = student.fullName;
 
     // Auto-resolve the per-lesson price server-side -- the client never
     // supplies it. No Student rate field or subject-rate table exists, so
@@ -213,7 +218,7 @@ export async function createLesson(
   } else {
     const group = await db.group.findUnique({
       where: { id: parsed.data.groupId as string },
-      select: { teacherId: true },
+      select: { teacherId: true, name: true },
     });
     if (!group) {
       return { error: "Группа не найдена" };
@@ -222,6 +227,7 @@ export async function createLesson(
       return { error: "Сначала назначьте преподавателя группе" };
     }
     teacherId = group.teacherId;
+    entityTitle = group.name;
     sessionLink = {
       type: "GROUP",
       groupId: parsed.data.groupId as string,
@@ -345,6 +351,19 @@ export async function createLesson(
     };
   }
 
+  // createMany doesn't return the created rows' ids, so a recurring series
+  // is identified by its shared recurrenceGroupId; a single non-recurring
+  // occurrence has none, so entityId is left unset for that case.
+  await logActivity({
+    userId: sessionUser.id,
+    userRole: sessionUser.role,
+    action: "CREATE",
+    entityType: "LESSON",
+    entityId: recurrenceGroupId,
+    entityTitle,
+    details: { count: occurrences.length, teacherId },
+  });
+
   revalidatePath("/lessons");
   revalidatePath("/schedule");
   return {};
@@ -402,6 +421,13 @@ export async function deleteLesson(lessonId: string): Promise<ActionResult> {
         error: err instanceof Error ? err.message : "Не удалось отменить занятие",
       };
     }
+    await logActivity({
+      userId: sessionUser.id,
+      userRole: sessionUser.role,
+      action: "CANCEL",
+      entityType: "LESSON",
+      entityId: lessonId,
+    });
     revalidatePath("/lessons");
     revalidatePath("/schedule");
     return {};
@@ -439,6 +465,15 @@ export async function deleteLesson(lessonId: string): Promise<ActionResult> {
       error: err instanceof Error ? err.message : "Не удалось удалить занятие",
     };
   }
+
+  await logActivity({
+    userId: sessionUser.id,
+    userRole: sessionUser.role,
+    action: "DELETE",
+    entityType: "LESSON",
+    entityId: lessonId,
+    details: { reversedChargeCount: session.transactions.length },
+  });
 
   revalidatePath("/lessons");
   revalidatePath("/schedule");
@@ -868,6 +903,19 @@ export async function updateLesson(
     }
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Не удалось обновить занятие" };
+  }
+
+  if (auditRows.length > 0) {
+    await logActivity({
+      userId: sessionUser.id,
+      userRole: sessionUser.role,
+      action: "RESCHEDULE",
+      entityType: "LESSON",
+      entityId: classSessionId,
+      details: Object.fromEntries(
+        auditRows.map((row) => [row.field, { from: row.oldValue, to: row.newValue }]),
+      ),
+    });
   }
 
   revalidatePath(`/lessons/${classSessionId}`);

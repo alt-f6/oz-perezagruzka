@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const requireRoleMock = vi.hoisted(() => vi.fn());
 const getSessionUserMock = vi.hoisted(() => vi.fn());
 const dbMock = vi.hoisted(() => ({
-  user: { update: vi.fn() },
+  user: { update: vi.fn(), findUnique: vi.fn() },
   invite: { create: vi.fn() },
 }));
 const revalidatePathMock = vi.hoisted(() => vi.fn());
@@ -27,6 +27,7 @@ beforeEach(() => {
 describe("updateTeamMember", () => {
   it("allows a MANAGER to update a basic profile field", async () => {
     requireRoleMock.mockResolvedValue({ id: "mgr_1", email: "m@x.com", role: "MANAGER" });
+    dbMock.user.findUnique.mockResolvedValue({ role: "TEACHER" });
     dbMock.user.update.mockResolvedValue({});
 
     const result = await updateTeamMember({
@@ -47,6 +48,7 @@ describe("updateTeamMember", () => {
 
   it("ignores an injected rate/salary field even if present on the payload", async () => {
     requireRoleMock.mockResolvedValue({ id: "mgr_1", email: "m@x.com", role: "MANAGER" });
+    dbMock.user.findUnique.mockResolvedValue({ role: "TEACHER" });
     dbMock.user.update.mockResolvedValue({});
 
     // Simulates a client bypassing TypeScript and posting an extra field --
@@ -83,6 +85,39 @@ describe("updateTeamMember", () => {
         subjects: "",
       }),
     ).rejects.toThrow("forbidden");
+  });
+
+  it("rejects a MANAGER attempting to edit an ADMIN's profile", async () => {
+    requireRoleMock.mockResolvedValue({ id: "mgr_1", email: "m@x.com", role: "MANAGER" });
+    dbMock.user.findUnique.mockResolvedValue({ role: "ADMIN" });
+
+    const result = await updateTeamMember({
+      id: "11111111-1111-4111-8111-111111111111",
+      fullName: "Другое Имя",
+      email: "",
+      phone: "",
+      subjects: "",
+    });
+
+    expect(result.error).toBeTruthy();
+    expect(dbMock.user.update).not.toHaveBeenCalled();
+  });
+
+  it("allows a MANAGER to edit a TEACHER's profile", async () => {
+    requireRoleMock.mockResolvedValue({ id: "mgr_1", email: "m@x.com", role: "MANAGER" });
+    dbMock.user.findUnique.mockResolvedValue({ role: "TEACHER" });
+    dbMock.user.update.mockResolvedValue({});
+
+    const result = await updateTeamMember({
+      id: "11111111-1111-4111-8111-111111111111",
+      fullName: "Иван Иванов",
+      email: "",
+      phone: "",
+      subjects: "",
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(dbMock.user.update).toHaveBeenCalled();
   });
 });
 

@@ -31,11 +31,24 @@ export async function updateTeamMember(
   // against salary/rate edits is enforced by updateTeamMemberSchema itself
   // (below) never declaring a rate/salary field -- Zod strips any unknown
   // key from the input by default, so there's nothing else to strip here.
-  await requireRole(["ADMIN", "MANAGER"]);
+  const sessionUser = await requireRole(["ADMIN", "MANAGER"]);
 
   const parsed = updateTeamMemberSchema.safeParse(values);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Некорректные данные" };
+  }
+
+  // Anti-privilege-escalation: a MANAGER may only edit TEACHER profiles.
+  // Without this, a MANAGER could change an ADMIN's or a peer MANAGER's
+  // login email/phone via this action.
+  if (sessionUser.role === "MANAGER") {
+    const target = await db.user.findUnique({
+      where: { id: parsed.data.id },
+      select: { role: true },
+    });
+    if (!target || target.role !== "TEACHER") {
+      return { error: "Кураторы могут редактировать только преподавателей" };
+    }
   }
 
   try {

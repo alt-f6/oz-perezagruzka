@@ -301,14 +301,16 @@ export function TeamClient({
                       >
                         {ROLE_LABELS[member.role]}
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => setEditingMember(member)}
-                        className="icon-btn h-8 w-8"
-                        title="Редактировать"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
+                      {(currentUserRole === "ADMIN" || member.role === "TEACHER") && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingMember(member)}
+                          className="icon-btn h-8 w-8"
+                          title="Редактировать"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                       {currentUserRole === "ADMIN" && (
                         <button
                           type="button"

@@ -13,6 +13,16 @@ const nextConfig: NextConfig = {
       "tw-animate-css": "./node_modules/tw-animate-css/dist/tw-animate.css",
     },
   },
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.perezagruzka-edu.ru" }],
+        destination: "https://perezagruzka-edu.ru/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
@@ -30,6 +40,14 @@ const nextConfig: NextConfig = {
             ].join("; "),
           },
         ],
+      },
+      {
+        // Preview/staging deployments on Vercel's default *.vercel.app
+        // hostname must never be indexed -- only the production custom
+        // domain should show up in search results.
+        source: "/:path*",
+        has: [{ type: "host", value: ".*vercel.app" }],
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" }],
       },
     ];
   },

@@ -13,6 +13,7 @@ import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import { claimFirstPaymentOffer, sendFirstPaymentOffer } from "@/crm/lib/services/offer.service";
 import { createLogger } from "@/shared/lib/logger";
+import { logActivity } from "@/crm/lib/audit";
 import type { ActionResult } from "@/crm/lib/types";
 
 const logger = createLogger("crm.students.actions");
@@ -61,12 +62,14 @@ async function emailCollisionError(
 export async function createStudent(
   values: StudentValues,
 ): Promise<ActionResult> {
-  await requireRole(["ADMIN", "MANAGER"]);
+  const sessionUser = await requireRole(["ADMIN", "MANAGER"]);
 
   const parsed = studentSchema.safeParse(values);
   if (!parsed.success) {
     return { error: "Некорректные данные студента" };
   }
+
+  let createdStudentId: string | undefined;
 
   try {
     const duplicatePhoneError = await db.$transaction(async (tx) => {
@@ -101,6 +104,7 @@ export async function createStudent(
         },
         select: { id: true },
       });
+      createdStudentId = student.id;
 
       if (parsed.data.groupId) {
         await tx.groupStudent.create({
@@ -120,6 +124,17 @@ export async function createStudent(
     };
   }
 
+  if (createdStudentId) {
+    await logActivity({
+      userId: sessionUser.id,
+      userRole: sessionUser.role,
+      action: "CREATE",
+      entityType: "STUDENT",
+      entityId: createdStudentId,
+      entityTitle: parsed.data.name,
+    });
+  }
+
   revalidatePath("/students");
   revalidatePath("/groups");
   return {};
@@ -136,7 +151,7 @@ export async function updateStudent(
   studentId: string,
   values: StudentUpdateValues,
 ): Promise<ActionResult> {
-  await requireRole(["ADMIN", "MANAGER"]);
+  const sessionUser = await requireRole(["ADMIN", "MANAGER"]);
 
   const parsed = studentUpdateSchema.safeParse(values);
   if (!parsed.success) {
@@ -197,13 +212,22 @@ export async function updateStudent(
     };
   }
 
+  await logActivity({
+    userId: sessionUser.id,
+    userRole: sessionUser.role,
+    action: "UPDATE",
+    entityType: "STUDENT",
+    entityId: studentId,
+    entityTitle: parsed.data.name,
+  });
+
   revalidatePath("/students");
   revalidatePath(`/students/${studentId}`);
   return {};
 }
 
 export async function deleteStudent(studentId: string): Promise<ActionResult> {
-  await requireRole(["ADMIN"]);
+  const sessionUser = await requireRole(["ADMIN"]);
 
   try {
     await db.student.update({
@@ -215,6 +239,14 @@ export async function deleteStudent(studentId: string): Promise<ActionResult> {
       error: err instanceof Error ? err.message : "Ошибка удаления студента",
     };
   }
+
+  await logActivity({
+    userId: sessionUser.id,
+    userRole: sessionUser.role,
+    action: "DELETE",
+    entityType: "STUDENT",
+    entityId: studentId,
+  });
 
   revalidatePath("/students");
   return {};
@@ -269,8 +301,9 @@ export async function updateStudentBalance(
   amount: number,
   description: string,
 ): Promise<ActionResult> {
+  let sessionUser;
   try {
-    await requireRole(["ADMIN"]);
+    sessionUser = await requireRole(["ADMIN"]);
   } catch {
     return { error: "Недостаточно прав для корректировки баланса" };
   }
@@ -285,6 +318,15 @@ export async function updateStudentBalance(
     ? parsed.data.description || "Ручное изменение баланса администратором"
     : `Корректировка: ${(parsed.data.description ?? "").trim()}`;
   let offerClaimed = false;
+
+  // Best-effort snapshot of the balance right before this adjustment, purely
+  // for the audit trail -- not used for any business decision here, so a
+  // benign race with a concurrent write is acceptable.
+  const previousBalanceAgg = await db.transaction.aggregate({
+    where: { studentId },
+    _sum: { amount: true },
+  });
+  const previousBalance = Number(previousBalanceAgg._sum.amount ?? 0);
 
   try {
     await db.$transaction(async (tx) => {
@@ -311,6 +353,16 @@ export async function updateStudentBalance(
       error: err instanceof Error ? err.message : "Ошибка создания транзакции",
     };
   }
+
+  await logActivity({
+    userId: sessionUser.id,
+    userRole: sessionUser.role,
+    action: "ADJUST_BALANCE",
+    entityType: "TRANSACTION",
+    entityId: studentId,
+    entityTitle: finalDescription,
+    details: { amount: parsed.data.amount, reason: finalDescription, previousBalance },
+  });
 
   if (offerClaimed) {
     try {

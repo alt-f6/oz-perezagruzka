@@ -4,8 +4,16 @@ const requireRoleMock = vi.hoisted(() => vi.fn());
 const dbMock = vi.hoisted(() => ({
   $transaction: vi.fn(),
   // Used directly (outside any transaction) by sendFirstPaymentOffer, which
-  // updateStudentBalance fires after a claimed manual credit.
-  student: { findUnique: vi.fn() },
+  // updateStudentBalance fires after a claimed manual credit -- and now also
+  // by deleteStudent's soft-delete update.
+  student: { findUnique: vi.fn(), update: vi.fn() },
+  // Read directly (outside any transaction) by updateStudentBalance, to
+  // snapshot the pre-adjustment balance for the ADJUST_BALANCE audit entry.
+  transaction: { aggregate: vi.fn() },
+  activityLog: { create: vi.fn(), findMany: vi.fn(), count: vi.fn() },
+  // Read directly (outside any transaction) by logActivity to resolve the
+  // acting user's display name for the audit entry.
+  user: { findUnique: vi.fn() },
 }));
 const revalidatePathMock = vi.hoisted(() => vi.fn());
 
@@ -13,7 +21,7 @@ vi.mock("@/shared/lib/rbac", () => ({ requireRole: requireRoleMock }));
 vi.mock("@/shared/lib/db", () => ({ db: dbMock }));
 vi.mock("next/cache", () => ({ revalidatePath: revalidatePathMock }));
 
-const { createStudent, updateStudent, updateStudentBalance } = await import("./actions");
+const { createStudent, updateStudent, deleteStudent, updateStudentBalance } = await import("./actions");
 
 interface TxMock {
   student: {
@@ -49,6 +57,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   requireRoleMock.mockResolvedValue({ id: "admin_1", role: "ADMIN" });
   dbMock.student.findUnique.mockResolvedValue(null);
+  dbMock.transaction.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
+  dbMock.activityLog.create.mockResolvedValue({});
+  dbMock.user.findUnique.mockResolvedValue(null);
 });
 
 describe("createStudent", () => {
@@ -375,5 +386,89 @@ describe("updateStudentBalance", () => {
     const result = await updateStudentBalance("student_1", 1000, "Пополнение");
 
     expect(result.error).toBeTruthy();
+  });
+});
+
+describe("activity logging", () => {
+  it("logs a CREATE entry after successfully creating a student", async () => {
+    const tx = makeTx(null);
+    runWithTx(tx);
+
+    await createStudent({ name: "Анна Смирнова", phone: "+79997654321", groupId: "" });
+
+    expect(dbMock.activityLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "CREATE",
+          entityType: "STUDENT",
+          entityId: "student_new",
+          entityTitle: "Анна Смирнова",
+          userId: "admin_1",
+        }),
+      }),
+    );
+  });
+
+  it("does not log CREATE when creation fails (duplicate phone)", async () => {
+    const tx = makeTx({ id: "student_existing" });
+    runWithTx(tx);
+
+    await createStudent({ name: "Иван Иванов", phone: "+79991234567", groupId: "" });
+
+    expect(dbMock.activityLog.create).not.toHaveBeenCalled();
+  });
+
+  it("logs an UPDATE entry after successfully editing a student", async () => {
+    const tx = makeTx(null);
+    runWithTx(tx);
+
+    await updateStudent("student_1", { name: "Пётр Петров", phone: "" });
+
+    expect(dbMock.activityLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "UPDATE",
+          entityType: "STUDENT",
+          entityId: "student_1",
+          entityTitle: "Пётр Петров",
+        }),
+      }),
+    );
+  });
+
+  it("logs a DELETE entry after soft-deleting a student", async () => {
+    dbMock.student.update.mockResolvedValue({});
+
+    const result = await deleteStudent("student_1");
+
+    expect(result).toEqual({});
+    expect(dbMock.activityLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ action: "DELETE", entityType: "STUDENT", entityId: "student_1" }),
+      }),
+    );
+  });
+
+  it("logs an ADJUST_BALANCE entry with amount, reason, and previous balance", async () => {
+    const tx = { transaction: { create: vi.fn().mockResolvedValue({ id: "txn_1" }) }, student: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) } };
+    dbMock.$transaction.mockImplementation(async (cb: (t: typeof tx) => unknown) => cb(tx));
+    dbMock.transaction.aggregate.mockResolvedValue({ _sum: { amount: 500 } });
+
+    await updateStudentBalance("student_1", -200, "ошибочный платеж");
+
+    expect(dbMock.activityLog.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          action: "ADJUST_BALANCE",
+          entityType: "TRANSACTION",
+          entityId: "student_1",
+          details: {
+            amount: -200,
+            reason: "Корректировка: ошибочный платеж",
+            previousBalance: 500,
+          },
+        }),
+      }),
+    );
   });
 });

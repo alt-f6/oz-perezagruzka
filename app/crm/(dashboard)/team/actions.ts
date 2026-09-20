@@ -95,8 +95,16 @@ export async function createInvite(
 
   const userRole = sessionUser.role;
 
-  if (userRole !== "ADMIN") {
+  if (userRole !== "ADMIN" && userRole !== "MANAGER") {
     return { error: "У вас нет прав для приглашения сотрудников" };
+  }
+
+  // Anti-privilege-escalation: a MANAGER may only ever issue TEACHER
+  // invites. This is a server-side floor independent of what the client UI
+  // shows -- a MANAGER payload requesting any other role is rejected
+  // outright, never silently downgraded.
+  if (userRole === "MANAGER" && role !== "TEACHER") {
+    return { error: "Кураторы могут приглашать только преподавателей" };
   }
 
   const parsedEmail = emailSchema.safeParse(email);

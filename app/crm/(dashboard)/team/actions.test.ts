@@ -85,3 +85,48 @@ describe("updateTeamMember", () => {
     ).rejects.toThrow("forbidden");
   });
 });
+
+describe("createInvite", () => {
+  it("lets a MANAGER invite a TEACHER", async () => {
+    getSessionUserMock.mockResolvedValue({ id: "mgr_1", email: "m@x.com", role: "MANAGER" });
+    dbMock.invite.create.mockResolvedValue({ token: "tok" });
+
+    const result = await createInvite("teacher@example.com", "TEACHER");
+
+    expect(result.error).toBeUndefined();
+    expect(result.inviteLink).toBe("https://crm.example.com/register?token=tok");
+    expect(dbMock.invite.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ role: "TEACHER" }) }),
+    );
+  });
+
+  it("rejects a MANAGER attempting to invite an ADMIN", async () => {
+    getSessionUserMock.mockResolvedValue({ id: "mgr_1", email: "m@x.com", role: "MANAGER" });
+
+    const result = await createInvite("wannabe-admin@example.com", "ADMIN");
+
+    expect(result.error).toBeTruthy();
+    expect(dbMock.invite.create).not.toHaveBeenCalled();
+  });
+
+  it("still lets an ADMIN invite either role", async () => {
+    getSessionUserMock.mockResolvedValue({ id: "admin_1", email: "a@x.com", role: "ADMIN" });
+    dbMock.invite.create.mockResolvedValue({ token: "tok2" });
+
+    const result = await createInvite("new-admin@example.com", "ADMIN");
+
+    expect(result.error).toBeUndefined();
+    expect(dbMock.invite.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ role: "ADMIN" }) }),
+    );
+  });
+
+  it("rejects a TEACHER (not ADMIN/MANAGER) entirely", async () => {
+    getSessionUserMock.mockResolvedValue({ id: "t_1", email: "t@x.com", role: "TEACHER" });
+
+    const result = await createInvite("someone@example.com", "TEACHER");
+
+    expect(result.error).toBeTruthy();
+    expect(dbMock.invite.create).not.toHaveBeenCalled();
+  });
+});

@@ -519,6 +519,18 @@ export const lessonListFiltersSchema = z.object({
 
 export type LessonListFilters = z.infer<typeof lessonListFiltersSchema>;
 
+export const AUDIT_ENTITY_TYPES = ["STUDENT", "GROUP", "LESSON", "TRANSACTION", "TEACHER", "INVITE"] as const;
+
+export const auditLogFiltersSchema = z.object({
+  userId: z.uuid().optional().catch(undefined),
+  entityType: z.enum(AUDIT_ENTITY_TYPES).optional().catch(undefined),
+  q: z.string().trim().max(200).catch(""),
+  page: z.coerce.number().int().min(1).catch(1),
+  pageSize: z.coerce.number().int().min(1).max(100).catch(50),
+});
+
+export type AuditLogFilters = z.infer<typeof auditLogFiltersSchema>;
+
 // bulkCancelSessionsWithBilling payload (app/crm/(dashboard)/lessons/actions.ts).
 export const bulkCancelWithReasonSchema = z.object({
   sessionIds: z.array(z.uuid()).min(1, { message: "Выберите хотя бы одно занятие" }),

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   BUSINESS_TIMEZONE,
   formatMoscowDate,
+  formatMoscowDateTime,
   formatMoscowTime,
   localWallClockToMoscowUtc,
   moscowDateKey,
@@ -122,5 +123,17 @@ describe("addMoscowDays", () => {
   it("supports negative offsets", () => {
     const instant = new Date("2026-03-10T05:00:00.000Z");
     expect(addMoscowDays(instant, -2).toISOString()).toBe("2026-03-08T05:00:00.000Z");
+  });
+});
+
+describe("formatMoscowDateTime", () => {
+  it("composes formatMoscowDate and formatMoscowTime with a comma separator", () => {
+    const utc = moscowDateTimeToUtc("2026-09-06", "14:30");
+    expect(formatMoscowDateTime(utc)).toBe(`${formatMoscowDate(utc)}, ${formatMoscowTime(utc)}`);
+  });
+
+  it("matches the DD.MM.YYYY, HH:mm shape", () => {
+    const utc = moscowDateTimeToUtc("2026-09-06", "14:30");
+    expect(formatMoscowDateTime(utc)).toMatch(/^\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/);
   });
 });

@@ -136,6 +136,20 @@ export function formatMoscowDate(instant: Date | string): string {
   return moscowDateFormatter.format(new Date(instant));
 }
 
+const moscowDateTimeFormatter = new Intl.DateTimeFormat("ru-RU", {
+  timeZone: BUSINESS_TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+/** `DD.MM.YYYY, HH:mm` calendar date + wall-clock time of `instant` in Moscow. */
+export function formatMoscowDateTime(instant: Date | string): string {
+  return moscowDateTimeFormatter.format(new Date(instant));
+}
+
 /**
  * The Moscow wall-clock parts of an instant, TZ-invariantly.
  *

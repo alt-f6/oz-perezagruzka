@@ -387,6 +387,17 @@ describe("updateStudentBalance", () => {
 
     expect(result.error).toBeTruthy();
   });
+
+  it("still adjusts the balance even if the previous-balance snapshot lookup fails", async () => {
+    const tx = makeBalanceTx();
+    runBalanceTx(tx);
+    dbMock.transaction.aggregate.mockRejectedValue(new Error("db blip"));
+
+    const result = await updateStudentBalance("student_1", 1000, "Пополнение");
+
+    expect(result.error).toBeUndefined();
+    expect(tx.transaction.create).toHaveBeenCalled();
+  });
 });
 
 describe("activity logging", () => {

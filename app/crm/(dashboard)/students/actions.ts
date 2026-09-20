@@ -321,12 +321,18 @@ export async function updateStudentBalance(
 
   // Best-effort snapshot of the balance right before this adjustment, purely
   // for the audit trail -- not used for any business decision here, so a
-  // benign race with a concurrent write is acceptable.
-  const previousBalanceAgg = await db.transaction.aggregate({
-    where: { studentId },
-    _sum: { amount: true },
-  });
-  const previousBalance = Number(previousBalanceAgg._sum.amount ?? 0);
+  // benign race with a concurrent write is acceptable. Wrapped so a failure
+  // here (DB blip) can never crash the real balance adjustment below.
+  let previousBalance: number | undefined;
+  try {
+    const previousBalanceAgg = await db.transaction.aggregate({
+      where: { studentId },
+      _sum: { amount: true },
+    });
+    previousBalance = Number(previousBalanceAgg._sum.amount ?? 0);
+  } catch (err) {
+    logger.error("Не удалось получить предыдущий баланс для аудита", err, { studentId });
+  }
 
   try {
     await db.$transaction(async (tx) => {

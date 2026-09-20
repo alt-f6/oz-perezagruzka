@@ -6,6 +6,7 @@ import {
   CalendarDays,
   DollarSign,
   GraduationCap,
+  History,
   LogOut,
   Users,
   Briefcase,
@@ -26,6 +27,7 @@ const NAV_ITEMS: { href: string; label: string; icon: typeof Users; roles: Role[
   { href: "/salary", label: "Зарплата", icon: DollarSign, roles: ["ADMIN"] },
   { href: "/leads", label: "Лиды", icon: TrendingUp, roles: ["ADMIN", "MANAGER"] },
   { href: "/team", label: "Команда", icon: Briefcase, roles: ["ADMIN", "MANAGER"] },
+  { href: "/audit", label: "Журнал действий", icon: History, roles: ["ADMIN"] },
 ];
 
 // The AI tutor is an LMS route (app/lms/admin/tutor), served on a different

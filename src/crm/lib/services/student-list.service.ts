@@ -43,7 +43,13 @@ export async function listStudents(
           }
         : {}),
     },
-    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    // fullName (not createdAt) so the directory reads alphabetically. No
+    // JS-side sortByRu here on purpose: this query is cursor-paginated
+    // (opts.cursor below), and re-sorting a single fetched page in JS would
+    // desync from the DB-side order the cursor is walking, causing rows to
+    // be skipped or repeated across pages. `id` stays as the tiebreaker so
+    // pagination is still stable for same-named students.
+    orderBy: [{ fullName: "asc" }, { id: "asc" }],
     take: limit + 1,
     ...(opts.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
     select: {

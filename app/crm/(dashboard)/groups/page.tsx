@@ -2,6 +2,7 @@ import { CRM_ROLES } from "@/shared/lib/auth";
 import { requireRoleForPage } from "@/shared/lib/rbac";
 import { db } from "@/shared/lib/db";
 import type { GroupWithDetails, User } from "@/crm/lib/types";
+import { sortByRu } from "@/shared/lib/sortRu";
 import { GroupsClient } from "./GroupsClient";
 import { getTeachers } from "./actions";
 
@@ -14,7 +15,7 @@ export default async function GroupsPage() {
   const userRole = sessionUser.role;
   const isTeacher = userRole === "TEACHER";
 
-  const [groups, teachers, students] = await Promise.all([
+  const [groupsRaw, teachersRaw, studentsRaw] = await Promise.all([
     db.group.findMany({
       where: {
         deletedAt: null,
@@ -31,7 +32,7 @@ export default async function GroupsPage() {
         createdAt: true,
         deletedAt: true,
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { name: "asc" },
     }),
     !isTeacher ? getTeachers() : Promise.resolve([]),
     db.student.findMany({
@@ -52,6 +53,10 @@ export default async function GroupsPage() {
       orderBy: { fullName: "asc" },
     }),
   ]);
+  const groups = sortByRu(groupsRaw, (g) => g.name);
+  // getTeachers() already returns a Russian-collation-sorted list (Step 8).
+  const teachers = teachersRaw;
+  const students = sortByRu(studentsRaw, (s) => s.fullName);
 
   const groupsWithDetails = groups.map((group) => {
     const teacher = teachers.find((t) => t.id === group.teacherId);

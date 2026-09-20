@@ -1,6 +1,7 @@
 import { CRM_ROLES } from "@/shared/lib/auth";
 import { requireRoleForPage } from "@/shared/lib/rbac";
 import { db } from "@/shared/lib/db";
+import { sortByRu } from "@/shared/lib/sortRu";
 import { TeamClient } from "./TeamClient";
 
 export default async function TeamPage() {
@@ -9,7 +10,7 @@ export default async function TeamPage() {
     forbiddenPath: () => "/access-denied",
   });
 
-  const [profiles, invites] = await Promise.all([
+  const [profilesRaw, invites] = await Promise.all([
     db.user.findMany({
       where: { role: { in: CRM_ROLES } },
       select: {
@@ -22,13 +23,14 @@ export default async function TeamPage() {
         isArchived: true,
         createdAt: true,
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { fullName: "asc" },
     }),
     db.invite.findMany({
       where: { acceptedAt: null },
       orderBy: { createdAt: "desc" },
     }),
   ]);
+  const profiles = sortByRu(profilesRaw, (p) => p.fullName);
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">

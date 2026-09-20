@@ -2,6 +2,7 @@ import { db } from "@/shared/lib/db";
 import { createLogger } from "@/shared/lib/logger";
 import { isLessonConcluded } from "@/crm/lib/lessonTime";
 import { classifyLessonAttendance, needsAttention } from "@/crm/lib/lessonFilters";
+import { sortByRu } from "@/shared/lib/sortRu";
 import type {
   ScheduleGroup,
   ScheduleLesson,
@@ -53,9 +54,7 @@ async function loadTeacherStudentRoster(
   for (const { student } of groupRoster) {
     byId.set(student.id, student);
   }
-  return Array.from(byId.values()).sort((a, b) =>
-    a.fullName.localeCompare(b.fullName),
-  );
+  return sortByRu(Array.from(byId.values()), (s) => s.fullName);
 }
 
 /**
@@ -78,7 +77,7 @@ export async function loadScheduleData(sessionUser: {
   const isTeacher = sessionUser.role === "TEACHER";
 
   try {
-    const [lessons, groupsRaw, teachers, students] = await Promise.all([
+    const [lessons, groupsRaw, teachersRaw, studentsRaw] = await Promise.all([
       db.classSession.findMany({
         // A teacher must also see sessions whose own teacherId is stale
         // (still pointing at a previous teacher after the group was
@@ -141,12 +140,21 @@ export async function loadScheduleData(sessionUser: {
           }),
     ]);
 
-    const groups: ScheduleGroup[] = groupsRaw.map((group) => ({
+    const teachers = sortByRu(teachersRaw, (t) => t.fullName);
+    // loadTeacherStudentRoster already returns a Russian-collation-sorted
+    // list; the non-teacher branch's db.student.findMany result needs it
+    // applied here.
+    const students = Array.isArray(studentsRaw) && !isTeacher
+      ? sortByRu(studentsRaw, (s) => s.fullName)
+      : studentsRaw;
+
+    const groupsUnsorted: ScheduleGroup[] = groupsRaw.map((group) => ({
       id: group.id,
       name: group.name,
       teacherId: group.teacherId,
       studentIds: group.students.map((s) => s.studentId),
     }));
+    const groups = sortByRu(groupsUnsorted, (g) => g.name);
 
     const groupStudentCountById = new Map(groups.map((g) => [g.id, g.studentIds?.length ?? 0]));
     const now = new Date();

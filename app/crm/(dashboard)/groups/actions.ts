@@ -8,6 +8,7 @@ import {
 } from "@/crm/lib/schemas";
 import { requireRole } from "@/shared/lib/rbac";
 import { db } from "@/shared/lib/db";
+import { sortByRu } from "@/shared/lib/sortRu";
 import type { ActionResult } from "@/crm/lib/types";
 import { bulkCancelSessions, type BulkCancelResult } from "../lessons/actions";
 import { createLogger } from "@/shared/lib/logger";
@@ -44,8 +45,9 @@ export async function getTeachers() {
     const data = await db.user.findMany({
       where: { role: "TEACHER", isArchived: false },
       select: { id: true, fullName: true, role: true },
+      orderBy: { fullName: "asc" },
     });
-    return data;
+    return sortByRu(data, (t) => t.fullName);
   } catch (error) {
     logger.error("Ошибка при получении учителей", error);
     return [];

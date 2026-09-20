@@ -2,6 +2,7 @@ import { db } from "@/shared/lib/db";
 import { requireRoleForPage } from "@/shared/lib/rbac";
 import { parseLessonListFilters } from "@/crm/lib/lessonFilters";
 import { listLessonsPage } from "@/crm/lib/services/lesson-list.service";
+import { sortByRu } from "@/shared/lib/sortRu";
 import { LessonsClient } from "./LessonsClient";
 
 export default async function LessonsPage({
@@ -20,11 +21,11 @@ export default async function LessonsPage({
   const parsed = parseLessonListFilters(sp);
   const filters = isTeacher ? { ...parsed, teacherId: undefined } : parsed;
 
-  const [{ lessons, total, page, pageSize }, groups, teachers, students] = await Promise.all([
+  const [{ lessons, total, page, pageSize }, groupsRaw, teachersRaw, studentsRaw] = await Promise.all([
     listLessonsPage({ sessionUser, filters }),
     db.group.findMany({
       where: isTeacher ? { teacherId: sessionUser.id } : undefined,
-      orderBy: { createdAt: "asc" },
+      orderBy: { name: "asc" },
       select: { id: true, name: true, teacherId: true },
     }),
     db.user.findMany({
@@ -40,6 +41,9 @@ export default async function LessonsPage({
           select: { id: true, fullName: true },
         }),
   ]);
+  const groups = sortByRu(groupsRaw, (g) => g.name);
+  const teachers = sortByRu(teachersRaw, (t) => t.fullName);
+  const students = sortByRu(studentsRaw, (s) => s.fullName);
 
   return (
     <LessonsClient

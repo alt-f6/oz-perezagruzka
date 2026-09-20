@@ -9,6 +9,7 @@ import {
   getPendingChargePreview,
 } from "@/crm/lib/services/abonement.service";
 import { PaymentModal } from "@/crm/components/PaymentModal";
+import { BalanceAdjustmentModal } from "@/crm/components/BalanceAdjustmentModal";
 import { AbonementSection } from "./AbonementSection";
 import { LedgerSection } from "./LedgerSection";
 import { OfferLinkButton } from "./OfferLinkButton";
@@ -18,6 +19,7 @@ import { PortalInviteSection } from "./PortalInviteSection";
 import { TelegramLinkSection } from "./TelegramLinkSection";
 import { StudentProfileSection } from "./StudentProfileSection";
 import { createStudentPaymentSession } from "./payment-actions";
+import { updateStudentBalance } from "../actions";
 import type { ExamType } from "@/crm/lib/schemas";
 
 export default async function StudentDetailPage({
@@ -163,6 +165,9 @@ export default async function StudentDetailPage({
               </p>
             </div>
             <PaymentModal studentId={id} createPaymentSession={createStudentPaymentSession} />
+            {sessionUser.role === "ADMIN" && (
+              <BalanceAdjustmentModal studentId={id} updateBalance={updateStudentBalance} />
+            )}
             <OfferLinkButton />
           </div>
         )}

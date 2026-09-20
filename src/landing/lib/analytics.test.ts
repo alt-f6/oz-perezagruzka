@@ -41,3 +41,41 @@ describe("reachGoal", () => {
     expect(ymMock).toHaveBeenCalledWith(12345678, "reachGoal", "quiz_start");
   });
 });
+
+describe("trackPageview", () => {
+  const originalEnv = process.env.NEXT_PUBLIC_YM_COUNTER_ID;
+
+  beforeEach(() => {
+    vi.resetModules();
+    delete (window as unknown as { ym?: unknown }).ym;
+  });
+
+  afterEach(() => {
+    process.env.NEXT_PUBLIC_YM_COUNTER_ID = originalEnv;
+  });
+
+  it("does nothing when the counter ID env var is not set", async () => {
+    process.env.NEXT_PUBLIC_YM_COUNTER_ID = "";
+    const { trackPageview } = await import("./analytics");
+
+    expect(() => trackPageview("/pep")).not.toThrow();
+  });
+
+  it("does nothing when window.ym is not present, even with a counter ID", async () => {
+    process.env.NEXT_PUBLIC_YM_COUNTER_ID = "12345678";
+    const { trackPageview } = await import("./analytics");
+
+    expect(() => trackPageview("/pep")).not.toThrow();
+  });
+
+  it("calls window.ym with the counter ID, 'hit', and the URL when both are present", async () => {
+    process.env.NEXT_PUBLIC_YM_COUNTER_ID = "12345678";
+    const ymMock = vi.fn();
+    (window as unknown as { ym: typeof ymMock }).ym = ymMock;
+    const { trackPageview } = await import("./analytics");
+
+    trackPageview("/pep");
+
+    expect(ymMock).toHaveBeenCalledWith(12345678, "hit", "/pep");
+  });
+});

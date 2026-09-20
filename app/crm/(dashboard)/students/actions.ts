@@ -269,7 +269,11 @@ export async function updateStudentBalance(
   amount: number,
   description: string,
 ): Promise<ActionResult> {
-  await requireRole(["ADMIN"]);
+  try {
+    await requireRole(["ADMIN"]);
+  } catch {
+    return { error: "Недостаточно прав для корректировки баланса" };
+  }
 
   const parsed = balanceAdjustmentSchema.safeParse({ amount, description });
   if (!parsed.success) {
@@ -277,6 +281,9 @@ export async function updateStudentBalance(
   }
 
   const isCredit = parsed.data.amount > 0;
+  const finalDescription = isCredit
+    ? parsed.data.description || "Ручное изменение баланса администратором"
+    : `Корректировка: ${(parsed.data.description ?? "").trim()}`;
   let offerClaimed = false;
 
   try {
@@ -286,7 +293,7 @@ export async function updateStudentBalance(
           studentId: studentId,
           amount: parsed.data.amount,
           type: isCredit ? "PAYMENT" : "ADJUSTMENT",
-          description: parsed.data.description || "Ручное изменение баланса администратором",
+          description: finalDescription,
           // Manual admin adjustment has no natural external dedup key; a fresh
           // UUID satisfies the required unique constraint without colliding.
           idempotencyKey: randomUUID(),

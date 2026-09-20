@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { lessonSchema, lessonListFiltersSchema, bulkCancelWithReasonSchema, reassignTeacherSchema } from "./schemas";
+import { lessonSchema, lessonListFiltersSchema, bulkCancelWithReasonSchema, reassignTeacherSchema, balanceAdjustmentSchema } from "./schemas";
 
 const baseValues = {
   groupId: "b6f8f9d4-6f1a-4e2a-9b8a-0a1b2c3d4e5f",
@@ -154,5 +154,32 @@ describe("reassignTeacherSchema", () => {
       }).success,
     ).toBe(true);
     expect(reassignTeacherSchema.safeParse({ sessionIds: [], newTeacherId: "x" }).success).toBe(false);
+  });
+});
+
+describe("balanceAdjustmentSchema", () => {
+  it("accepts a positive amount (credit) with no description", () => {
+    const result = balanceAdjustmentSchema.safeParse({ amount: 1000, description: "" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a negative amount (correction) with no description", () => {
+    const result = balanceAdjustmentSchema.safeParse({ amount: -500, description: "" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a negative amount with a description under 3 characters", () => {
+    const result = balanceAdjustmentSchema.safeParse({ amount: -500, description: "ой" });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a negative amount with a description of 3+ characters", () => {
+    const result = balanceAdjustmentSchema.safeParse({ amount: -500, description: "ошибка" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects a zero amount", () => {
+    const result = balanceAdjustmentSchema.safeParse({ amount: 0, description: "test" });
+    expect(result.success).toBe(false);
   });
 });

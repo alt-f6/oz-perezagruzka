@@ -102,4 +102,26 @@ describe("StudentsClient", () => {
     vi.useRealTimers();
     expect(await screen.findByText("Filtered")).toBeInTheDocument();
   });
+
+  it("shows the balance adjustment trigger for ADMIN but not for MANAGER", () => {
+    const { rerender } = render(
+      <StudentsClient
+        initialStudents={[makeStudent()]}
+        initialNextCursor={null}
+        groups={groups}
+        userRole="ADMIN"
+      />,
+    );
+    expect(screen.getByTitle("Скорректировать баланс")).toBeInTheDocument();
+
+    rerender(
+      <StudentsClient
+        initialStudents={[makeStudent()]}
+        initialNextCursor={null}
+        groups={groups}
+        userRole="MANAGER"
+      />,
+    );
+    expect(screen.queryByTitle("Скорректировать баланс")).not.toBeInTheDocument();
+  });
 });

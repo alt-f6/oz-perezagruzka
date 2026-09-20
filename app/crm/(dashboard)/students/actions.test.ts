@@ -331,17 +331,33 @@ describe("updateStudentBalance", () => {
     });
   });
 
-  it("records a negative amount as ADJUSTMENT and never attempts to claim the offer", async () => {
+  it("records a negative amount as ADJUSTMENT with the 'Корректировка:' prefix and never attempts to claim the offer", async () => {
     const tx = makeBalanceTx();
     runBalanceTx(tx);
 
-    const result = await updateStudentBalance("student_1", -500, "Корректировка");
+    const result = await updateStudentBalance("student_1", -500, "случайный платеж");
 
     expect(result.error).toBeUndefined();
     expect(tx.transaction.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ amount: -500, type: "ADJUSTMENT" }) }),
+      expect.objectContaining({
+        data: expect.objectContaining({
+          amount: -500,
+          type: "ADJUSTMENT",
+          description: "Корректировка: случайный платеж",
+        }),
+      }),
     );
     expect(tx.student.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("rejects a negative amount with no comment before touching the database", async () => {
+    const tx = makeBalanceTx();
+    runBalanceTx(tx);
+
+    const result = await updateStudentBalance("student_1", -500, "");
+
+    expect(result.error).toBeTruthy();
+    expect(tx.transaction.create).not.toHaveBeenCalled();
   });
 
   it("succeeds without error when the offer was already claimed by a prior payment", async () => {
@@ -353,11 +369,11 @@ describe("updateStudentBalance", () => {
     expect(result.error).toBeUndefined();
   });
 
-  it("rejects a non-ADMIN caller", async () => {
+  it("returns a graceful error for a non-ADMIN caller instead of throwing", async () => {
     requireRoleMock.mockRejectedValue(new Error("forbidden"));
 
-    await expect(updateStudentBalance("student_1", 1000, "Пополнение")).rejects.toThrow(
-      "forbidden",
-    );
+    const result = await updateStudentBalance("student_1", 1000, "Пополнение");
+
+    expect(result.error).toBeTruthy();
   });
 });

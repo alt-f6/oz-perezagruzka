@@ -6,11 +6,11 @@ import {
   Trash2,
   Phone,
   Search,
-  Wallet,
   MoreVertical,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
+import { BalanceAdjustmentModal } from "@/crm/components/BalanceAdjustmentModal";
 import { ConfirmDialog } from "@/crm/components/ConfirmDialog";
 import { Modal } from "@/crm/components/Modal";
 import { useToast } from "@/crm/components/ToastProvider";
@@ -45,10 +45,6 @@ export function StudentsClient({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [busyStudentId, setBusyStudentId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [balanceModal, setBalanceModal] = useState<{
-    open: boolean;
-    studentId: string | null;
-  }>({ open: false, studentId: null });
 
   const isTeacher = userRole === "TEACHER";
 
@@ -276,21 +272,14 @@ export function StudentsClient({
                       )}
                     </td>
                   )}
-                  {!isTeacher && (
+                  {userRole === "ADMIN" && (
                     <td className="relative">
                       <div className="flex items-center gap-1">
-                        <button
-                          onClick={() =>
-                            setBalanceModal({
-                              open: true,
-                              studentId: student.id,
-                            })
-                          }
-                          className="icon-btn h-8 w-8"
-                          title="Пополнить баланс"
-                        >
-                          <Wallet size={16} />
-                        </button>
+                        <BalanceAdjustmentModal
+                          studentId={student.id}
+                          updateBalance={updateStudentBalance}
+                          iconOnly
+                        />
                         <button
                           onClick={() =>
                             setOpenMenuId(
@@ -493,71 +482,6 @@ export function StudentsClient({
             className="btn-primary mt-2 w-full"
           >
             Создать карточку студента
-          </button>
-        </form>
-      </Modal>
-
-      <Modal
-        open={balanceModal.open}
-        title="Внести операцию (Ledger)"
-        onClose={() => setBalanceModal({ open: false, studentId: null })}
-      >
-        <form
-          onSubmit={async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.currentTarget);
-            const amount = Number(formData.get("amount"));
-            const desc = formData.get("description") as string;
-
-            if (balanceModal.studentId) {
-              const res = await updateStudentBalance(
-                balanceModal.studentId,
-                amount,
-                desc,
-              );
-              if (res?.error) {
-                showToast(res.error, "error");
-                return;
-              }
-              setBalanceModal({ open: false, studentId: null });
-              showToast("Транзакция успешно зафиксирована");
-            }
-          }}
-          className="space-y-4 pt-2"
-        >
-          <div>
-            <label className="label">
-              Сумма операции (₽) *
-            </label>
-            <input
-              name="amount"
-              type="number"
-              placeholder="Пример: 5000 для прихода или -600 для списания"
-              className="input"
-              required
-            />
-            <p className="mt-1 text-xs text-slate-500">
-              Положительное число — пополнение баланса, отрицательное — ручное
-              списание.
-            </p>
-          </div>
-
-          <div>
-            <label className="label">
-              Основание / Комментарий
-            </label>
-            <input
-              name="description"
-              placeholder="Оплата абонемента на октябрь / Корректировка"
-              className="input"
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="btn-primary mt-2 w-full"
-          >
-            Провести транзакцию
           </button>
         </form>
       </Modal>

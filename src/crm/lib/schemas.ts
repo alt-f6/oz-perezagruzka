@@ -104,14 +104,19 @@ export const updateGroupSchema = groupSchema.extend({
   ...groupDomainFields,
 });
 
-export const balanceAdjustmentSchema = z.object({
-  amount: z.coerce
-    .number()
-    .refine((v) => v !== 0, { message: "Сумма не может быть нулевой" })
-    .refine((v) => Number.isFinite(v), { message: "Некорректная сумма" })
-    .refine((v) => Math.abs(v) <= 1_000_000, { message: "Слишком большая сумма" }),
-  description: z.string().optional().or(z.literal("")),
-});
+export const balanceAdjustmentSchema = z
+  .object({
+    amount: z.coerce
+      .number()
+      .refine((v) => v !== 0, { message: "Сумма не может быть нулевой" })
+      .refine((v) => Number.isFinite(v), { message: "Некорректная сумма" })
+      .refine((v) => Math.abs(v) <= 1_000_000, { message: "Слишком большая сумма" }),
+    description: z.string().optional().or(z.literal("")),
+  })
+  .refine((data) => data.amount >= 0 || (data.description ?? "").trim().length >= 3, {
+    message: "Для списания укажите основание (минимум 3 символа)",
+    path: ["description"],
+  });
 
 const optionalText = z.string().trim().optional().or(z.literal(""));
 

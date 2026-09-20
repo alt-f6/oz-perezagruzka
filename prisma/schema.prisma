@@ -122,6 +122,7 @@ model User {
   parentProfile     Parent?               @relation("ParentUser")
   gradedSubmissions Submission[]          @relation("GradedSubmissions")
   lessonAuditLogs   LessonAuditLog[]
+  activityLogs      ActivityLog[]
 
   // Lead conversion: a Lead becomes a User (role STUDENT) upon payment
   convertedFromLead Lead?
@@ -428,6 +429,32 @@ model LessonAuditLog {
   changedBy    User         @relation(fields: [changedById], references: [id], onDelete: Restrict)
 
   @@index([classSessionId, changedAt])
+}
+
+// Cross-entity audit trail surfaced on the /audit dashboard (ADMIN-only).
+// Unlike LessonAuditLog (one narrow, per-field table for ClassSession
+// reschedules), this is the general-purpose "who did what, when" record for
+// students, lessons, billing, and team/invite actions. userId is nullable
+// (onDelete: SetNull, same pattern as Submission.gradedById) so a
+// system-initiated entry (cron, webhook) or a later-deleted staff account
+// never blocks either the log write or the account deletion.
+model ActivityLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  userName    String   @default("Система")
+  userRole    String   @default("SYSTEM")
+  action      String // CREATE, UPDATE, DELETE, CANCEL, RESCHEDULE, ADJUST_BALANCE, INVITE_CREATED
+  entityType  String // STUDENT, GROUP, LESSON, TRANSACTION, TEACHER, INVITE
+  entityId    String?
+  entityTitle String? // Human-readable reference (e.g. student name, group title)
+  details     Json? // Sanitized diff or context metadata
+  createdAt   DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([entityType, createdAt(sort: Desc)])
 }
 
 model Freeze {

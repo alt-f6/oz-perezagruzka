@@ -272,14 +272,16 @@ export function StudentsClient({
                       )}
                     </td>
                   )}
-                  {userRole === "ADMIN" && (
+                  {!isTeacher && (
                     <td className="relative">
                       <div className="flex items-center gap-1">
-                        <BalanceAdjustmentModal
-                          studentId={student.id}
-                          updateBalance={updateStudentBalance}
-                          iconOnly
-                        />
+                        {userRole === "ADMIN" && (
+                          <BalanceAdjustmentModal
+                            studentId={student.id}
+                            updateBalance={updateStudentBalance}
+                            iconOnly
+                          />
+                        )}
                         <button
                           onClick={() =>
                             setOpenMenuId(

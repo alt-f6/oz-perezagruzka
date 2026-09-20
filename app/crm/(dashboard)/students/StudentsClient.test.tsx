@@ -124,4 +124,31 @@ describe("StudentsClient", () => {
     );
     expect(screen.queryByTitle("Скорректировать баланс")).not.toBeInTheDocument();
   });
+
+
+  it("shows row delete menu for MANAGER (regression check: row cell should be visible)", () => {
+    render(
+      <StudentsClient
+        initialStudents={[makeStudent()]}
+        initialNextCursor={null}
+        groups={groups}
+        userRole="MANAGER"
+      />,
+    );
+
+    // The row should have the actions cell with delete menu option for MANAGER (not just ADMIN)
+    // Click the MoreVertical menu button to reveal the delete option
+    const menuButtons = screen.getAllByRole("button");
+    // Find the MoreVertical button (it's in the actions row; click it to reveal the menu)
+    const moreVerticalButton = menuButtons.find(
+      (btn) => btn.className.includes("icon-btn") && btn.parentElement?.className.includes("flex")
+    );
+    
+    if (moreVerticalButton) {
+      fireEvent.click(moreVerticalButton);
+    }
+    
+    // Now the delete button should be visible
+    expect(screen.getByText("Удалить")).toBeInTheDocument();
+  });
 });

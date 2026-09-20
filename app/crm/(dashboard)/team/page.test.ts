@@ -22,8 +22,18 @@ const { default: TeamPage } = await import("./page");
 beforeEach(() => vi.clearAllMocks());
 
 describe("CRM team page guard", () => {
-  it("redirects a MANAGER (not ADMIN) to /access-denied", async () => {
+  it("allows an ADMIN through", async () => {
+    getSessionUserMock.mockResolvedValue({ id: "u0", email: "a@x.com", role: "ADMIN" });
+    await expect(TeamPage()).resolves.toBeTruthy();
+  });
+
+  it("allows a MANAGER through", async () => {
     getSessionUserMock.mockResolvedValue({ id: "u1", email: "m@x.com", role: "MANAGER" });
+    await expect(TeamPage()).resolves.toBeTruthy();
+  });
+
+  it("redirects a TEACHER (not ADMIN/MANAGER) to /access-denied", async () => {
+    getSessionUserMock.mockResolvedValue({ id: "u2", email: "t@x.com", role: "TEACHER" });
     await expect(TeamPage()).rejects.toThrow("NEXT_REDIRECT:/access-denied");
   });
 

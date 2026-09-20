@@ -5,10 +5,11 @@ import { sortByRu } from "@/shared/lib/sortRu";
 import { TeamClient } from "./TeamClient";
 
 export default async function TeamPage() {
-  await requireRoleForPage(["ADMIN"], {
+  const sessionUser = await requireRoleForPage(["ADMIN", "MANAGER"], {
     loginPath: "/admin/login",
     forbiddenPath: () => "/access-denied",
   });
+  const currentUserRole = sessionUser.role === "ADMIN" ? "ADMIN" : "MANAGER";
 
   const [profilesRaw, invites] = await Promise.all([
     db.user.findMany({
@@ -60,7 +61,7 @@ export default async function TeamPage() {
           token: i.token,
           createdAt: i.createdAt.toISOString(),
         }))}
-        currentUserRole="ADMIN"
+        currentUserRole={currentUserRole}
       />
     </div>
   );

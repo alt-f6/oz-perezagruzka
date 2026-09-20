@@ -19,7 +19,7 @@ describe("next.config vercel.app noindex header", () => {
   it("sets X-Robots-Tag: noindex, nofollow, noarchive on *.vercel.app hosts", async () => {
     const headerGroups = await nextConfig.headers!();
     const vercelGroup = headerGroups.find((g) =>
-      g.has?.some((h) => h.type === "host" && "value" in h && h.value?.includes("vercel.app")),
+      g.has?.some((h) => h.type === "host" && "value" in h && h.value?.includes("vercel")),
     );
 
     expect(vercelGroup?.headers).toContainEqual({

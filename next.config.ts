@@ -46,7 +46,7 @@ const nextConfig: NextConfig = {
         // hostname must never be indexed -- only the production custom
         // domain should show up in search results.
         source: "/:path*",
-        has: [{ type: "host", value: ".*vercel.app" }],
+        has: [{ type: "host", value: ".*\\.vercel\\.app" }],
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" }],
       },
     ];

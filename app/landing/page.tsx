@@ -30,7 +30,7 @@ export async function generateMetadata({
   const examParam = Array.isArray(params.exam) ? params.exam[0] : params.exam;
   const exam = examParam === "ege" ? "ege" : "oge";
   const { title, description } = EXAM_METADATA[exam];
-  const canonicalUrl = exam === "ege" ? `${siteUrl}/?exam=ege` : siteUrl;
+  const canonicalUrl = exam === "ege" ? `${siteUrl}/ege` : siteUrl;
 
   return {
     title,

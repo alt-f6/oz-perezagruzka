@@ -23,7 +23,7 @@ vi.mock("@/landing/components/sections/FAQ", () => ({ default: () => null }));
 vi.mock("@/landing/components/sections/FinalCTA", () => ({ default: () => null }));
 vi.mock("@/landing/components/sections/Footer", () => ({ default: () => null }));
 
-import Home from "./page";
+import Home, { generateMetadata } from "./page";
 
 describe("Home", () => {
   it("gives the readiness-map dynamic-import loading fallback the anchor id, so #readiness-map has a scroll target before the chunk loads", () => {
@@ -53,5 +53,14 @@ describe("Home", () => {
     expect(org).toBeTruthy();
     expect(org.aggregateRating.reviewCount).toBe("70");
     expect(org.address.streetAddress).toBe("ул. Калинина, 26");
+  });
+
+  it("canonicalizes the ?exam=ege query variant onto the dedicated /ege route, not itself", async () => {
+    const metadata = await generateMetadata({
+      searchParams: Promise.resolve({ exam: "ege" }),
+    });
+
+    expect(metadata.alternates?.canonical).toBe("https://perezagruzka-edu.ru/ege");
+    expect(metadata.openGraph?.url).toBe("https://perezagruzka-edu.ru/ege");
   });
 });

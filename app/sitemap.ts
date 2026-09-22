@@ -10,9 +10,21 @@ export default function sitemap(): MetadataRoute.Sitemap {
     {
       url: SITE_URL,
       lastModified: BUILD_DATE,
-      changeFrequency: "weekly",
+      changeFrequency: "daily",
       priority: 1.0,
     },
+    ...["/oge", "/ege"].map((path) => ({
+      url: `${SITE_URL}${path}`,
+      lastModified: BUILD_DATE,
+      changeFrequency: "weekly" as const,
+      priority: 0.9,
+    })),
+    ...["/surgut", "/nizhnevartovsk", "/khanty-mansiysk"].map((path) => ({
+      url: `${SITE_URL}${path}`,
+      lastModified: BUILD_DATE,
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    })),
     ...["/terms", "/privacy", "/pep"].map((path) => ({
       url: `${SITE_URL}${path}`,
       lastModified: BUILD_DATE,

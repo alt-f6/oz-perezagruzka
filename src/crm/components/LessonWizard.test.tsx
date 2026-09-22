@@ -8,7 +8,13 @@ import { LessonWizard } from "./LessonWizard";
 
 const GROUP = { id: "b6f8f9d4-6f1a-4e2a-9b8a-0a1b2c3d4e5f", name: "Группа 1", teacherId: "t1" };
 
-function Harness({ defaults }: { defaults?: Partial<LessonValues> }) {
+function Harness({
+  defaults,
+  userTimezone,
+}: {
+  defaults?: Partial<LessonValues>;
+  userTimezone?: string;
+}) {
   const {
     register,
     handleSubmit,
@@ -44,6 +50,7 @@ function Harness({ defaults }: { defaults?: Partial<LessonValues> }) {
       students={[{ id: "s1", fullName: "Назар" }]}
       isSubmitting={isSubmitting}
       onSubmit={handleSubmit(vi.fn())}
+      userTimezone={userTimezone}
     />
   );
 }
@@ -96,5 +103,24 @@ describe("LessonWizard step navigation", () => {
     // Saturday now reads 10:00–11:30; Monday keeps the default 15:00–16:00.
     expect(within(saturdayCard).getByText("10:00–11:30 (90 мин)")).toBeInTheDocument();
     expect(within(mondayCard).getByText("15:00–16:00 (60 мин)")).toBeInTheDocument();
+  });
+});
+
+describe("LessonWizard non-Moscow timezone", () => {
+  it("threads userTimezone into step 2's per-day preview", async () => {
+    const user = userEvent.setup();
+    render(
+      <Harness
+        userTimezone="Asia/Baku"
+        defaults={{
+          recurrence: "CUSTOM",
+          recurrenceDays: [1],
+          recurrenceEndDate: "2026-09-30",
+        }}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Далее" }));
+    // Default 15:00 Baku on Monday = 14:00 Moscow.
+    expect(screen.getByText(/14:00–15:00 \(60 мин\) МСК/)).toBeInTheDocument();
   });
 });

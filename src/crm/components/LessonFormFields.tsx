@@ -5,7 +5,7 @@ import type { FieldErrors, UseFormRegister, UseFormSetValue, UseFormWatch } from
 
 import { toDateKey, todayKey } from "@/crm/lib/calendarGrid";
 import { formatTimeRange } from "@/crm/lib/lessonTime";
-import { moscowDateTimeToUtc } from "@/shared/lib/timezone";
+import { BUSINESS_TIMEZONE, CRM_TIMEZONES, formatTimeInZone, zonedDateTimeToUtc } from "@/shared/lib/timezone";
 import type { LessonValues } from "@/crm/lib/schemas";
 import { DatePicker } from "./DatePicker";
 import { DurationChips } from "./DurationChips";
@@ -45,6 +45,7 @@ export function LessonFormFields({
   teachers,
   students,
   isSubmitting,
+  userTimezone = BUSINESS_TIMEZONE,
 }: {
   register: UseFormRegister<LessonValues>;
   watch: UseFormWatch<LessonValues>;
@@ -54,6 +55,7 @@ export function LessonFormFields({
   teachers: { id: string; fullName: string }[];
   students: { id: string; fullName: string }[];
   isSubmitting: boolean;
+  userTimezone?: string;
 }) {
   const lessonType = watch("type") ?? "GROUP";
   const recurrence = watch("recurrence");
@@ -90,16 +92,19 @@ export function LessonFormFields({
     setValue("recurrenceDays", next, { shouldValidate: true });
   };
 
-  const rangeLabel =
-    date && time
-      ? formatTimeRange({
-          // Build the same Moscow-anchored instant createLesson persists, so
-          // the preview matches the stored/rendered wall-clock exactly instead
-          // of floating on the browser timezone.
-          scheduledAt: moscowDateTimeToUtc(date, time),
-          durationMinutes,
-        })
+  const isNonMoscow = userTimezone !== BUSINESS_TIMEZONE;
+  const enteredInstant = date && time ? zonedDateTimeToUtc(date, time, userTimezone) : null;
+  const rangeLabel = enteredInstant
+    ? `${formatTimeInZone(enteredInstant, userTimezone)}–${formatTimeInZone(
+        new Date(enteredInstant.getTime() + durationMinutes * 60_000),
+        userTimezone,
+      )} (${durationMinutes} мин)`
+    : null;
+  const moscowRangeLabel =
+    isNonMoscow && enteredInstant
+      ? `${formatTimeRange({ scheduledAt: enteredInstant, durationMinutes })} МСК`
       : null;
+  const activeTimezoneLabel = CRM_TIMEZONES.find((tz) => tz.value === userTimezone)?.cityLabel ?? userTimezone;
 
   return (
     <>
@@ -263,7 +268,10 @@ export function LessonFormFields({
       </div>
 
       <div>
-        <label className="label">Время</label>
+        <label className="label">
+          Время
+          {isNonMoscow && ` (ваш часовой пояс: ${activeTimezoneLabel})`}
+        </label>
         <TimeSlotPicker
           value={time ?? ""}
           onChange={(next) => setValue("time", next, { shouldValidate: true })}
@@ -285,7 +293,10 @@ export function LessonFormFields({
       </div>
 
       {rangeLabel && (
-        <p className="text-sm font-medium text-slate-600">{rangeLabel}</p>
+        <p className="text-sm font-medium text-slate-600">
+          {rangeLabel}
+          {moscowRangeLabel && <span className="ml-1 text-slate-400">= {moscowRangeLabel}</span>}
+        </p>
       )}
 
       <div>

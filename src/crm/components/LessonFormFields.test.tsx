@@ -10,10 +10,12 @@ function Harness({
   groups = [{ id: "g1", name: "Группа 1" }],
   teachers = [{ id: "t1", fullName: "Преподаватель 1" }],
   students = [{ id: "s1", fullName: "Назар" }],
+  userTimezone,
 }: {
   groups?: { id: string; name: string; teacherId?: string | null }[];
   teachers?: { id: string; fullName: string }[];
   students?: { id: string; fullName: string }[];
+  userTimezone?: string;
 } = {}) {
   const {
     register,
@@ -42,6 +44,7 @@ function Harness({
       teachers={teachers}
       students={students}
       isSubmitting={false}
+      userTimezone={userTimezone}
     />
   );
 }
@@ -104,5 +107,21 @@ describe("LessonFormFields", () => {
     expect(
       screen.getByRole("option", { name: "Преподаватель 1" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("LessonFormFields non-Moscow timezone", () => {
+  it("shows both the entered-zone and Moscow preview when userTimezone is non-Moscow", () => {
+    render(<Harness userTimezone="Asia/Baku" />);
+    // 15:00 Baku (UTC+4) = 14:00 Moscow (UTC+3).
+    expect(screen.getByText("15:00–16:00 (60 мин)")).toBeInTheDocument();
+    expect(screen.getByText(/14:00–15:00 \(60 мин\) МСК/)).toBeInTheDocument();
+    expect(screen.getByText(/Баку/)).toBeInTheDocument();
+  });
+
+  it("shows only the single Moscow range when userTimezone is Moscow (default)", () => {
+    render(<Harness />);
+    expect(screen.getByText("15:00–16:00 (60 мин)")).toBeInTheDocument();
+    expect(screen.queryByText(/МСК/)).not.toBeInTheDocument();
   });
 });

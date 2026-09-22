@@ -59,6 +59,7 @@ export function LessonWizard({
   students,
   isSubmitting,
   onSubmit,
+  userTimezone,
 }: {
   register: UseFormRegister<LessonValues>;
   watch: UseFormWatch<LessonValues>;
@@ -70,6 +71,7 @@ export function LessonWizard({
   students: { id: string; fullName: string }[];
   isSubmitting: boolean;
   onSubmit: FormEventHandler<HTMLFormElement>;
+  userTimezone?: string;
 }) {
   const [step, setStep] = useState(1);
   const lessonType = watch("type") ?? "GROUP";
@@ -127,6 +129,7 @@ export function LessonWizard({
           teachers={teachers}
           students={students}
           isSubmitting={isSubmitting}
+          userTimezone={userTimezone}
         />
       ) : (
         <LessonDaySlots
@@ -134,6 +137,7 @@ export function LessonWizard({
           setValue={setValue}
           errors={errors}
           isSubmitting={isSubmitting}
+          userTimezone={userTimezone}
         />
       )}
 

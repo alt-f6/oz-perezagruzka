@@ -2,8 +2,7 @@
 
 import type { FieldErrors, UseFormSetValue, UseFormWatch } from "react-hook-form";
 
-import { formatTimeRange } from "@/crm/lib/lessonTime";
-import { moscowDateTimeToUtc } from "@/shared/lib/timezone";
+import { BUSINESS_TIMEZONE, formatTimeInZone, zonedDateTimeToUtc } from "@/shared/lib/timezone";
 import { lessonDurationOptions, type DaySlot, type LessonValues } from "@/crm/lib/schemas";
 import { DurationChips } from "./DurationChips";
 import { TimeSlotPicker } from "./TimeSlotPicker";
@@ -35,11 +34,13 @@ export function LessonDaySlots({
   setValue,
   errors,
   isSubmitting,
+  userTimezone = BUSINESS_TIMEZONE,
 }: {
   watch: UseFormWatch<LessonValues>;
   setValue: UseFormSetValue<LessonValues>;
   errors: FieldErrors<LessonValues>;
   isSubmitting: boolean;
+  userTimezone?: string;
 }) {
   const recurrence = watch("recurrence");
   const recurrenceDays = watch("recurrenceDays") ?? [];
@@ -78,13 +79,16 @@ export function LessonDaySlots({
     setValue("daySlots", merged, { shouldValidate: true });
   };
 
-  const rangeLabel = (time: string, duration: number): string | null =>
-    date && time
-      ? formatTimeRange({
-          scheduledAt: moscowDateTimeToUtc(date, time),
-          durationMinutes: duration,
-        })
-      : null;
+  const isNonMoscow = userTimezone !== BUSINESS_TIMEZONE;
+  const rangeLabel = (time: string, duration: number): string | null => {
+    if (!date || !time) return null;
+    const instant = zonedDateTimeToUtc(date, time, userTimezone);
+    const end = new Date(instant.getTime() + duration * 60_000);
+    const entered = `${formatTimeInZone(instant, userTimezone)}–${formatTimeInZone(end, userTimezone)} (${duration} мин)`;
+    if (!isNonMoscow) return entered;
+    const moscow = `${formatTimeInZone(instant, "Europe/Moscow")}–${formatTimeInZone(end, "Europe/Moscow")} (${duration} мин)`;
+    return `${entered} = ${moscow} МСК`;
+  };
 
   if (targetDays.length === 0) {
     const label = rangeLabel(globalTime, globalDuration);

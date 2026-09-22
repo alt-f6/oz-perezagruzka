@@ -8,6 +8,7 @@ import { roleHome } from "@/lms/server/auth/types";
 import { db } from "@/shared/lib/db";
 import { canViewLesson } from "@/lms/server/access/can-view-lesson";
 import { computeModuleUnlockStatus } from "@/lms/server/access/module-unlock";
+import { normalizePresentationUrl } from "@/lms/lib/presentation-url";
 import { LessonTheaterViewer } from "@/lms/components/student/LessonTheaterViewer";
 import { LessonViewerSkeleton } from "@/lms/components/student/LessonViewerSkeleton";
 import type { CurriculumModule, CurriculumLesson } from "@/lms/components/student/CurriculumSidebar";
@@ -71,9 +72,27 @@ export default async function StudentLessonPage({ params }: Props) {
     select: { id: true, title: true, embedUrl: true, provider: true, kind: true, order: true },
   });
   const media = mediaRows.filter((m) => m.kind !== "presentation");
-  const presentations = mediaRows
-    .filter((m) => m.kind === "presentation")
-    .map((m) => ({ id: m.id, title: m.title, url: m.embedUrl, order: m.order }));
+  // Lesson.presentationEmbedUrl (set via the admin form's "Ссылка на встроенную
+  // презентацию" field) is the only mechanism the admin UI actually offers for
+  // attaching a presentation -- nothing in the admin UI ever creates a
+  // LessonMedia row with kind "presentation". The LessonMedia-based mapping
+  // below is kept for any such row that might exist, but the Lesson-level URL
+  // is the one that must render for this to work at all.
+  const presentations = [
+    ...(lesson.presentationEmbedUrl
+      ? [
+          {
+            id: `${lesson.id}-presentation`,
+            title: null as string | null,
+            url: normalizePresentationUrl(lesson.presentationEmbedUrl),
+            order: 0,
+          },
+        ]
+      : []),
+    ...mediaRows
+      .filter((m) => m.kind === "presentation")
+      .map((m) => ({ id: m.id, title: m.title, url: normalizePresentationUrl(m.embedUrl), order: m.order })),
+  ];
 
   const pdfs = await db.lessonAsset.findMany({
     where: { lessonId, kind: "pdf", isPublic: true },

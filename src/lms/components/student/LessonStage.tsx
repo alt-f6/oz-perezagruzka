@@ -9,11 +9,40 @@ import { PdfViewer } from "@/lms/components/student/PdfViewer";
 import { AudioPlayer } from "@/lms/components/student/AudioPlayer";
 import { MediaErrorBoundary } from "@/lms/components/student/MediaErrorBoundary";
 import { syncPlaybackPosition } from "../../../../app/lms/student/lessons/[id]/actions";
+import { normalizePresentationUrl } from "@/lms/lib/presentation-url";
 
 type MediaRow = { id: string; title: string | null; embed_url: string; provider: string; order: number };
 type PdfRow = { id: string; title: string | null; order: number };
 export type PresentationRow = { id: string; title: string | null; url: string; order: number };
 export type AudioRow = { id: string; title: string | null; order: number };
+
+function PresentationEmbed({ url, title }: { url: string; title: string | null }) {
+  const [error, setError] = useState(false);
+  const normalized = normalizePresentationUrl(url);
+
+  if (error) {
+    return (
+      <div className="flex h-full min-h-[85vh] w-full flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-card/40 p-4 text-center text-sm text-muted-foreground">
+        <p>Не удалось загрузить презентацию.</p>
+        <p className="text-xs">Проверьте, что ссылка настроена на публичный доступ для просмотра.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-full min-h-[85vh] rounded-2xl overflow-hidden bg-white shadow-sm">
+      <iframe
+        src={normalized}
+        title={title ?? "Презентация"}
+        className="w-full h-full min-h-[85vh] border-0"
+        style={{ width: "100%", height: "100%", minHeight: "85vh", border: 0 }}
+        allow="fullscreen"
+        loading="lazy"
+        onError={() => setError(true)}
+      />
+    </div>
+  );
+}
 
 type StageAsset =
   | { kind: "video"; id: string; title: string | null; embedUrl: string; provider: string }
@@ -168,16 +197,7 @@ export function LessonStage({
                 }}
               />
             ) : (
-              <div className="w-full h-full min-h-[85vh] rounded-2xl overflow-hidden bg-white shadow-sm">
-                <iframe
-                  src={active.url}
-                  title={active.title ?? "Презентация"}
-                  className="w-full h-full min-h-[85vh] border-0"
-                  style={{ width: "100%", height: "100%", minHeight: "85vh", border: 0 }}
-                  allow="fullscreen"
-                  loading="lazy"
-                />
-              </div>
+              <PresentationEmbed url={active.url} title={active.title} />
             )}
           </div>
         </MediaErrorBoundary>

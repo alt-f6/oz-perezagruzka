@@ -263,6 +263,26 @@ describe("getSessionUser", () => {
   });
 });
 
+describe("getUserTimezone", () => {
+  it("returns the user's stored timezone", async () => {
+    const { getUserTimezone } = await import("./auth");
+    findUniqueUserMock.mockResolvedValue({ timezone: "Asia/Baku" });
+
+    await expect(getUserTimezone("user_1")).resolves.toBe("Asia/Baku");
+    expect(findUniqueUserMock).toHaveBeenCalledWith({
+      where: { id: "user_1" },
+      select: { timezone: true },
+    });
+  });
+
+  it("falls back to Moscow when the user row is missing", async () => {
+    const { getUserTimezone } = await import("./auth");
+    findUniqueUserMock.mockResolvedValue(null);
+
+    await expect(getUserTimezone("gone")).resolves.toBe("Europe/Moscow");
+  });
+});
+
 describe("getSessionUserFromRequest", () => {
   it("returns null when there is no session cookie on the request", async () => {
     const { getSessionUserFromRequest } = await import("./auth");

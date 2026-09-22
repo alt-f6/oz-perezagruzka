@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import type { NextRequest, NextResponse } from "next/server";
 import type { Role as PrismaRole } from "@prisma/client";
 import { db } from "@/shared/lib/db";
+import { BUSINESS_TIMEZONE } from "@/shared/lib/timezone";
 
 /**
  * Unified auth utility for the merged CRM + LMS app.
@@ -137,6 +138,16 @@ export async function createUserSession(userId: string): Promise<{ token: string
 
 export async function destroySession(token: string): Promise<void> {
   await db.session.deleteMany({ where: { token } });
+}
+
+/**
+ * Looks up a user's saved display/lesson-entry timezone. Always resolves to a
+ * valid value — the User.timezone column is non-null with a Moscow default,
+ * so a null result here only happens if the user row was deleted mid-request.
+ */
+export async function getUserTimezone(userId: string): Promise<string> {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { timezone: true } });
+  return user?.timezone ?? BUSINESS_TIMEZONE;
 }
 
 async function getUserBySessionToken(token: string): Promise<SessionUser | null> {

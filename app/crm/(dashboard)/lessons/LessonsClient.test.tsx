@@ -142,3 +142,15 @@ describe("LessonsClient", () => {
     expect(await screen.findByText("Отменено: 1, пропущено: 1")).toBeInTheDocument();
   });
 });
+
+describe("LessonsClient non-Moscow timezone", () => {
+  it("passes userTimezone through to the create-lesson form", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const user = userEvent.setup();
+    renderClient({ userRole: "ADMIN", userTimezone: "Asia/Baku" });
+
+    await user.click(screen.getByText("Новое занятие"));
+
+    expect(screen.getByText(/Баку/)).toBeInTheDocument();
+  });
+});

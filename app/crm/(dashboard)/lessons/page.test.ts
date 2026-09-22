@@ -8,7 +8,10 @@ vi.mock("next/navigation", () => ({
     throw new Error(`NEXT_REDIRECT:${path}`);
   },
 }));
-vi.mock("@/shared/lib/auth", () => ({ getSessionUser: getSessionUserMock }));
+vi.mock("@/shared/lib/auth", () => ({
+  getSessionUser: getSessionUserMock,
+  getUserTimezone: vi.fn().mockResolvedValue("Europe/Moscow"),
+}));
 vi.mock("@/crm/lib/services/lesson-list.service", () => ({ listLessonsPage: listLessonsPageMock }));
 vi.mock("@/shared/lib/db", () => ({
   db: {

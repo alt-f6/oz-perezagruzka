@@ -69,6 +69,7 @@ export function LessonsClient({
   teachers = [],
   students = [],
   userRole,
+  userTimezone,
 }: {
   initialLessons: LessonListRow[];
   initialTotal: number;
@@ -77,6 +78,7 @@ export function LessonsClient({
   teachers?: { id: string; fullName: string }[];
   students?: { id: string; fullName: string }[];
   userRole?: string;
+  userTimezone?: string;
 }) {
   const isTeacher = userRole === "TEACHER";
   const showToast = useToast();
@@ -576,6 +578,7 @@ export function LessonsClient({
               teachers={teachers}
               students={students}
               isSubmitting={isSubmitting}
+              userTimezone={userTimezone}
             />
             <button type="submit" disabled={isSubmitting} className="btn-primary w-full">
               {isSubmitting ? "Создание..." : "Создать"}

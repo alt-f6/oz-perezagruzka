@@ -1,3 +1,4 @@
+import { getUserTimezone } from "@/shared/lib/auth";
 import { db } from "@/shared/lib/db";
 import { requireRoleForPage } from "@/shared/lib/rbac";
 import { parseLessonListFilters } from "@/crm/lib/lessonFilters";
@@ -17,6 +18,7 @@ export default async function LessonsPage({
     forbiddenPath: () => "/access-denied",
   });
   const isTeacher = sessionUser.role === "TEACHER";
+  const userTimezone = await getUserTimezone(sessionUser.id);
 
   const parsed = parseLessonListFilters(sp);
   const filters = isTeacher ? { ...parsed, teacherId: undefined } : parsed;
@@ -54,6 +56,7 @@ export default async function LessonsPage({
       teachers={teachers}
       students={students}
       userRole={sessionUser.role}
+      userTimezone={userTimezone}
     />
   );
 }

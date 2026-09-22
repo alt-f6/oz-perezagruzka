@@ -104,6 +104,7 @@ model User {
   passwordHash String? // legacy bcrypt auth carried over from lms; null for Supabase-authenticated users
   authId       String?  @unique // Supabase auth identity, when applicable
   role         Role     @default(STUDENT)
+  timezone     String   @default("Europe/Moscow")
   fullName     String
   phone        String?  @unique
   subjects     String? // freeform, comma-separated subjects taught (TEACHER only)

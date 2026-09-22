@@ -20,6 +20,7 @@ vi.mock("@/lms/server/r2/signed", () => ({
 }));
 vi.mock("@/lms/server/access/can-view-lesson", () => ({
   canViewLesson: (...args: unknown[]) => canViewLessonMock(...args),
+  isStaffPreviewRole: (role: string) => ["ADMIN", "MANAGER", "TEACHER"].includes(role),
 }));
 vi.mock("@/lms/server/http/rate-limit", () => ({
   enforceRateLimit: (...args: unknown[]) => enforceRateLimitMock(...args),

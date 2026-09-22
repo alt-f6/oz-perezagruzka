@@ -6,7 +6,7 @@ import { LMS_ROLES } from "@/shared/lib/auth";
 import { requireAuth } from "@/lms/server/auth/require-auth";
 import { roleHome } from "@/lms/server/auth/types";
 import { db } from "@/shared/lib/db";
-import { canViewLesson } from "@/lms/server/access/can-view-lesson";
+import { canViewLesson, isStaffPreviewRole } from "@/lms/server/access/can-view-lesson";
 import { computeModuleUnlockStatus } from "@/lms/server/access/module-unlock";
 import { normalizePresentationUrl } from "@/lms/lib/presentation-url";
 import { LessonTheaterViewer } from "@/lms/components/student/LessonTheaterViewer";
@@ -41,7 +41,7 @@ export default async function StudentLessonPage({ params }: Props) {
     notFound();
   }
 
-  const isStaffPreview = user.role === "ADMIN" || user.role === "MANAGER" || user.role === "TEACHER";
+  const isStaffPreview = isStaffPreviewRole(user.role);
 
   const lessonRow = await db.lesson.findUnique({
     where: isStaffPreview ? { id: lessonId } : { id: lessonId, isPublished: true },

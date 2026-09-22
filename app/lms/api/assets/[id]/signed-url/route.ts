@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
 import { requireAuth } from "@/lms/server/auth/require-auth";
 import { signLessonAssetGetUrl } from "@/lms/server/r2/signed";
-import { canViewLesson } from "@/lms/server/access/can-view-lesson";
+import { canViewLesson, isStaffPreviewRole } from "@/lms/server/access/can-view-lesson";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import { enforceRateLimit } from "@/lms/server/http/rate-limit";
 import { createLogger } from "@/shared/lib/logger";
@@ -52,7 +52,7 @@ export const GET = withApiErrors(async (_req: NextRequest, ctx: Ctx) => {
     return NextResponse.json({ ok: false, error: "asset_not_completed" }, { status: 409 });
   }
 
-  const isStaffPreview = me.role === "ADMIN" || me.role === "MANAGER" || me.role === "TEACHER";
+  const isStaffPreview = isStaffPreviewRole(me.role);
   if (!isStaffPreview) {
     if (!row.isPublic) return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
 

@@ -6,7 +6,11 @@ import { computeModuleUnlockStatus } from "./module-unlock";
 // its module's isPublished state, and regardless of enrollment/assignment.
 // MANAGER already had this bypass before this change; TEACHER is added so
 // course teachers can review their own draft material (educator preview).
-const STAFF_PREVIEW_ROLES: readonly Role[] = ["ADMIN", "MANAGER", "TEACHER"];
+export const STAFF_PREVIEW_ROLES: readonly Role[] = ["ADMIN", "MANAGER", "TEACHER"];
+
+export function isStaffPreviewRole(role: Role): boolean {
+  return STAFF_PREVIEW_ROLES.includes(role);
+}
 
 export async function canViewLesson(params: { userId: string; role: Role; lessonId: string }) {
   const { userId, role, lessonId } = params;

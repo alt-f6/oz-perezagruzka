@@ -104,6 +104,7 @@ export function LessonVideoManager({ lessonId }: { lessonId: string }) {
     patch: Partial<{ title: string | null; url: string; order: number; is_public: boolean }>
   ) {
     setMediaErr(null);
+    setMediaWarning(null);
 
     const r = await fetch(`/api/admin/media/${mediaId}`, {
       method: "PATCH",
@@ -122,6 +123,7 @@ export function LessonVideoManager({ lessonId }: { lessonId: string }) {
 
   async function deleteMedia(mediaId: string) {
     setMediaErr(null);
+    setMediaWarning(null);
 
     const r = await fetch(`/api/admin/media/${mediaId}`, { method: "DELETE" });
     const j = await r.json().catch(() => null);

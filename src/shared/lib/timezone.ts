@@ -24,6 +24,26 @@ export const BUSINESS_TIMEZONE = "Europe/Moscow";
  */
 export const BUSINESS_TIMEZONE_LABEL = "МСК, UTC+3";
 
+export const CRM_DISPLAY_TZ_COOKIE = "crm_display_tz";
+
+export interface CrmTimezoneOption {
+  value: string;
+  cityLabel: string;
+  utcOffsetLabel: string;
+}
+
+/** The 4 timezones CRM staff may choose as their display/entry zone. */
+export const CRM_TIMEZONES: CrmTimezoneOption[] = [
+  { value: "Europe/Moscow", cityLabel: "Москва / Санкт-Петербург", utcOffsetLabel: "UTC+3" },
+  { value: "Asia/Baku", cityLabel: "Баку / Самара", utcOffsetLabel: "UTC+4" },
+  { value: "Asia/Yekaterinburg", cityLabel: "Ханты-Мансийск / Екатеринбург", utcOffsetLabel: "UTC+5" },
+  { value: "Asia/Novosibirsk", cityLabel: "Красноярск / Новосибирск", utcOffsetLabel: "UTC+7" },
+];
+
+export function isCrmTimezone(value: string): boolean {
+  return CRM_TIMEZONES.some((tz) => tz.value === value);
+}
+
 /**
  * The offset (localTime − UTC), in milliseconds, that `timeZone` was at the
  * given instant. Positive east of UTC (Moscow → +3h). Computed from the
@@ -79,20 +99,26 @@ export function zonedWallClockToUtc(
 
 /**
  * Builds the UTC instant for a `YYYY-MM-DD` date key + `HH:MM` time, both read
+ * as wall-clock in `timeZone` (defaulting to Moscow). Generalization of
+ * moscowDateTimeToUtc, which now delegates here.
+ */
+export function zonedDateTimeToUtc(
+  dateKey: string,
+  time: string,
+  timeZone: string = BUSINESS_TIMEZONE,
+): Date {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const [hh, mm] = time.split(":").map(Number);
+  return zonedWallClockToUtc(y, m || 1, d || 1, hh || 0, mm || 0, timeZone);
+}
+
+/**
+ * Builds the UTC instant for a `YYYY-MM-DD` date key + `HH:MM` time, both read
  * as Moscow wall-clock. This is the inverse of the Moscow formatters below and
  * the canonical way the CRM turns a picked date+time into a `scheduledAt`.
  */
 export function moscowDateTimeToUtc(dateKey: string, time: string): Date {
-  const [y, m, d] = dateKey.split("-").map(Number);
-  const [hh, mm] = time.split(":").map(Number);
-  return zonedWallClockToUtc(
-    y,
-    m || 1,
-    d || 1,
-    hh || 0,
-    mm || 0,
-    BUSINESS_TIMEZONE,
-  );
+  return zonedDateTimeToUtc(dateKey, time, BUSINESS_TIMEZONE);
 }
 
 /**
@@ -113,12 +139,6 @@ export function localWallClockToMoscowUtc(local: Date): Date {
   );
 }
 
-const moscowTimeFormatter = new Intl.DateTimeFormat("ru-RU", {
-  timeZone: BUSINESS_TIMEZONE,
-  hour: "2-digit",
-  minute: "2-digit",
-});
-
 const moscowDateFormatter = new Intl.DateTimeFormat("ru-RU", {
   timeZone: BUSINESS_TIMEZONE,
   year: "numeric",
@@ -128,7 +148,7 @@ const moscowDateFormatter = new Intl.DateTimeFormat("ru-RU", {
 
 /** `HH:MM` wall-clock of `instant` in Moscow. */
 export function formatMoscowTime(instant: Date | string): string {
-  return moscowTimeFormatter.format(new Date(instant));
+  return formatTimeInZone(instant, BUSINESS_TIMEZONE);
 }
 
 /** `DD.MM.YYYY` calendar date of `instant` in Moscow. */
@@ -150,6 +170,49 @@ export function formatMoscowDateTime(instant: Date | string): string {
   return moscowDateTimeFormatter.format(new Date(instant));
 }
 
+function dateKeyInZone(instant: Date | string, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(instant));
+}
+
+/** `YYYY-MM-DD` Moscow calendar-day key of `instant` (stable across views). */
+export function moscowDateKey(instant: Date | string): string {
+  return dateKeyInZone(instant, BUSINESS_TIMEZONE);
+}
+
+/** `HH:MM` wall-clock of `instant` in the given zone. */
+export function formatTimeInZone(instant: Date | string, timeZone: string): string {
+  return new Intl.DateTimeFormat("ru-RU", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(instant));
+}
+
+/**
+ * The wall-clock parts of an instant in an arbitrary zone. Generalization of
+ * moscowWallClock, which now delegates here with Europe/Moscow.
+ */
+export function wallClockInZone(
+  instant: Date | string,
+  timeZone: string,
+): { dateKey: string; hour: number; minute: number; weekdayMon0: number } {
+  const d = new Date(instant);
+  const dateKey = dateKeyInZone(d, timeZone);
+  const [hh, mm] = formatTimeInZone(d, timeZone).split(":").map(Number);
+  const jsDay = new Date(`${dateKey}T00:00:00.000Z`).getUTCDay();
+  return {
+    dateKey,
+    hour: hh,
+    minute: mm,
+    weekdayMon0: (jsDay + 6) % 7,
+  };
+}
+
 /**
  * The Moscow wall-clock parts of an instant, TZ-invariantly.
  *
@@ -164,30 +227,7 @@ export function moscowWallClock(instant: Date | string): {
   minute: number;
   weekdayMon0: number;
 } {
-  const d = new Date(instant);
-  const dateKey = moscowDateKey(d);
-  const [hh, mm] = formatMoscowTime(d).split(":").map(Number);
-  // getUTCDay() on the pure date key (UTC midnight) is TZ-invariant; remap
-  // Sunday=0..Saturday=6 to Monday=0..Sunday=6.
-  const jsDay = new Date(`${dateKey}T00:00:00.000Z`).getUTCDay();
-  return {
-    dateKey,
-    hour: hh,
-    minute: mm,
-    weekdayMon0: (jsDay + 6) % 7,
-  };
-}
-
-/** `YYYY-MM-DD` Moscow calendar-day key of `instant` (stable across views). */
-export function moscowDateKey(instant: Date | string): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: BUSINESS_TIMEZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(instant));
-  // en-CA already yields YYYY-MM-DD.
-  return parts;
+  return wallClockInZone(instant, BUSINESS_TIMEZONE);
 }
 
 /** UTC instant of the Europe/Moscow midnight (00:00) for the calendar day containing `instant`. */

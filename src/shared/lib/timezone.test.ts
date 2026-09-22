@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   BUSINESS_TIMEZONE,
+  CRM_TIMEZONES,
   formatMoscowDate,
   formatMoscowDateTime,
   formatMoscowTime,
+  formatTimeInZone,
+  isCrmTimezone,
   localWallClockToMoscowUtc,
   moscowDateKey,
   moscowDateTimeToUtc,
@@ -13,7 +16,9 @@ import {
   moscowStartOfNextWeek,
   addMoscowDays,
   moscowWallClock,
+  zonedDateTimeToUtc,
   zonedWallClockToUtc,
+  wallClockInZone,
 } from "./timezone";
 
 describe("moscowDateTimeToUtc", () => {
@@ -135,5 +140,58 @@ describe("formatMoscowDateTime", () => {
   it("matches the DD.MM.YYYY, HH:mm shape", () => {
     const utc = moscowDateTimeToUtc("2026-09-06", "14:30");
     expect(formatMoscowDateTime(utc)).toMatch(/^\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}$/);
+  });
+});
+
+describe("CRM_TIMEZONES / isCrmTimezone", () => {
+  it("lists exactly the 4 allowed zones in offset order", () => {
+    expect(CRM_TIMEZONES.map((tz) => tz.value)).toEqual([
+      "Europe/Moscow",
+      "Asia/Baku",
+      "Asia/Yekaterinburg",
+      "Asia/Novosibirsk",
+    ]);
+  });
+
+  it("accepts an allowed zone and rejects anything else", () => {
+    expect(isCrmTimezone("Asia/Baku")).toBe(true);
+    expect(isCrmTimezone("America/New_York")).toBe(false);
+    expect(isCrmTimezone("")).toBe(false);
+  });
+});
+
+describe("zonedDateTimeToUtc", () => {
+  it("converts a Baku (UTC+4) wall-clock, one hour ahead of Moscow", () => {
+    const utc = zonedDateTimeToUtc("2026-09-06", "11:00", "Asia/Baku");
+    expect(utc.toISOString()).toBe("2026-09-06T07:00:00.000Z");
+  });
+
+  it("defaults to Moscow when no zone is given, matching moscowDateTimeToUtc", () => {
+    const utc = zonedDateTimeToUtc("2026-09-06", "11:00");
+    expect(utc.toISOString()).toBe(moscowDateTimeToUtc("2026-09-06", "11:00").toISOString());
+  });
+});
+
+describe("wallClockInZone", () => {
+  it("matches moscowWallClock when given Europe/Moscow", () => {
+    const instant = "2026-09-06T08:00:00.000Z";
+    expect(wallClockInZone(instant, "Europe/Moscow")).toEqual(moscowWallClock(instant));
+  });
+
+  it("shifts an instant into the next calendar day for a zone ahead of Moscow", () => {
+    // 23:00 Moscow (UTC+3) on the 1st = 20:00Z = 03:00 Novosibirsk (UTC+7) on the 2nd.
+    const instant = moscowDateTimeToUtc("2026-09-01", "23:00");
+    const wc = wallClockInZone(instant, "Asia/Novosibirsk");
+    expect(wc.dateKey).toBe("2026-09-02");
+    expect(wc.hour).toBe(3);
+    expect(wc.minute).toBe(0);
+  });
+});
+
+describe("formatTimeInZone", () => {
+  it("formats HH:MM in the given zone", () => {
+    const instant = zonedDateTimeToUtc("2026-09-06", "11:00", "Asia/Baku");
+    expect(formatTimeInZone(instant, "Asia/Baku")).toBe("11:00");
+    expect(formatTimeInZone(instant, "Europe/Moscow")).toBe("10:00");
   });
 });

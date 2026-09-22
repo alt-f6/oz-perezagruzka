@@ -40,6 +40,7 @@ export function LessonVideoManager({ lessonId }: { lessonId: string }) {
   const [media, setMedia] = useState<Media[]>([]);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [mediaErr, setMediaErr] = useState<string | null>(null);
+  const [mediaWarning, setMediaWarning] = useState<string | null>(null);
   const [addTitle, setAddTitle] = useState("");
   const [addUrl, setAddUrl] = useState("");
 
@@ -83,9 +84,15 @@ export function LessonVideoManager({ lessonId }: { lessonId: string }) {
     const j = await r.json().catch(() => null);
     if (!r.ok || !j?.ok) {
       setMediaErr(j?.message || j?.error || "Не удалось добавить видео");
+      setMediaWarning(null);
       return;
     }
 
+    setMediaWarning(
+      j?.warning === "vk_private_needs_hash"
+        ? "Похоже, это личное видео ВКонтакте без ключа доступа (hash). Если оно не воспроизведётся у учеников, откройте настройки приватности видео или скопируйте ссылку с ключом доступа."
+        : null
+    );
     setAddTitle("");
     setAddUrl("");
     await loadMedia();
@@ -175,6 +182,12 @@ export function LessonVideoManager({ lessonId }: { lessonId: string }) {
             className="mt-3 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-semibold text-destructive-foreground"
           >
             {mediaErr}
+          </p>
+        ) : null}
+
+        {mediaWarning ? (
+          <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-700 dark:text-amber-400">
+            {mediaWarning}
           </p>
         ) : null}
 

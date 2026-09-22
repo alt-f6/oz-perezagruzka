@@ -87,5 +87,9 @@ export const POST = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
     },
   });
 
-  return NextResponse.json({ ok: true, media: toMediaJson(media) });
+  return NextResponse.json({
+    ok: true,
+    media: toMediaJson(media),
+    warning: norm.warning === "PRIVATE_VK_NEEDS_HASH" ? "vk_private_needs_hash" : null,
+  });
 });

@@ -17,7 +17,7 @@ import { useForm } from "react-hook-form";
 import { LessonWizard } from "@/crm/components/LessonWizard";
 import { ConfirmDialog } from "@/crm/components/ConfirmDialog";
 import { Modal } from "@/crm/components/Modal";
-import { TimezoneBadge } from "@/crm/components/TimezoneBadge";
+import { TimezoneSwitcher } from "@/crm/components/TimezoneSwitcher";
 import { useToast } from "@/crm/components/ToastProvider";
 import { assignOverlapColumns } from "@/crm/lib/calendarLayout";
 import {
@@ -27,9 +27,9 @@ import {
   startOfWeekMonday,
   toDateKey,
 } from "@/crm/lib/calendarGrid";
-import { formatTimeRange } from "@/crm/lib/lessonTime";
+import { formatTimeRange, formatTimeRangeInZone } from "@/crm/lib/lessonTime";
 import { lessonSchema, type LessonValues } from "@/crm/lib/schemas";
-import { moscowDateKey, moscowWallClock } from "@/shared/lib/timezone";
+import { BUSINESS_TIMEZONE, wallClockInZone } from "@/shared/lib/timezone";
 import { createLesson, duplicateWeekScheduleAction } from "../lessons/actions";
 
 export const PIXELS_PER_HOUR = 64;
@@ -116,6 +116,8 @@ export function ScheduleClient({
   teachers,
   students = [],
   userRole,
+  userTimezone = BUSINESS_TIMEZONE,
+  displayTimezone,
   loadError = null,
 }: {
   lessons: ScheduleLesson[];
@@ -123,11 +125,19 @@ export function ScheduleClient({
   teachers: ScheduleTeacher[];
   students?: ScheduleStudent[];
   userRole?: string;
+  // Timezone the acting user enters lesson times in (their own saved
+  // preference) -- used only by this component's own create-lesson wizard.
+  userTimezone?: string;
+  // Timezone the grid/cards are rendered in -- defaults to userTimezone when
+  // not given (e.g. no display-override cookie is set yet).
+  displayTimezone?: string;
   // Set when the server-side data load failed. Renders a local, non-fatal
   // error state — the session is untouched and never redirected to login.
   loadError?: string | null;
 }) {
   const isTeacher = userRole === "TEACHER";
+  const effectiveDisplayTimezone = displayTimezone ?? userTimezone;
+  const isNonMoscowDisplay = effectiveDisplayTimezone !== BUSINESS_TIMEZONE;
   const showToast = useToast();
   const router = useRouter();
   const pathname = usePathname();
@@ -139,7 +149,9 @@ export function ScheduleClient({
   // today in Moscow only when the URL doesn't already pin a date.
   const urlDate = searchParams.get("date");
   const selectedDate =
-    urlDate && /^\d{4}-\d{2}-\d{2}$/.test(urlDate) ? urlDate : moscowDateKey(new Date());
+    urlDate && /^\d{4}-\d{2}-\d{2}$/.test(urlDate)
+      ? urlDate
+      : wallClockInZone(new Date(), effectiveDisplayTimezone).dateKey;
   const urlView = searchParams.get("view");
   const view: ViewMode = urlView === "week" || urlView === "month" ? urlView : "day";
 
@@ -392,11 +404,12 @@ export function ScheduleClient({
     const map = new Map<string, ScheduleLesson[]>();
     for (const lesson of filteredLessons) {
       if (!lesson.scheduledAt) continue;
-      // Bucket by the Moscow calendar day (not the ambient/server-local day):
-      // a lesson at 21:30 UTC is 00:30 the next day in Moscow, and must land
-      // under that next-day column/cell, matching the Moscow-pinned label
-      // shown on the card and the day-view position math below.
-      const key = moscowDateKey(lesson.scheduledAt);
+      // Bucket by the active display timezone's calendar day (not the
+      // ambient/server-local day): a lesson at 21:30 UTC can be the next
+      // calendar day in the display zone, and must land under that next-day
+      // column/cell, matching the label shown on the card and the day-view
+      // position math below.
+      const key = wallClockInZone(lesson.scheduledAt, effectiveDisplayTimezone).dateKey;
       const bucket = map.get(key) ?? [];
       bucket.push(lesson);
       map.set(key, bucket);
@@ -529,7 +542,7 @@ export function ScheduleClient({
           ))}
         </div>
 
-        <TimezoneBadge />
+        <TimezoneSwitcher value={effectiveDisplayTimezone} />
 
         <select
           value={groupFilter}
@@ -647,12 +660,13 @@ export function ScheduleClient({
                 </div>
               ))}
               {assignOverlapColumns(dayLessons).map(({ session: lesson, column, columnCount }) => {
-                // Pinned to Moscow wall-clock so the block's vertical position
-                // matches the Moscow-formatted time label printed inside it
-                // (formatTimeRange below) — raw Date#getHours()/getMinutes()
-                // float on the ambient/server timezone and land the block in
-                // the wrong hour row whenever that differs from Moscow.
-                const { hour, minute } = moscowWallClock(lesson.scheduledAt);
+                // Pinned to the active display timezone so the block's
+                // vertical position matches the time label printed inside it
+                // (formatTimeRangeInZone below) — raw
+                // Date#getHours()/getMinutes() float on the ambient/server
+                // timezone and land the block in the wrong hour row whenever
+                // that differs.
+                const { hour, minute } = wallClockInZone(lesson.scheduledAt, effectiveDisplayTimezone);
                 const top = ((hour * 60 + minute) / 60) * PIXELS_PER_HOUR;
                 // A long lesson (90/120/180 min) starting late in the day can
                 // run past midnight; clamp its block to the remaining grid
@@ -687,10 +701,21 @@ export function ScheduleClient({
                     <p className="truncate font-semibold">
                       {getSessionLabel(lesson)}
                       <span className="ml-1 truncate text-[11px] font-normal text-slate-500">
-                        {formatTimeRange({
-                          scheduledAt: lesson.scheduledAt,
-                          durationMinutes: lesson.durationMinutes,
-                        })}
+                        {formatTimeRangeInZone(
+                          { scheduledAt: lesson.scheduledAt, durationMinutes: lesson.durationMinutes },
+                          effectiveDisplayTimezone,
+                        )}
+                        {isNonMoscowDisplay && (
+                          <span className="text-slate-400">
+                            {" "}
+                            ={" "}
+                            {formatTimeRange({
+                              scheduledAt: lesson.scheduledAt,
+                              durationMinutes: lesson.durationMinutes,
+                            })}{" "}
+                            МСК
+                          </span>
+                        )}
                       </span>
                     </p>
                     <span className="badge-info mt-0.5 w-full gap-1 truncate px-1.5 py-0 text-[11px]">
@@ -750,10 +775,21 @@ export function ScheduleClient({
                           }`}
                         >
                           <p className="truncate">
-                            {formatTimeRange({
-                              scheduledAt: lesson.scheduledAt,
-                              durationMinutes: lesson.durationMinutes,
-                            })}{" "}
+                            {formatTimeRangeInZone(
+                              { scheduledAt: lesson.scheduledAt, durationMinutes: lesson.durationMinutes },
+                              effectiveDisplayTimezone,
+                            )}
+                            {isNonMoscowDisplay && (
+                              <span className="text-slate-400">
+                                {" "}
+                                ={" "}
+                                {formatTimeRange({
+                                  scheduledAt: lesson.scheduledAt,
+                                  durationMinutes: lesson.durationMinutes,
+                                })}{" "}
+                                МСК
+                              </span>
+                            )}{" "}
                             · {getSessionLabel(lesson)}
                           </p>
                           <span className="badge-info mt-0.5 w-full gap-1 truncate px-1.5 py-0 text-[11px]">
@@ -814,10 +850,18 @@ export function ScheduleClient({
                       }`}
                     >
                       {lesson.isTrial && "✦ "}
-                      {formatTimeRange({
-                        scheduledAt: lesson.scheduledAt,
-                        durationMinutes: lesson.durationMinutes,
-                      })}{" "}
+                      {formatTimeRangeInZone(
+                        { scheduledAt: lesson.scheduledAt, durationMinutes: lesson.durationMinutes },
+                        effectiveDisplayTimezone,
+                      )}
+                      {isNonMoscowDisplay && (
+                        <span className="text-slate-400">
+                          {" "}
+                          ={" "}
+                          {formatTimeRange({ scheduledAt: lesson.scheduledAt, durationMinutes: lesson.durationMinutes })}{" "}
+                          МСК
+                        </span>
+                      )}{" "}
                       · {getTeacherLabel(lesson, groupTeacherById, teacherNameById)}
                     </p>
                   ))}
@@ -850,6 +894,7 @@ export function ScheduleClient({
             students={students}
             isSubmitting={isSubmitting}
             onSubmit={handleSubmit(onSubmit)}
+            userTimezone={userTimezone}
           />
         </Modal>
       )}

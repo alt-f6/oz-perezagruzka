@@ -500,3 +500,65 @@ describe("ScheduleClient", () => {
     expect(toastMock).toHaveBeenCalledWith("Не удалось скопировать расписание", "error");
   });
 });
+
+describe("ScheduleClient non-Moscow display timezone", () => {
+  it("positions and labels a lesson using displayTimezone, with an MSK badge", () => {
+    render(
+      <ScheduleClient
+        lessons={[makeLesson({ scheduledAt: todayAt(15, 0) })]} // 15:00 Moscow
+        groups={groups}
+        teachers={teachers}
+        displayTimezone="Asia/Baku"
+      />,
+    );
+    // 15:00 Moscow (UTC+3) = 16:00 Baku (UTC+4).
+    expect(screen.getByText("16:00–17:00 (60 мин)")).toBeInTheDocument();
+    expect(screen.getByText(/15:00–16:00 \(60 мин\) МСК/)).toBeInTheDocument();
+  });
+
+  it("shows no MSK badge when displayTimezone is Moscow (default)", () => {
+    render(
+      <ScheduleClient
+        lessons={[makeLesson({ scheduledAt: todayAt(15, 0) })]}
+        groups={groups}
+        teachers={teachers}
+      />,
+    );
+    expect(screen.getByText("15:00–16:00 (60 мин)")).toBeInTheDocument();
+    expect(screen.queryByText(/МСК/)).not.toBeInTheDocument();
+  });
+
+  it("shifts a late-evening lesson into the next day's column for a zone ahead of Moscow", () => {
+    const lateLesson = makeLesson({
+      id: "s-late",
+      scheduledAt: moscowDateTimeToUtc("2026-09-07", "23:00").toISOString(),
+    });
+    // Drive the URL date directly (currentSearchParams is the mutable module-scope
+    // store this file's next/navigation mock reads from -- see the top of this
+    // file) instead of clicking through the date picker, so the test is a precise,
+    // single-day assertion rather than depending on "today".
+    currentSearchParams = new URLSearchParams("date=2026-09-08");
+    render(
+      <ScheduleClient
+        lessons={[lateLesson]}
+        groups={groups}
+        teachers={teachers}
+        displayTimezone="Asia/Novosibirsk" // UTC+7, 4h ahead of Moscow.
+      />,
+    );
+    // 23:00 Moscow on the 7th = 20:00Z = 03:00 Novosibirsk on the 8th -- must
+    // appear on the 8th, not the 7th.
+    expect(screen.getByTestId("session-block-s-late")).toBeInTheDocument();
+  });
+
+  it("keeps the same lesson on its original day when displayTimezone is Moscow", () => {
+    const lateLesson = makeLesson({
+      id: "s-late",
+      scheduledAt: moscowDateTimeToUtc("2026-09-07", "23:00").toISOString(),
+    });
+    currentSearchParams = new URLSearchParams("date=2026-09-08");
+    render(<ScheduleClient lessons={[lateLesson]} groups={groups} teachers={teachers} />);
+    // Still the 7th in Moscow, so viewing the 8th must NOT show it.
+    expect(screen.queryByTestId("session-block-s-late")).not.toBeInTheDocument();
+  });
+});

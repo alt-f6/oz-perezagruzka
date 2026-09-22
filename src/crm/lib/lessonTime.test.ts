@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatTimeRange, getSessionEndsAt, isAttendanceWindowOpen, isLessonConcluded } from "./lessonTime";
+import { formatTimeRange, formatTimeRangeInZone, getSessionEndsAt, isAttendanceWindowOpen, isLessonConcluded } from "./lessonTime";
 
 describe("getSessionEndsAt", () => {
   it("adds durationMinutes to scheduledAt", () => {
@@ -89,5 +89,16 @@ describe("isAttendanceWindowOpen", () => {
     expect(isAttendanceWindowOpen(soon)).toBe(true);
     const distant = { scheduledAt: new Date(Date.now() + 60 * 60_000) };
     expect(isAttendanceWindowOpen(distant)).toBe(false);
+  });
+});
+
+describe("formatTimeRangeInZone", () => {
+  it("formats a range in a non-Moscow zone", () => {
+    const label = formatTimeRangeInZone(
+      { scheduledAt: "2026-09-06T07:00:00.000Z", durationMinutes: 60 },
+      "Asia/Baku",
+    );
+    // 07:00Z = 11:00 Baku (UTC+4).
+    expect(label).toBe("11:00–12:00 (60 мин)");
   });
 });

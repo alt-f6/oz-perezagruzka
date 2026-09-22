@@ -1,4 +1,4 @@
-import { BUSINESS_TIMEZONE } from "@/shared/lib/timezone";
+import { BUSINESS_TIMEZONE, formatTimeInZone } from "@/shared/lib/timezone";
 
 export interface TimedSession {
   scheduledAt: Date | string;
@@ -24,6 +24,13 @@ export function formatTimeRange(session: TimedSession): string {
   const start = new Date(session.scheduledAt);
   const end = getSessionEndsAt(session);
   return `${timeFormatter.format(start)}–${timeFormatter.format(end)} (${session.durationMinutes} мин)`;
+}
+
+/** Same as formatTimeRange, but formats the range in an arbitrary zone. */
+export function formatTimeRangeInZone(session: TimedSession, timeZone: string): string {
+  const start = new Date(session.scheduledAt);
+  const end = getSessionEndsAt(session);
+  return `${formatTimeInZone(start, timeZone)}–${formatTimeInZone(end, timeZone)} (${session.durationMinutes} мин)`;
 }
 
 /**

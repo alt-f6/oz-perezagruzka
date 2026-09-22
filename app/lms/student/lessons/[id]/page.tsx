@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { notFound } from "next/navigation";
 
 import { requireRoleForPage } from "@/shared/lib/rbac";
+import { LMS_ROLES } from "@/shared/lib/auth";
 import { requireAuth } from "@/lms/server/auth/require-auth";
 import { roleHome } from "@/lms/server/auth/types";
 import { db } from "@/shared/lib/db";
@@ -15,8 +16,9 @@ import { StudentLessonMessages } from "./StudentLessonMessages";
 type Props = { params: Promise<{ id: string }> };
 
 export default async function StudentLessonPage({ params }: Props) {
-  await requireRoleForPage(["STUDENT"], {
-    adminBypass: true,
+  // LMS_ROLES = ["ADMIN", "MANAGER", "TEACHER", "STUDENT"]. PARENT has no LMS
+  // access at all and is redirected via forbiddenPath, same as before.
+  await requireRoleForPage(LMS_ROLES, {
     loginPath: "/login",
     forbiddenPath: (user) => roleHome(user.role),
   });
@@ -38,8 +40,10 @@ export default async function StudentLessonPage({ params }: Props) {
     notFound();
   }
 
+  const isStaffPreview = user.role === "ADMIN" || user.role === "MANAGER" || user.role === "TEACHER";
+
   const lessonRow = await db.lesson.findUnique({
-    where: { id: lessonId, isPublished: true },
+    where: isStaffPreview ? { id: lessonId } : { id: lessonId, isPublished: true },
     select: {
       id: true,
       title: true,
@@ -48,6 +52,7 @@ export default async function StudentLessonPage({ params }: Props) {
       order: true,
       practiceLinkUrl: true,
       practiceLinkLabel: true,
+      presentationEmbedUrl: true,
       homeworkTask: true,
       module: { select: { courseId: true } },
     },
@@ -102,7 +107,7 @@ export default async function StudentLessonPage({ params }: Props) {
             unlockAfterDays: true,
             unlockAt: true,
             lessons: {
-              where: { isPublished: true },
+              where: isStaffPreview ? undefined : { isPublished: true },
               orderBy: [{ order: "asc" }, { id: "asc" }],
               select: {
                 id: true,

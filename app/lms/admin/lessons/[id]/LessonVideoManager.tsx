@@ -72,6 +72,7 @@ export function LessonVideoManager({ lessonId }: { lessonId: string }) {
     const url = addUrl.trim();
     if (!url) {
       setMediaErr("Ссылка обязательна");
+      setMediaWarning(null);
       return;
     }
 

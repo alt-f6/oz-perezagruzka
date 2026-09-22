@@ -16,8 +16,14 @@ import {
 } from "@/crm/lib/schemas";
 import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
+import { getUserTimezone } from "@/shared/lib/auth";
 import { BillingService } from "@/crm/lib/services/billing.service";
-import { formatMoscowDate, formatMoscowTime, moscowDateTimeToUtc } from "@/shared/lib/timezone";
+import {
+  formatMoscowDate,
+  formatMoscowTime,
+  moscowDateTimeToUtc,
+  zonedDateTimeToUtc,
+} from "@/shared/lib/timezone";
 import { isAttendanceWindowOpen } from "@/crm/lib/lessonTime";
 import type { ActionResult } from "@/crm/lib/types";
 import {
@@ -138,6 +144,7 @@ export async function createLesson(
   values: LessonValues,
 ): Promise<CreateLessonResult> {
   const sessionUser = await requireRole(["ADMIN", "MANAGER"]);
+  const timeZone = await getUserTimezone(sessionUser.id);
 
   const parsed = lessonSchema.safeParse(values);
   if (!parsed.success) {
@@ -238,7 +245,7 @@ export async function createLesson(
     };
   }
 
-  const occurrences = expandOccurrences(parsed.data);
+  const occurrences = expandOccurrences(parsed.data, timeZone);
   if (occurrences.length === 0) {
     return { error: "Не удалось рассчитать даты занятий" };
   }
@@ -785,6 +792,7 @@ export async function updateLesson(
   },
 ): Promise<UpdateLessonResult> {
   const sessionUser = await requireRole(["ADMIN", "MANAGER"]);
+  const timeZone = await getUserTimezone(sessionUser.id);
 
   const parsed = updateLessonSchema.safeParse(values);
   if (!parsed.success) {
@@ -829,7 +837,7 @@ export async function updateLesson(
 
   const newScheduledAt =
     parsed.data.date && parsed.data.time
-      ? moscowDateTimeToUtc(parsed.data.date, parsed.data.time)
+      ? zonedDateTimeToUtc(parsed.data.date, parsed.data.time, timeZone)
       : undefined;
   const scheduledAtChanged =
     newScheduledAt !== undefined && newScheduledAt.getTime() !== session.scheduledAt.getTime();

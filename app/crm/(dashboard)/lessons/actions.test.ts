@@ -7,6 +7,7 @@ import {
 } from "@/crm/lib/availability";
 import { BillingService } from "@/crm/lib/services/billing.service";
 import { RbacError } from "@/shared/lib/rbac";
+import type { LessonValues } from "@/crm/lib/schemas";
 
 const dbMock = vi.hoisted(() => ({
   group: { findUnique: vi.fn() },
@@ -37,6 +38,8 @@ const rbacMock = vi.hoisted(() => ({
   requireRole: vi.fn(),
 }));
 
+const authMock = vi.hoisted(() => ({ getUserTimezone: vi.fn() }));
+
 const r2Mock = vi.hoisted(() => ({
   signGetObject: vi.fn(),
   signPutObject: vi.fn(),
@@ -47,6 +50,7 @@ vi.mock("@/shared/lib/rbac", async () => {
   const actual = await vi.importActual<typeof import("@/shared/lib/rbac")>("@/shared/lib/rbac");
   return { ...rbacMock, RbacError: actual.RbacError };
 });
+vi.mock("@/shared/lib/auth", () => authMock);
 vi.mock("@/lms/server/r2/signed", () => r2Mock);
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/crm/lib/prisma", () => ({
@@ -82,6 +86,7 @@ const ADMIN = { id: "user_1", email: "a@a.com", role: "ADMIN" };
 beforeEach(() => {
   vi.clearAllMocks();
   rbacMock.requireRole.mockResolvedValue(ADMIN);
+  authMock.getUserTimezone.mockResolvedValue("Europe/Moscow");
   dbMock.activityLog.create.mockResolvedValue({});
   // Default: logActivity looks up the acting user's fullName when the caller
   // doesn't pass one; a null resolve keeps that lookup silent (no console
@@ -648,6 +653,32 @@ describe("createLesson", () => {
     });
 
     expect(dbMock.teacherPayout.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe("createLesson timezone handling", () => {
+  it("creates the session at the UTC instant matching the acting user's own zone", async () => {
+    authMock.getUserTimezone.mockResolvedValue("Asia/Baku");
+    dbMock.group.findUnique.mockResolvedValue({ teacherId: "t1", name: "Группа 1" });
+    dbMock.classSession.findMany.mockResolvedValue([]); // no conflicts
+    dbMock.teacherAvailability.findMany.mockResolvedValue([]);
+    dbMock.classSession.createMany.mockResolvedValue({ count: 1 });
+
+    await createLesson({
+      type: "GROUP",
+      groupId: "11111111-1111-4111-8111-111111111111",
+      date: "2026-09-07",
+      time: "11:00",
+      durationMinutes: 60,
+      recurrence: "NONE",
+      recurrenceDays: [],
+      acknowledgeUnavailable: true,
+      acknowledgeClosedPayout: true,
+    } as LessonValues);
+
+    // 11:00 Baku (UTC+4) = 07:00Z, not the Moscow-anchored 08:00Z.
+    const call = dbMock.classSession.createMany.mock.calls[0][0];
+    expect(call.data[0].scheduledAt.toISOString()).toBe("2026-09-07T07:00:00.000Z");
   });
 });
 
@@ -2512,6 +2543,28 @@ describe("updateLesson", () => {
 
     expect(result.error).toMatch(/уже занят/);
     expect(dbMock.classSession.update).not.toHaveBeenCalled();
+  });
+});
+
+describe("updateLesson timezone handling", () => {
+  it("reschedules to the UTC instant matching the acting user's own zone", async () => {
+    authMock.getUserTimezone.mockResolvedValue("Asia/Baku");
+    dbMock.classSession.findUnique.mockResolvedValue({
+      type: "INDIVIDUAL",
+      teacherId: "t1",
+      scheduledAt: new Date("2026-09-07T08:00:00.000Z"),
+      durationMinutes: 60,
+      _count: { attendance: 0 },
+    });
+    dbMock.classSession.findMany.mockResolvedValue([]);
+    dbMock.classSession.update.mockResolvedValue({});
+    dbMock.lessonAuditLog.createMany.mockResolvedValue({});
+    dbMock.$transaction.mockImplementation((cb: (tx: typeof dbMock) => unknown) => cb(dbMock));
+
+    await updateLesson("lesson_1", { date: "2026-09-07", time: "11:00" });
+
+    const updateCall = dbMock.classSession.update.mock.calls[0][0];
+    expect(updateCall.data.scheduledAt.toISOString()).toBe("2026-09-07T07:00:00.000Z");
   });
 });
 

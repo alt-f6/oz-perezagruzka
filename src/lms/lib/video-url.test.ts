@@ -44,6 +44,30 @@ describe("parseAndNormalizeVideoUrl", () => {
         );
       }
     });
+
+    it("flags PRIVATE_VK_NEEDS_HASH for a personal-profile (positive oid) video with no hash", () => {
+      const result = parseAndNormalizeVideoUrl("https://vk.com/video123456_456789");
+      expect(result.isValid).toBe(true);
+      if (result.isValid) {
+        expect(result.warning).toBe("PRIVATE_VK_NEEDS_HASH");
+      }
+    });
+
+    it("does not flag a personal-profile video that already includes a hash", () => {
+      const result = parseAndNormalizeVideoUrl("https://vk.com/video123456_456789_abcDEF123hash");
+      expect(result.isValid).toBe(true);
+      if (result.isValid) {
+        expect(result.warning).toBeUndefined();
+      }
+    });
+
+    it("does not flag a community/public-group (negative oid) video even without a hash", () => {
+      const result = parseAndNormalizeVideoUrl("https://vk.com/video-123456_456789");
+      expect(result.isValid).toBe(true);
+      if (result.isValid) {
+        expect(result.warning).toBeUndefined();
+      }
+    });
   });
 
   describe("RuTube", () => {

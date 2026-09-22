@@ -1,7 +1,9 @@
 export type VideoProvider = "vk" | "rutube" | "kinescope" | "youtube" | "vimeo" | "direct";
 
+export type VideoWarning = "PRIVATE_VK_NEEDS_HASH";
+
 export type NormalizedVideoResult =
-  | { isValid: true; provider: VideoProvider; embedUrl: string; originalUrl: string }
+  | { isValid: true; provider: VideoProvider; embedUrl: string; originalUrl: string; warning?: VideoWarning }
   | { isValid: false; error: string; originalUrl: string };
 
 function toUrl(raw: string): URL | null {
@@ -38,94 +40,107 @@ function extractUrlFromInput(raw: string): string {
   return src ? decodeHtmlEntities(src) : unescaped;
 }
 
-function parseVk(raw: string): string | null {
+type ParseResult = { embedUrl: string; warning?: VideoWarning };
+
+function parseVk(raw: string): ParseResult | null {
   const url = toUrl(raw);
   if (!url) return null;
   const host = url.hostname.replace(/^www\./i, "").toLowerCase();
   if (host !== "vk.com" && host !== "vkvideo.ru") return null;
+
+  function buildResult(oid: string, id: string, hash: string | null): ParseResult {
+    const embedUrl = `https://vk.com/video_ext.php?oid=${oid}&id=${id}${hash ? `&hash=${hash}` : ""}`;
+    // A positive oid identifies a personal VK profile; VK's embed player
+    // requires such videos to carry an access hash unless the uploader made
+    // them fully public (rare for personal uploads). A negative oid
+    // (community/public group) embeds fine without a hash, so only warn for
+    // the ambiguous personal-profile case.
+    const warning = !hash && !oid.startsWith("-") ? ("PRIVATE_VK_NEEDS_HASH" as const) : undefined;
+    return { embedUrl, warning };
+  }
 
   if (url.pathname === "/video_ext.php") {
     const oid = url.searchParams.get("oid");
     const id = url.searchParams.get("id");
     const hash = url.searchParams.get("hash");
     if (!oid || !id) return null;
-    return `https://vk.com/video_ext.php?oid=${oid}&id=${id}${hash ? `&hash=${hash}` : ""}`;
+    return buildResult(oid, id, hash);
   }
 
   const idMatch = url.pathname.match(/^\/video(-?\d+)_(\d+)(?:_([a-zA-Z0-9]+))?/);
   if (idMatch) {
     const [, oid, id, pathHash] = idMatch;
     const hash = pathHash || url.searchParams.get("hash");
-    return `https://vk.com/video_ext.php?oid=${oid}&id=${id}${hash ? `&hash=${hash}` : ""}`;
+    return buildResult(oid, id, hash);
   }
 
   return null;
 }
 
-function parseRutube(raw: string): string | null {
+function parseRutube(raw: string): ParseResult | null {
   const url = toUrl(raw);
   if (!url) return null;
   const host = url.hostname.replace(/^www\./i, "").toLowerCase();
   if (host !== "rutube.ru") return null;
 
   const match = url.pathname.match(/^\/(?:video|play\/embed)\/([a-zA-Z0-9]+)/);
-  return match ? `https://rutube.ru/play/embed/${match[1]}` : null;
+  return match ? { embedUrl: `https://rutube.ru/play/embed/${match[1]}` } : null;
 }
 
-function parseKinescope(raw: string): string | null {
+function parseKinescope(raw: string): ParseResult | null {
   const url = toUrl(raw);
   if (!url) return null;
   const host = url.hostname.replace(/^www\./i, "").toLowerCase();
   if (host !== "kinescope.io") return null;
 
   const match = url.pathname.match(/^\/(?:embed\/)?([a-zA-Z0-9_-]+)/);
-  return match ? `https://kinescope.io/embed/${match[1]}` : null;
+  return match ? { embedUrl: `https://kinescope.io/embed/${match[1]}` } : null;
 }
 
-function parseYoutube(raw: string): string | null {
+function parseYoutube(raw: string): ParseResult | null {
   const url = toUrl(raw);
   if (!url) return null;
   const host = url.hostname.replace(/^www\.|^m\./, "");
 
   if (host === "youtu.be") {
     const id = url.pathname.split("/").filter(Boolean)[0];
-    return id ? `https://www.youtube.com/embed/${id}` : null;
+    return id ? { embedUrl: `https://www.youtube.com/embed/${id}` } : null;
   }
 
   if (host !== "youtube.com") return null;
 
   if (url.pathname === "/watch") {
     const id = url.searchParams.get("v");
-    return id ? `https://www.youtube.com/embed/${id}` : null;
+    return id ? { embedUrl: `https://www.youtube.com/embed/${id}` } : null;
   }
 
   const shortsMatch = url.pathname.match(/^\/shorts\/([a-zA-Z0-9_-]+)/);
-  if (shortsMatch) return `https://www.youtube.com/embed/${shortsMatch[1]}`;
+  if (shortsMatch) return { embedUrl: `https://www.youtube.com/embed/${shortsMatch[1]}` };
 
   const embedMatch = url.pathname.match(/^\/embed\/([a-zA-Z0-9_-]+)/);
-  if (embedMatch) return `https://www.youtube.com/embed/${embedMatch[1]}`;
+  if (embedMatch) return { embedUrl: `https://www.youtube.com/embed/${embedMatch[1]}` };
 
   return null;
 }
 
-function parseVimeo(raw: string): string | null {
+function parseVimeo(raw: string): ParseResult | null {
   const url = toUrl(raw);
   if (!url) return null;
   const host = url.hostname.replace(/^www\./i, "").toLowerCase();
   if (host !== "vimeo.com") return null;
 
   const match = url.pathname.match(/^\/(\d+)/);
-  return match ? `https://player.vimeo.com/video/${match[1]}` : null;
+  return match ? { embedUrl: `https://player.vimeo.com/video/${match[1]}` } : null;
 }
 
-function parseDirect(raw: string): string | null {
+function parseDirect(raw: string): ParseResult | null {
   const url = toUrl(raw);
   if (!url) return null;
   if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-  return /\.(mp4|webm|m3u8)$/i.test(url.pathname) ? raw : null;
+  return /\.(mp4|webm|m3u8)$/i.test(url.pathname) ? { embedUrl: raw } : null;
 }
 
-const PARSERS: Array<{ provider: VideoProvider; parse: (raw: string) => string | null }> = [
+const PARSERS: Array<{ provider: VideoProvider; parse: (raw: string) => ParseResult | null }> = [
   { provider: "vk", parse: parseVk },
   { provider: "rutube", parse: parseRutube },
   { provider: "kinescope", parse: parseKinescope },
@@ -144,9 +159,9 @@ export function parseAndNormalizeVideoUrl(rawUrl: string): NormalizedVideoResult
   const originalUrl = extractUrlFromInput(trimmed).trim();
 
   for (const { provider, parse } of PARSERS) {
-    const embedUrl = parse(originalUrl);
-    if (embedUrl) {
-      return { isValid: true, provider, embedUrl, originalUrl };
+    const parsed = parse(originalUrl);
+    if (parsed) {
+      return { isValid: true, provider, embedUrl: parsed.embedUrl, originalUrl, warning: parsed.warning };
     }
   }
 

@@ -2,11 +2,17 @@ import { db } from "@/shared/lib/db";
 import type { Role } from "@/shared/lib/auth";
 import { computeModuleUnlockStatus } from "./module-unlock";
 
+// Staff roles that must be able to preview a lesson regardless of its own or
+// its module's isPublished state, and regardless of enrollment/assignment.
+// MANAGER already had this bypass before this change; TEACHER is added so
+// course teachers can review their own draft material (educator preview).
+const STAFF_PREVIEW_ROLES: readonly Role[] = ["ADMIN", "MANAGER", "TEACHER"];
+
 export async function canViewLesson(params: { userId: string; role: Role; lessonId: string }) {
   const { userId, role, lessonId } = params;
 
-  // Step A: admin/manager bypass.
-  if (role === "ADMIN" || role === "MANAGER") return true;
+  // Step A: staff preview bypass.
+  if (STAFF_PREVIEW_ROLES.includes(role)) return true;
 
   // Step B: direct per-student override, independent of enrollment/module state.
   const assignment = await db.assignment.findUnique({

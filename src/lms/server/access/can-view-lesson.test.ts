@@ -37,6 +37,15 @@ describe("canViewLesson", () => {
     expect(assignmentFindUniqueMock).not.toHaveBeenCalled();
   });
 
+  it("returns true for TEACHER without querying the database", async () => {
+    const { canViewLesson } = await import("./can-view-lesson");
+
+    const result = await canViewLesson({ userId: "teacher-1", role: "TEACHER", lessonId: "lesson-1" });
+
+    expect(result).toBe(true);
+    expect(assignmentFindUniqueMock).not.toHaveBeenCalled();
+  });
+
   it("returns true for STUDENT with an active assignment", async () => {
     assignmentFindUniqueMock.mockResolvedValue({ studentId: "stu-1", lessonId: "lesson-1" });
     const { canViewLesson } = await import("./can-view-lesson");
@@ -58,18 +67,14 @@ describe("canViewLesson", () => {
     expect(result).toBe(false);
   });
 
-  it("returns true for TEACHER/PARENT when the studentId happens to match an assignment row (no dedicated role gate)", async () => {
-    assignmentFindUniqueMock.mockResolvedValue({ studentId: "teacher-1", lessonId: "lesson-1" });
+  it("returns true for PARENT when the studentId happens to match an assignment row (no dedicated role gate for PARENT)", async () => {
+    assignmentFindUniqueMock.mockResolvedValue({ studentId: "parent-1", lessonId: "lesson-1" });
     const { canViewLesson } = await import("./can-view-lesson");
 
-    const teacherResult = await canViewLesson({ userId: "teacher-1", role: "TEACHER", lessonId: "lesson-1" });
     const parentResult = await canViewLesson({ userId: "parent-1", role: "PARENT", lessonId: "lesson-1" });
 
-    // Only STUDENT and ADMIN/MANAGER are special-cased; TEACHER/PARENT fall through
-    // to the same assignment lookup as STUDENT (current behavior — assignments are
-    // keyed by studentId, so a TEACHER/PARENT id will typically not match, but this
-    // test locks in that the function does NOT grant blanket access to those roles).
-    expect(teacherResult).toBe(true); // matches current implementation: no role gate beyond ADMIN/MANAGER
+    // Only STUDENT and PARENT fall through to the assignment lookup now that
+    // ADMIN/MANAGER/TEACHER are all unconditional staff-preview bypasses.
     expect(parentResult).toBe(true);
   });
 

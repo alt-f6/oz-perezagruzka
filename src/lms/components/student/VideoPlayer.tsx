@@ -227,15 +227,29 @@ export function VideoPlayer({
     );
   }
 
+  const genericEmbedError = isGenericEmbed && (!embedUrl || error);
+
   return (
     <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-border bg-black">
-      <iframe
-        src={embedUrl}
-        className="h-full w-full border-0"
-        allow="autoplay; encrypted-media; fullscreen; picture-in-picture; screen-wake-lock;"
-        allowFullScreen
-        title={title ?? "video"}
-      />
+      {embedUrl ? (
+        <iframe
+          src={embedUrl}
+          className="h-full w-full border-0"
+          allow="autoplay; encrypted-media; fullscreen; picture-in-picture; screen-wake-lock;"
+          allowFullScreen
+          title={title ?? "video"}
+          onError={() => setError("Не удалось загрузить видео")}
+        />
+      ) : null}
+
+      {genericEmbedError ? (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/90 p-4 text-center text-sm text-destructive-foreground">
+          <p>Не удалось загрузить видео.</p>
+          <p className="text-xs text-muted-foreground">
+            Возможные причины: настройки приватности видео, отсутствие разрешения на встраивание в VK, или урок ещё не опубликован.
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

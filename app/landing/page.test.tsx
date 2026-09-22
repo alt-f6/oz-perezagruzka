@@ -37,4 +37,21 @@ describe("Home", () => {
     expect(fallback).not.toBeNull();
     expect(fallback?.textContent).toContain("Загрузка...");
   });
+
+  it("emits both FAQPage and EducationalOrganization JSON-LD with the real review count", () => {
+    const { container } = render(
+      <ExamProvider>
+        <Home />
+      </ExamProvider>,
+    );
+
+    const scripts = Array.from(container.querySelectorAll('script[type="application/ld+json"]'));
+    const parsed = scripts.map((s) => JSON.parse(s.innerHTML));
+
+    expect(parsed.some((s) => s["@type"] === "FAQPage")).toBe(true);
+    const org = parsed.find((s) => s["@type"] === "EducationalOrganization");
+    expect(org).toBeTruthy();
+    expect(org.aggregateRating.reviewCount).toBe("70");
+    expect(org.address.streetAddress).toBe("ул. Калинина, 26");
+  });
 });

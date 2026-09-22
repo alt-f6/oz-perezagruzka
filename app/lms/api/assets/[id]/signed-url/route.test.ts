@@ -151,6 +151,19 @@ describe("GET /api/assets/[id]/signed-url", () => {
     expect(canViewLessonMock).not.toHaveBeenCalled();
   });
 
+  it("lets TEACHER bypass isPublic and canViewLesson like ADMIN/MANAGER", async () => {
+    requireAuthMock.mockResolvedValue({ id: "teacher-1", role: "TEACHER" });
+    findUniqueMock.mockResolvedValue({ ...COMPLETE_PUBLIC_ROW, isPublic: false });
+    signLessonAssetGetUrlMock.mockResolvedValue("https://r2.example.com/signed-get");
+    const { GET } = await import("./route");
+
+    const res = await GET(req, ctxFor("asset-1"));
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(canViewLessonMock).not.toHaveBeenCalled();
+  });
+
   it("returns 502 when signing fails", async () => {
     requireAuthMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
     findUniqueMock.mockResolvedValue(COMPLETE_PUBLIC_ROW);

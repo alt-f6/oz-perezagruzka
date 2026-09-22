@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
+import { LMS_ROLES } from "@/shared/lib/auth";
 import { canViewLesson } from "@/lms/server/access/can-view-lesson";
 
 export const runtime = "nodejs";
@@ -17,7 +18,7 @@ async function readLessonId({ params }: Ctx) {
 }
 
 export async function GET(_req: NextRequest, ctx: Ctx) {
-  const me = await requireRole(["STUDENT"], { adminBypass: true });
+  const me = await requireRole(LMS_ROLES);
 
   const lessonId = await readLessonId(ctx);
   if (!lessonId) {

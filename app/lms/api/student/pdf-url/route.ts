@@ -44,11 +44,13 @@ export const GET = withApiErrors(async (req: Request) => {
   if (!asset.isPublic) return NextResponse.json({ ok: false, error: "not_public" }, { status: 403 });
   if (!asset.storageKey) return NextResponse.json({ ok: false, error: "no_storage_key" }, { status: 400 });
 
-  if (user.role === "STUDENT") {
-    const allowed = await canViewLesson({ userId: user.id, role: user.role, lessonId: asset.lessonId });
-    if (!allowed) {
-      return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
-    }
+  // canViewLesson already grants an unconditional bypass to ADMIN/MANAGER/TEACHER,
+  // so calling it unconditionally here (instead of only `if (role === "STUDENT")`)
+  // closes a prior gap where TEACHER/PARENT got a signed URL with no access check
+  // at all, as long as the asset was isPublic.
+  const allowed = await canViewLesson({ userId: user.id, role: user.role, lessonId: asset.lessonId });
+  if (!allowed) {
+    return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
   }
 
   const url = await signGetObject(asset.storageKey, {

@@ -138,16 +138,31 @@ describe("GET /api/student/pdf-url", () => {
     });
   });
 
-  it("signs and returns a url for ADMIN without consulting canViewLesson", async () => {
+  it("returns 403 for a non-staff role when canViewLesson denies access", async () => {
+    requireAuthMock.mockResolvedValue({ id: "parent-1", role: "PARENT" });
+    findUniqueMock.mockResolvedValue(PUBLIC_PDF_ROW);
+    canViewLessonMock.mockResolvedValue(false);
+    const { GET } = await import("./route");
+
+    const res = await GET(reqFor("asset-1"));
+
+    expect(res.status).toBe(403);
+    expect(canViewLessonMock).toHaveBeenCalledWith({ userId: "parent-1", role: "PARENT", lessonId: "lesson-1" });
+  });
+
+  it("signs and returns a url for ADMIN when canViewLesson allows access", async () => {
+    // canViewLesson is now called unconditionally (it owns the ADMIN/MANAGER/TEACHER
+    // staff bypass internally per Task 1); this route no longer special-cases ADMIN.
     requireAuthMock.mockResolvedValue({ id: "admin-1", role: "ADMIN" });
     findUniqueMock.mockResolvedValue(PUBLIC_PDF_ROW);
+    canViewLessonMock.mockResolvedValue(true);
     signGetObjectMock.mockResolvedValue("https://r2.example.com/signed-get");
     const { GET } = await import("./route");
 
     const res = await GET(reqFor("asset-1"));
 
     expect(res.status).toBe(200);
-    expect(canViewLessonMock).not.toHaveBeenCalled();
+    expect(canViewLessonMock).toHaveBeenCalledWith({ userId: "admin-1", role: "ADMIN", lessonId: "lesson-1" });
   });
 
   it("signs and returns a url for an audio asset (generalized alongside pdf)", async () => {

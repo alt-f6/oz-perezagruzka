@@ -52,7 +52,8 @@ export const GET = withApiErrors(async (_req: NextRequest, ctx: Ctx) => {
     return NextResponse.json({ ok: false, error: "asset_not_completed" }, { status: 409 });
   }
 
-  if (me.role !== "ADMIN" && me.role !== "MANAGER") {
+  const isStaffPreview = me.role === "ADMIN" || me.role === "MANAGER" || me.role === "TEACHER";
+  if (!isStaffPreview) {
     if (!row.isPublic) return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
 
     const allowed = await canViewLesson({ userId: me.id, role: me.role, lessonId: row.lessonId });

@@ -11,6 +11,7 @@ import {
   Users,
   Briefcase,
   TrendingUp,
+  User,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -24,6 +25,7 @@ const NAV_ITEMS: { href: string; label: string; icon: typeof Users; roles: Role[
   { href: "/students", label: "Студенты", icon: GraduationCap, roles: ["ADMIN", "MANAGER", "TEACHER"] },
   { href: "/schedule", label: "Расписание", icon: Calendar, roles: ["ADMIN", "MANAGER", "TEACHER"] },
   { href: "/lessons", label: "Занятия", icon: CalendarDays, roles: ["ADMIN", "MANAGER", "TEACHER"] },
+  { href: "/profile", label: "Профиль", icon: User, roles: ["ADMIN", "MANAGER", "TEACHER"] },
   { href: "/salary", label: "Зарплата", icon: DollarSign, roles: ["ADMIN"] },
   { href: "/leads", label: "Лиды", icon: TrendingUp, roles: ["ADMIN", "MANAGER"] },
   { href: "/team", label: "Команда", icon: Briefcase, roles: ["ADMIN", "MANAGER"] },

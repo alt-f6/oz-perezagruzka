@@ -14,6 +14,7 @@
  * Run: npx tsx scripts/audit-lms-lessons.ts [--publish-ready [--course=<id|all>] [--dry-run]]
  */
 import "dotenv/config";
+import { fileURLToPath } from "node:url";
 import { db } from "@/shared/lib/db";
 
 export type LessonAuditRow = {
@@ -139,7 +140,7 @@ async function main() {
   }
 }
 
-if (require.main === module) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   main()
     .catch((err) => {
       console.error(err);

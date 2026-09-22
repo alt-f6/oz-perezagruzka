@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/components/ui/select";
+import { normalizePresentationUrl } from "@/lms/lib/presentation-url";
 
 export type Lesson = {
   id: string;
@@ -433,6 +434,12 @@ export function LessonMetadataForm({ lesson, onChange, onSave, onRefresh, saving
               placeholder="https://docs.google.com/presentation/d/.../embed"
               value={lesson.presentation_embed_url ?? ""}
               onChange={(e) => onChange({ ...lesson, presentation_embed_url: e.target.value })}
+              onBlur={(e) => {
+                const normalized = normalizePresentationUrl(e.target.value);
+                if (normalized !== e.target.value) {
+                  onChange({ ...lesson, presentation_embed_url: normalized });
+                }
+              }}
             />
             <p className="text-xs text-muted-foreground">
               Для Google Slides / Miro и других слайд-дек с поддержкой iframe-встраивания. Оставьте пустым, если

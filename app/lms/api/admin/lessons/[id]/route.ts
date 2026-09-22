@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
+import { normalizePresentationUrl } from "@/lms/lib/presentation-url";
 import { withApiErrors } from "@/lms/server/http/api-guard";
 import type { Lesson } from "@prisma/client";
 
@@ -73,7 +74,8 @@ export const PATCH = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
   const is_published = Boolean(body.is_published);
   const practiceLinkUrl = normalizePracticeLink(body.practice_link_url);
   const practiceLinkLabel = normalizePracticeLink(body.practice_link_label);
-  const presentationEmbedUrl = normalizePracticeLink(body.presentation_embed_url);
+  const presentationEmbedUrlRaw = normalizePracticeLink(body.presentation_embed_url);
+  const presentationEmbedUrl = presentationEmbedUrlRaw ? normalizePresentationUrl(presentationEmbedUrlRaw) : null;
   const homeworkTask = String(body.homework_task ?? "").trim() || null;
   const moduleId = body.module_id ? String(body.module_id).trim() : null;
 

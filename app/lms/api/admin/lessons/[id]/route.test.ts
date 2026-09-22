@@ -211,4 +211,28 @@ describe("PATCH /api/admin/lessons/[id]", () => {
     expect(json.lesson.module_id).toBe("module_2");
     expect(json.lesson.course_id).toBe("course_2");
   });
+
+  it("normalizes a Google Slides edit link to its embed form before saving", async () => {
+    findUniqueMock.mockResolvedValue(lessonRow());
+    updateMock.mockResolvedValue(
+      lessonRow({ presentationEmbedUrl: "https://docs.google.com/presentation/d/abc123/embed" })
+    );
+
+    const { PATCH } = await import("./route");
+    const res = await PATCH(
+      patchRequest({
+        title: "Lesson 1",
+        presentation_embed_url: "https://docs.google.com/presentation/d/abc123/edit#slide=id.p",
+      }),
+      makeCtx("lesson_1")
+    );
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ presentationEmbedUrl: "https://docs.google.com/presentation/d/abc123/embed" }),
+      })
+    );
+  });
 });

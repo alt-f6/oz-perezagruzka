@@ -62,6 +62,7 @@ export function AttendanceClient({
   submissions,
   userRole,
   makeupOptions,
+  userTimezone,
 }: {
   lesson: ClassSessionWithGroup;
   students: StudentWithTransactions[];
@@ -69,6 +70,7 @@ export function AttendanceClient({
   submissions: Submission[];
   userRole?: string;
   makeupOptions: MakeupLessonOption[];
+  userTimezone?: string;
 }) {
   const showToast = useToast();
   const [busyStudentId, setBusyStudentId] = useState<string | null>(null);
@@ -208,6 +210,7 @@ export function AttendanceClient({
             scheduledAt={lesson.scheduledAt}
             durationMinutes={lesson.durationMinutes}
             locked={attendance.some((a) => a.status !== null)}
+            userTimezone={userTimezone}
           />
         </div>
       )}

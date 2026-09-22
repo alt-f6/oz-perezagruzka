@@ -6,7 +6,7 @@ import { DurationChips } from "@/crm/components/DurationChips";
 import { TimeSlotPicker } from "@/crm/components/TimeSlotPicker";
 import { useToast } from "@/crm/components/ToastProvider";
 import { todayKey } from "@/crm/lib/calendarGrid";
-import { formatMoscowTime, moscowDateKey } from "@/shared/lib/timezone";
+import { BUSINESS_TIMEZONE, formatTimeInZone, wallClockInZone } from "@/shared/lib/timezone";
 import { updateLesson } from "../actions";
 
 export function LessonScheduleEditor({
@@ -14,16 +14,18 @@ export function LessonScheduleEditor({
   scheduledAt,
   durationMinutes,
   locked,
+  userTimezone = BUSINESS_TIMEZONE,
 }: {
   classSessionId: string;
   scheduledAt: string;
   durationMinutes: number;
   locked: boolean;
+  userTimezone?: string;
 }) {
   const showToast = useToast();
   const [editing, setEditing] = useState(false);
-  const [date, setDate] = useState(() => moscowDateKey(scheduledAt));
-  const [time, setTime] = useState(() => formatMoscowTime(scheduledAt));
+  const [date, setDate] = useState(() => wallClockInZone(scheduledAt, userTimezone).dateKey);
+  const [time, setTime] = useState(() => formatTimeInZone(scheduledAt, userTimezone));
   const [duration, setDuration] = useState(durationMinutes);
   const [saving, setSaving] = useState(false);
 

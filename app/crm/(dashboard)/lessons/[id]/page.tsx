@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getUserTimezone } from "@/shared/lib/auth";
 import { db } from "@/shared/lib/db";
 import { requireRoleForPage } from "@/shared/lib/rbac";
 import type {
@@ -25,6 +26,8 @@ export default async function LessonDetailPage({
     loginPath: "/admin/login",
     forbiddenPath: () => "/access-denied",
   });
+
+  const userTimezone = await getUserTimezone(sessionUser.id);
 
   const lesson = await db.classSession.findUnique({
     where: { id },
@@ -167,6 +170,7 @@ export default async function LessonDetailPage({
       submissions={submissions as unknown as Submission[]}
       userRole={sessionUser.role}
       makeupOptions={makeupOptions as unknown as MakeupLessonOption[]}
+      userTimezone={userTimezone}
     />
   );
 }

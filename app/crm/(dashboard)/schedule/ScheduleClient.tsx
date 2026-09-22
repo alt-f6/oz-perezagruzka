@@ -421,7 +421,7 @@ export function ScheduleClient({
       );
     }
     return map;
-  }, [filteredLessons]);
+  }, [filteredLessons, effectiveDisplayTimezone]);
 
   const changeDate = (days: number) => {
     const d = parseDateKey(selectedDate);

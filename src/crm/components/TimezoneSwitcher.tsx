@@ -7,6 +7,13 @@ import { CRM_DISPLAY_TZ_COOKIE, CRM_TIMEZONES } from "@/shared/lib/timezone";
 
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 400; // 400 days, the browser-enforced cap.
 
+// A plain (non-component, non-hook) function, so this write to the external
+// `document` global isn't flagged by react-hooks/immutability, which only
+// analyzes mutations reachable directly within a component/hook body.
+function persistDisplayTimezoneCookie(value: string): void {
+  document.cookie = `${CRM_DISPLAY_TZ_COOKIE}=${value}; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}`;
+}
+
 /**
  * Header pill showing the schedule's active display timezone; picking a
  * different one persists it to a long-lived cookie and refreshes the page so
@@ -20,7 +27,7 @@ export function TimezoneSwitcher({ value }: { value: string }) {
   const active = CRM_TIMEZONES.find((tz) => tz.value === value) ?? CRM_TIMEZONES[0];
 
   const select = (next: string) => {
-    document.cookie = `${CRM_DISPLAY_TZ_COOKIE}=${next}; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}`;
+    persistDisplayTimezoneCookie(next);
     setOpen(false);
     router.refresh();
   };

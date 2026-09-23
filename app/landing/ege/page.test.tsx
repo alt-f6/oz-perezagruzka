@@ -40,4 +40,25 @@ describe("/ege page", () => {
     expect(h1s).toHaveLength(1);
     expect(h1s[0].textContent).toBe("ЕГЭ С ГАРАНТИЕЙ:");
   });
+
+  it("emits a Course @graph scoped to the EGE course", () => {
+    const { container } = render(<EgePage />);
+    const scripts = Array.from(container.querySelectorAll('script[type="application/ld+json"]'));
+    const parsed = scripts.map((s) => JSON.parse(s.innerHTML));
+
+    const graphDoc = parsed.find((s) => Array.isArray(s["@graph"]));
+    const course = graphDoc?.["@graph"]?.find((node: { "@type": string }) => node["@type"] === "Course");
+    expect(course?.["@id"]).toBe("https://perezagruzka-edu.ru/ege#course");
+  });
+
+  it("renders the EGE search-intent subtitle", () => {
+    render(<EgePage />);
+
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "Репетитор ЕГЭ онлайн: онлайн-курсы подготовки к ЕГЭ",
+      }),
+    ).toBeInTheDocument();
+  });
 });

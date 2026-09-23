@@ -165,6 +165,9 @@ export default function YandexReviews() {
           <p className="mx-auto mt-3 max-w-xl text-ink-600">
             Высокая оценка родителей и учеников
           </p>
+          <p className="mx-auto mt-2 max-w-xl text-sm text-ink-500">
+            Занимаемся онлайн с учениками по всей России, включая Москву и Санкт-Петербург.
+          </p>
 
           <a
             href={YANDEX_REVIEWS_URL}

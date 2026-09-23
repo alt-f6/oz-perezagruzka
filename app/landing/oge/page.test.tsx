@@ -52,4 +52,25 @@ describe("/oge page", () => {
     const org = parsed.find((s) => s["@type"] === "EducationalOrganization");
     expect(org?.address?.streetAddress).toBe("ул. Калинина, 26");
   });
+
+  it("emits a Course @graph scoped to the OGE course", () => {
+    const { container } = render(<OgePage />);
+    const scripts = Array.from(container.querySelectorAll('script[type="application/ld+json"]'));
+    const parsed = scripts.map((s) => JSON.parse(s.innerHTML));
+
+    const graphDoc = parsed.find((s) => Array.isArray(s["@graph"]));
+    const course = graphDoc?.["@graph"]?.find((node: { "@type": string }) => node["@type"] === "Course");
+    expect(course?.["@id"]).toBe("https://perezagruzka-edu.ru/oge#course");
+  });
+
+  it("renders the OGE search-intent subtitle", () => {
+    render(<OgePage />);
+
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "Репетитор ОГЭ онлайн: онлайн-школа для 8–9 классов",
+      }),
+    ).toBeInTheDocument();
+  });
 });

@@ -21,6 +21,17 @@ const nextConfig: NextConfig = {
         destination: "https://perezagruzka-edu.ru/:path*",
         permanent: true,
       },
+      {
+        // The retired Vercel preview mirror must never be crawled or linked
+        // to as a live surface -- send both bots and stray visitors to the
+        // canonical production domain. Same host pattern as the noindex
+        // header below, so any *.vercel.app preview host is covered, not
+        // just the one known mirror hostname.
+        source: "/:path*",
+        has: [{ type: "host", value: ".*\\.vercel\\.app" }],
+        destination: "https://perezagruzka-edu.ru/:path*",
+        permanent: true,
+      },
     ];
   },
   async headers() {

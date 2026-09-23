@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { ExamProvider } from "@/landing/lib/exam-context";
 import ExamLandingContent from "@/landing/components/ExamLandingContent";
+import ExamSeoIntro from "@/landing/components/sections/ExamSeoIntro";
 import { toSafeJsonLd } from "@/landing/lib/json-ld";
 import { buildFaqJsonLd } from "@/landing/lib/faq-schema";
 import { buildEducationalOrganizationJsonLd } from "@/landing/lib/organization-schema";
+import { buildCourseGraphJsonLd } from "@/landing/lib/course-schema";
 
 export const metadata: Metadata = {
   title: "Подготовка к ЕГЭ в онлайн-школе «Перезагрузка» | Поступление на бюджет",
@@ -38,8 +40,20 @@ export default function EgePage() {
           __html: toSafeJsonLd(buildEducationalOrganizationJsonLd({ kind: "address" })),
         }}
       />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: toSafeJsonLd(buildCourseGraphJsonLd("ege")) }}
+      />
       <ExamProvider initialExam="ege">
-        <ExamLandingContent showExamToggle={false} />
+        <ExamLandingContent
+          showExamToggle={false}
+          beforeSections={
+            <ExamSeoIntro
+              title="Репетитор ЕГЭ онлайн: онлайн-курсы подготовки к ЕГЭ"
+              description="Подготовка к поступлению на бюджет в мини-группах с живым учителем и личным ИИ-репетитором 24/7 — из любого города."
+            />
+          }
+        />
       </ExamProvider>
     </>
   );

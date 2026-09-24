@@ -7,9 +7,11 @@ import ConsentBanner from "@/landing/components/ui/ConsentBannerClient";
 import FloatingContacts from "@/landing/components/ui/FloatingContacts";
 import { ExamProvider } from "@/landing/lib/exam-context";
 import { MetrikaPageviewTracker } from "@/landing/components/analytics/MetrikaPageviewTracker";
+import { getVkPixelId } from "@/landing/lib/vk-pixel";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://perezagruzka-edu.ru";
 const ymCounterId = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID ?? process.env.NEXT_PUBLIC_YM_COUNTER_ID;
+const vkPixelId = getVkPixelId();
 
 const title = "Перезагрузка: Подготовка к ОГЭ с живым учителем и ИИ-репетитором";
 const description =
@@ -90,6 +92,26 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
         <Suspense fallback={null}>
           <MetrikaPageviewTracker />
         </Suspense>
+      )}
+      {vkPixelId && (
+        <Script id="vk-pixel" strategy="afterInteractive">
+          {`
+            (function () {
+              var script = document.createElement("script");
+              script.async = true;
+              script.src = "https://top-fwz1.mail.ru/js/code.js";
+              script.onload = script.onreadystatechange = function () {
+                if (!script.readyState || script.readyState === "loaded" || script.readyState === "complete") {
+                  script.onload = script.onreadystatechange = null;
+                  window._tmr = window._tmr || [];
+                  window._tmr.push({ id: "${vkPixelId}", type: "pageView", start: Date.now() });
+                }
+              };
+              var firstScript = document.getElementsByTagName("script")[0];
+              firstScript.parentNode.insertBefore(script, firstScript);
+            })();
+          `}
+        </Script>
       )}
       {/* reducedMotion="user" is a global fallback honoring prefers-reduced-motion for any
           motion.* element that doesn't already check useReducedMotion() itself. */}

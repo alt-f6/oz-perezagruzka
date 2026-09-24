@@ -23,16 +23,16 @@ import type { Role } from "@/shared/lib/auth";
 import { cn } from "@/shared/lib/utils";
 import { LogoutButton } from "@/lms/components/LogoutButton";
 
-export type AdminNavKey = "overview" | "courses" | "lessons" | "students" | "assignments" | "messages" | "tutor";
+export type AdminNavKey = "overview" | "courses" | "lessons" | "students" | "access" | "messages" | "tutor";
 
-type NavItem = { key: AdminNavKey; href: string; label: string; icon: LucideIcon; exact?: boolean };
+type NavItem = { key: AdminNavKey; href: string; label: string; icon: LucideIcon; exact?: boolean; also?: string[] };
 
 const NAV: Record<AdminNavKey, NavItem> = {
   overview: { key: "overview", href: "/admin", label: "Обзор", icon: LayoutDashboard, exact: true },
   courses: { key: "courses", href: "/admin/courses", label: "Курсы", icon: Library },
   lessons: { key: "lessons", href: "/admin/lessons", label: "Уроки", icon: BookOpen },
   students: { key: "students", href: "/admin/students", label: "Ученики", icon: Users },
-  assignments: { key: "assignments", href: "/admin/assignments", label: "Назначения", icon: UserCheck },
+  access: { key: "access", href: "/admin/access", label: "Доступ", icon: UserCheck, also: ["/admin/assignments"] },
   messages: { key: "messages", href: "/admin/messages", label: "Вопросы", icon: MessageSquare },
   tutor: { key: "tutor", href: "/admin/tutor", label: "ИИ-репетитор", icon: Sparkles },
 };
@@ -47,8 +47,8 @@ type Props = {
 
 function useIsActive() {
   const pathname = usePathname();
-  return (item: NavItem) =>
-    item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(item.href + "/");
+  const matches = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  return (item: NavItem) => (item.exact ? pathname === item.href : matches(item.href) || (item.also ?? []).some(matches));
 }
 
 function Brand({ roleLabel }: { roleLabel: string }) {

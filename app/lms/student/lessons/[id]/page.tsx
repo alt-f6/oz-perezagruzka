@@ -7,7 +7,7 @@ import { requireAuth } from "@/lms/server/auth/require-auth";
 import { roleHome } from "@/lms/server/auth/types";
 import { db } from "@/shared/lib/db";
 import { canViewLesson, isStaffPreviewRole } from "@/lms/server/access/can-view-lesson";
-import { computeModuleUnlockStatus } from "@/lms/server/access/module-unlock";
+import { computeModuleUnlockStatus, isWithinPaidAccess } from "@/lms/server/access/module-unlock";
 import { normalizePresentationUrl } from "@/lms/lib/presentation-url";
 import { LessonTheaterViewer } from "@/lms/components/student/LessonTheaterViewer";
 import { LessonViewerSkeleton } from "@/lms/components/student/LessonViewerSkeleton";
@@ -146,7 +146,7 @@ export default async function StudentLessonPage({ params }: Props) {
       : Promise.resolve(null),
   ]);
 
-  const curriculum: CurriculumModule[] = courseModules.map((module) => {
+  const curriculum: CurriculumModule[] = courseModules.map((module, index) => {
     const { unlocked, unlocksAt } = computeModuleUnlockStatus(
       {
         unlockMode: module.unlockMode,
@@ -157,17 +157,22 @@ export default async function StudentLessonPage({ params }: Props) {
     );
 
     const moduleEnrolled = Boolean(enrollment && enrollment.status === "ACTIVE");
+    // Monthly abonement: courseModules is in [order, id] order, so index+1 is
+    // the position Enrollment.accessThroughModule counts against.
+    const paid = isWithinPaidAccess(index + 1, enrollment?.accessThroughModule);
 
     const { locked, lockReason }: { locked: boolean; lockReason: CurriculumModule["lockReason"] } = !module.isPublished
       ? { locked: true, lockReason: "unpublished" }
       : !moduleEnrolled
         ? { locked: true, lockReason: null }
-        : {
+        : !paid
+          ? { locked: true, lockReason: "not_paid" }
+          : {
             locked: !unlocked,
             lockReason: unlocked ? null : module.unlockMode === "DRIP_ENROLLMENT" ? "drip" : module.unlockMode === "FIXED_DATE" ? "fixed_date" : null,
           };
 
-    const moduleUnlockedAndPublished = module.isPublished && moduleEnrolled && unlocked;
+    const moduleUnlockedAndPublished = module.isPublished && moduleEnrolled && paid && unlocked;
 
     const lessons: CurriculumLesson[] = module.lessons.map((row) => {
       const format: CurriculumLesson["format"] =

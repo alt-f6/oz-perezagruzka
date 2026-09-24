@@ -288,6 +288,7 @@ model Group {
   teacher       User?          @relation("GroupTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
   students      GroupStudent[]
   classSessions ClassSession[]
+  enrollments   Enrollment[]
 
   @@index([teacherId])
 }
@@ -819,12 +820,23 @@ model Enrollment {
   status      EnrollmentStatus @default(ACTIVE)
   enrolledAt  DateTime         @default(now())
   completedAt DateTime?
+  // Monthly abonement cursor: the student may open the first N modules of the
+  // course, counted by position in [order, id] order (1-based), on top of each
+  // module's own unlock rule. null = the whole course (no abonement limit);
+  // 0 = enrolled but nothing paid yet. See src/lms/server/access/module-unlock.ts.
+  accessThroughModule Int?
+  // CRM group this enrollment was snapshotted from, if any (display only --
+  // later group membership changes do not touch existing enrollments).
+  sourceGroupId String?
+  updatedAt     DateTime @default(now()) @updatedAt
 
-  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student     User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course      Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  sourceGroup Group? @relation(fields: [sourceGroupId], references: [id], onDelete: SetNull)
 
   @@unique([studentId, courseId])
   @@index([courseId, status])
+  @@index([sourceGroupId])
 }
 
 model LessonProgress {

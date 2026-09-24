@@ -32,3 +32,13 @@ export function computeModuleUnlockStatus(
       return { unlocked: false, unlocksAt: null };
   }
 }
+
+/**
+ * Monthly-abonement gate (Enrollment.accessThroughModule). modulePosition is
+ * the module's 1-based position in its course's [order, id] ordering.
+ * null/undefined cursor = whole course; 0 = nothing paid yet.
+ */
+export function isWithinPaidAccess(modulePosition: number, accessThroughModule: number | null | undefined): boolean {
+  if (accessThroughModule === null || accessThroughModule === undefined) return true;
+  return modulePosition <= accessThroughModule;
+}

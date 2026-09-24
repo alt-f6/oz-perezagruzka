@@ -5,6 +5,7 @@ import { requireRoleForPage } from "@/shared/lib/rbac";
 import { requireAuth } from "@/lms/server/auth/require-auth";
 import { roleHome } from "@/lms/server/auth/types";
 import { db } from "@/shared/lib/db";
+import { getAccessibleLessons } from "@/lms/server/student/accessible-lessons";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card";
 
@@ -16,16 +17,12 @@ export default async function StudentDashboard() {
   });
   const user = await requireAuth();
 
-  const assignments = await db.assignment.findMany({
-    where: { studentId: user.id, lesson: { isPublished: true } },
-    include: { lesson: { include: { progress: { where: { studentId: user.id } } } } },
-  });
+  // Direct assignments + lessons from active course enrollments.
+  const lessons = await getAccessibleLessons(user.id);
 
-  const assigned = assignments.length;
-  const completed = assignments.filter((a) => a.lesson.progress[0]?.completedAt).length;
-  const inProgress = assignments.filter(
-    (a) => a.lesson.progress.length > 0 && !a.lesson.progress[0]?.completedAt
-  ).length;
+  const assigned = lessons.length;
+  const completed = lessons.filter((l) => l.completedAt).length;
+  const inProgress = lessons.filter((l) => l.started && !l.completedAt).length;
 
   const stats = {
     assigned: String(assigned),
@@ -34,7 +31,8 @@ export default async function StudentDashboard() {
   };
 
   const continueProgress = await db.lessonProgress.findFirst({
-    where: { studentId: user.id, completedAt: null },
+    // Only lessons still open to the student (e.g. not a suspended course).
+    where: { studentId: user.id, completedAt: null, lessonId: { in: lessons.map((l) => l.id) } },
     orderBy: { updatedAt: "desc" },
     include: { lesson: true },
   });
@@ -44,19 +42,8 @@ export default async function StudentDashboard() {
     : undefined;
 
   if (!continueLesson) {
-    const fallbackAssignment = await db.assignment.findFirst({
-      where: { studentId: user.id, lesson: { isPublished: true } },
-      orderBy: [
-        { lesson: { module: { course: { createdAt: "asc" } } } },
-        { lesson: { module: { order: "asc" } } },
-        { lesson: { order: "asc" } },
-        { lesson: { id: "asc" } },
-      ],
-      include: { lesson: true },
-    });
-    continueLesson = fallbackAssignment
-      ? { id: fallbackAssignment.lesson.id, title: fallbackAssignment.lesson.title, order: fallbackAssignment.lesson.order }
-      : undefined;
+    const next = lessons.find((l) => !l.completedAt);
+    continueLesson = next ? { id: next.id, title: next.title, order: next.order } : undefined;
   }
 
   return (
@@ -67,7 +54,7 @@ export default async function StudentDashboard() {
         <Card>
           <CardContent className="pt-5">
             <p className="text-2xl font-black tracking-tight">{stats.assigned}</p>
-            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Назначено</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Доступно</p>
           </CardContent>
         </Card>
         <Card>

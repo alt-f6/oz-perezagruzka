@@ -19,7 +19,7 @@ export type CurriculumModule = {
   id: string;
   title: string;
   locked: boolean;
-  lockReason: "drip" | "fixed_date" | "unpublished" | null;
+  lockReason: "drip" | "fixed_date" | "unpublished" | "not_paid" | null;
   unlocksAt: string | null;
   lessons: CurriculumLesson[];
 };
@@ -79,7 +79,9 @@ export function CurriculumSidebar({ modules, currentLessonId, onNavigate }: Prop
             ? `Доступно с ${formatUnlockDate(module.unlocksAt) ?? "..."}`
             : module.lockReason === "unpublished"
               ? "Модуль ещё не опубликован"
-              : null;
+              : module.lockReason === "not_paid"
+                ? "Откроется после продления абонемента"
+                : null;
 
         return (
           <div key={module.id} className="rounded-lg border border-border/60">

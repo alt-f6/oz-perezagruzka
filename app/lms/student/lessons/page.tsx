@@ -12,6 +12,8 @@ type Lesson = {
   title: string;
   description: string;
   order: number;
+  course_title?: string;
+  module_title?: string;
   completed_at: string | null;
 };
 
@@ -63,7 +65,7 @@ export default function StudentLessonsPage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Личный кабинет</p>
           <h1 className="mt-1 text-3xl font-black tracking-tight">Уроки</h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            Здесь только те уроки, которые тебе назначил админ.
+            Уроки твоих курсов и отдельно открытые уроки.
           </p>
         </div>
 
@@ -100,7 +102,9 @@ export default function StudentLessonsPage() {
                 <Card interactive className="flex h-full flex-col">
                   <CardHeader>
                     <div className="flex items-center justify-between gap-2">
-                      <Badge variant="outline">Урок {l.order}</Badge>
+                      <Badge variant="outline" className="max-w-[75%] truncate" title={l.module_title}>
+                        {l.module_title ? `${l.module_title} · ` : ""}Урок {l.order}
+                      </Badge>
                       {completed ? <Badge variant="success">Пройден</Badge> : null}
                     </div>
                     <CardTitle className="line-clamp-2 text-base">{l.title}</CardTitle>

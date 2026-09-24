@@ -175,7 +175,7 @@ export default async function AdminHomePage() {
             { href: "/admin/courses", label: "Курсы и предметы", icon: Library },
             ...(user.role === "ADMIN"
               ? [
-                  { href: "/admin/assignments", label: "Открыть доступ", icon: UserCheck },
+                  { href: "/admin/access", label: "Доступ к курсам", icon: UserCheck },
                   { href: "/admin/tutor", label: "ИИ-репетитор", icon: Sparkles },
                 ]
               : [{ href: "/admin/messages", label: "Вопросы учеников", icon: MessageSquare }]),

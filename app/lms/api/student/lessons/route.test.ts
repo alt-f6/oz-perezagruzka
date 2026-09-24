@@ -2,103 +2,77 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
 const requireRoleMock = vi.fn();
-const findManyMock = vi.fn();
+const getAccessibleLessonsMock = vi.fn();
 
 vi.mock("@/shared/lib/rbac", () => ({
   requireRole: (...args: unknown[]) => requireRoleMock(...args),
 }));
-vi.mock("@/shared/lib/db", () => ({
-  db: {
-    assignment: { findMany: (...args: unknown[]) => findManyMock(...args) },
-  },
+vi.mock("@/lms/server/student/accessible-lessons", () => ({
+  getAccessibleLessons: (...args: unknown[]) => getAccessibleLessonsMock(...args),
 }));
 
 function makeRequest(query = "") {
   return new NextRequest(`http://localhost/api/student/lessons${query}`);
 }
 
-const assignmentRow = (assignmentId: string, lessonId: string, order: number) => ({
-  id: assignmentId,
-  lesson: {
-    id: lessonId,
-    title: `Lesson ${lessonId}`,
-    description: "",
-    order,
-    progress: [],
-  },
+const lesson = (id: string, completedAt: Date | null = null) => ({
+  id,
+  title: `Lesson ${id}`,
+  description: "",
+  order: 1,
+  courseTitle: "Курс",
+  moduleTitle: "Модуль",
+  completedAt,
+  started: false,
+  source: "course" as const,
 });
 
 beforeEach(() => {
-  requireRoleMock.mockReset();
-  findManyMock.mockReset();
+  vi.clearAllMocks();
   requireRoleMock.mockResolvedValue({ id: "student_1", role: "STUDENT" });
 });
 
 describe("GET /api/student/lessons", () => {
-  it("requests limit+1 rows ordered by lesson.order,lesson.id,id and returns nextCursor: null with no extra row", async () => {
-    const rows = [assignmentRow("a1", "l1", 1)];
-    findManyMock.mockResolvedValue(rows);
+  it("returns the accessible lessons for the signed-in student with course/module context", async () => {
+    getAccessibleLessonsMock.mockResolvedValue([lesson("l1", new Date("2026-09-01T00:00:00Z"))]);
     const { GET } = await import("./route");
 
-    const res = await GET(makeRequest("?limit=5"));
-    const json = await res.json();
+    const json = await (await GET(makeRequest())).json();
 
-    expect(findManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        orderBy: [
-          { lesson: { module: { course: { createdAt: "asc" } } } },
-          { lesson: { module: { order: "asc" } } },
-          { lesson: { order: "asc" } },
-          { lesson: { id: "asc" } },
-          { id: "asc" },
-        ],
-        take: 6,
-      }),
-    );
-    expect(json.lessons).toHaveLength(1);
+    expect(getAccessibleLessonsMock).toHaveBeenCalledWith("student_1");
+    expect(json.lessons).toEqual([
+      {
+        id: "l1",
+        title: "Lesson l1",
+        description: "",
+        order: 1,
+        course_title: "Курс",
+        module_title: "Модуль",
+        completed_at: "2026-09-01T00:00:00.000Z",
+      },
+    ]);
     expect(json.nextCursor).toBeNull();
   });
 
-  it("trims the extra row and returns the last assignment's id (not lesson's id) as nextCursor", async () => {
-    // The queried model is Assignment, whose own id is the cursor field — it deliberately
-    // differs from the rendered item's id (lesson.id). This exercises the REAL
-    // buildCursorPage against Assignment-shaped rows to prove the cursor is derived from
-    // the assignment row, not the nested lesson.
-    const rows = [
-      assignmentRow("a1", "l1", 1),
-      assignmentRow("a2", "l2", 2),
-    ];
-    findManyMock.mockResolvedValue(rows);
+  it("pages by lesson id", async () => {
+    getAccessibleLessonsMock.mockResolvedValue([lesson("l1"), lesson("l2"), lesson("l3")]);
     const { GET } = await import("./route");
 
-    const res = await GET(makeRequest("?limit=1"));
-    const json = await res.json();
+    const first = await (await GET(makeRequest("?limit=2"))).json();
+    expect(first.lessons.map((l: { id: string }) => l.id)).toEqual(["l1", "l2"]);
+    expect(first.nextCursor).toBe("l2");
 
-    expect(json.lessons).toHaveLength(1);
-    expect(json.lessons[0].id).toBe("l1");
-    expect(json.nextCursor).toBe("a1");
-    expect(json.nextCursor).not.toBe("l1");
+    const second = await (await GET(makeRequest("?limit=2&cursor=l2"))).json();
+    expect(second.lessons.map((l: { id: string }) => l.id)).toEqual(["l3"]);
+    expect(second.nextCursor).toBeNull();
   });
 
-  it("passes the cursor query param through to Prisma's cursor/skip", async () => {
-    findManyMock.mockResolvedValue([]);
+  it("returns an empty page for an unknown cursor instead of restarting", async () => {
+    getAccessibleLessonsMock.mockResolvedValue([lesson("l1")]);
     const { GET } = await import("./route");
 
-    await GET(makeRequest("?cursor=a9"));
-
-    expect(findManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({ cursor: { id: "a9" }, skip: 1 }),
-    );
-  });
-
-  it("defaults to the prior 500-row cap when no limit query param is supplied", async () => {
-    findManyMock.mockResolvedValue([]);
-    const { GET } = await import("./route");
-
-    await GET(makeRequest());
-
-    expect(findManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({ take: 501 }),
-    );
+    const json = await (await GET(makeRequest("?cursor=gone"))).json();
+    expect(json.lessons).toEqual([]);
+    expect(json.nextCursor).toBeNull();
   });
 });

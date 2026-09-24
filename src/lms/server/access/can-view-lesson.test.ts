@@ -3,12 +3,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const assignmentFindUniqueMock = vi.fn();
 const lessonFindUniqueMock = vi.fn();
 const enrollmentFindUniqueMock = vi.fn();
+const moduleCountMock = vi.fn();
 
 vi.mock("@/shared/lib/db", () => ({
   db: {
     assignment: { findUnique: (...args: unknown[]) => assignmentFindUniqueMock(...args) },
     lesson: { findUnique: (...args: unknown[]) => lessonFindUniqueMock(...args) },
     enrollment: { findUnique: (...args: unknown[]) => enrollmentFindUniqueMock(...args) },
+    module: { count: (...args: unknown[]) => moduleCountMock(...args) },
   },
 }));
 
@@ -17,6 +19,7 @@ describe("canViewLesson", () => {
     assignmentFindUniqueMock.mockReset();
     lessonFindUniqueMock.mockReset();
     enrollmentFindUniqueMock.mockReset();
+    moduleCountMock.mockReset();
   });
 
   it("returns true for ADMIN without querying the database", async () => {
@@ -245,5 +248,60 @@ describe("canViewLesson", () => {
     expect(result).toBe(true);
     expect(lessonFindUniqueMock).not.toHaveBeenCalled();
     expect(enrollmentFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  describe("monthly abonement (accessThroughModule)", () => {
+    const publishedLesson = {
+      isPublished: true,
+      module: {
+        id: "m3",
+        order: 2,
+        courseId: "course-1",
+        isPublished: true,
+        unlockMode: "MANUAL",
+        unlockAfterDays: null,
+        unlockAt: null,
+      },
+    };
+
+    beforeEach(() => {
+      assignmentFindUniqueMock.mockResolvedValue(null);
+      lessonFindUniqueMock.mockResolvedValue(publishedLesson);
+    });
+
+    it("skips the position lookup for whole-course enrollments", async () => {
+      enrollmentFindUniqueMock.mockResolvedValue({ status: "ACTIVE", enrolledAt: new Date(), accessThroughModule: null });
+      const { canViewLesson } = await import("./can-view-lesson");
+
+      expect(await canViewLesson({ userId: "s1", role: "STUDENT", lessonId: "l1" })).toBe(true);
+      expect(moduleCountMock).not.toHaveBeenCalled();
+    });
+
+    it("allows a module within the paid range", async () => {
+      enrollmentFindUniqueMock.mockResolvedValue({ status: "ACTIVE", enrolledAt: new Date(), accessThroughModule: 3 });
+      moduleCountMock.mockResolvedValue(2); // two modules before -> position 3
+      const { canViewLesson } = await import("./can-view-lesson");
+
+      expect(await canViewLesson({ userId: "s1", role: "STUDENT", lessonId: "l1" })).toBe(true);
+      expect(moduleCountMock).toHaveBeenCalledWith({
+        where: { courseId: "course-1", OR: [{ order: { lt: 2 } }, { order: 2, id: { lt: "m3" } }] },
+      });
+    });
+
+    it("denies a module beyond the paid range", async () => {
+      enrollmentFindUniqueMock.mockResolvedValue({ status: "ACTIVE", enrolledAt: new Date(), accessThroughModule: 2 });
+      moduleCountMock.mockResolvedValue(2);
+      const { canViewLesson } = await import("./can-view-lesson");
+
+      expect(await canViewLesson({ userId: "s1", role: "STUDENT", lessonId: "l1" })).toBe(false);
+    });
+
+    it("still honours a direct assignment regardless of the abonement", async () => {
+      assignmentFindUniqueMock.mockResolvedValue({ id: "a1" });
+      enrollmentFindUniqueMock.mockResolvedValue({ status: "ACTIVE", enrolledAt: new Date(), accessThroughModule: 0 });
+      const { canViewLesson } = await import("./can-view-lesson");
+
+      expect(await canViewLesson({ userId: "s1", role: "STUDENT", lessonId: "l1" })).toBe(true);
+    });
   });
 });

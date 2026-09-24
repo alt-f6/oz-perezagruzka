@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Badge } from "@/shared/components/ui/badge";
+import { AccessTabs } from "../access/AccessTabs";
 import { Button } from "@/shared/components/ui/button";
 import {
   Select,
@@ -243,17 +244,20 @@ export default function AdminAssignmentsClient({
 
   return (
     <div>
+      <div className="mb-6">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Ученики</p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">Доступ</h1>
+      </div>
+      <AccessTabs active="lessons" />
+
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Админ панель
-          </p>
-          <h1 className="mt-1 text-3xl font-black tracking-tight">Назначения уроков</h1>
+          <h2 className="text-lg font-semibold tracking-tight">Отдельные уроки</h2>
           <p className="mt-1.5 max-w-lg text-sm text-muted-foreground">
             {mode === "student"
               ? "Выбираешь студента и отмечаешь, какие уроки ему доступны."
               : "Выбираешь урок и отмечаешь, каким студентам он доступен."}{" "}
-            Сохраняется одной кнопкой.
+            Сохраняется одной кнопкой. Обычно доступ выдают на весь курс во вкладке «По курсам» — здесь исключения.
           </p>
         </div>
 

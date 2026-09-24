@@ -12,7 +12,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   });
 
   // TEACHER sees a read-only catalog scoped to their own courses
-  // (Course.teacherId) plus the AI tutor; students/assignments/messages stay
+  // (Course.teacherId) plus the AI tutor; students/access/messages stay
   // unscoped ADMIN/MANAGER tooling. MANAGER doesn't get the tutor link (not
   // part of its role scope).
   const items: AdminNavKey[] =
@@ -20,7 +20,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       ? ["overview", "lessons", "tutor"]
       : user.role === "MANAGER"
         ? ["overview", "courses", "lessons", "messages"]
-        : ["overview", "courses", "lessons", "students", "assignments", "messages", "tutor"];
+        : ["overview", "courses", "lessons", "students", "access", "messages", "tutor"];
 
   const unanswered = items.includes("messages") ? (await getUnansweredSummary(user)).count : 0;
 

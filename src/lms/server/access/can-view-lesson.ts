@@ -1,6 +1,7 @@
 import { db } from "@/shared/lib/db";
 import type { Role } from "@/shared/lib/auth";
-import { computeModuleUnlockStatus } from "./module-unlock";
+import { computeModuleUnlockStatus, isWithinPaidAccess } from "./module-unlock";
+import { getModulePosition } from "./module-position";
 
 // Staff roles that must be able to preview a lesson regardless of its own or
 // its module's isPublished state, and regardless of enrollment/assignment.
@@ -31,6 +32,8 @@ export async function canViewLesson(params: { userId: string; role: Role; lesson
       isPublished: true,
       module: {
         select: {
+          id: true,
+          order: true,
           courseId: true,
           isPublished: true,
           unlockMode: true,
@@ -48,5 +51,11 @@ export async function canViewLesson(params: { userId: string; role: Role; lesson
   });
   if (!enrollment || enrollment.status !== "ACTIVE") return false;
 
-  return computeModuleUnlockStatus(lesson.module, enrollment.enrolledAt).unlocked;
+  if (!computeModuleUnlockStatus(lesson.module, enrollment.enrolledAt).unlocked) return false;
+
+  // Step D: monthly abonement -- only the first N paid modules are open.
+  // Skip the position lookup entirely for whole-course enrollments.
+  if (enrollment.accessThroughModule === null || enrollment.accessThroughModule === undefined) return true;
+  const position = await getModulePosition(lesson.module);
+  return isWithinPaidAccess(position, enrollment.accessThroughModule);
 }

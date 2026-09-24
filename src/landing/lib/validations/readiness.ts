@@ -103,10 +103,35 @@ export const utmSchema = z.object({
 
 export type Utm = z.infer<typeof utmSchema>;
 
+// Mirrors `Touch` in lib/attribution.ts (localStorage attr_first/attr_last).
+const touchValue = z.string().max(500).optional();
+export const touchSchema = z.object({
+  utm_source: touchValue,
+  utm_medium: touchValue,
+  utm_campaign: touchValue,
+  utm_content: touchValue,
+  utm_term: touchValue,
+  click_id: touchValue,
+  referrer: touchValue,
+  landing_path: touchValue,
+  ts: z.string().max(64).optional(),
+});
+
+export const attributionPayloadSchema = z.object({
+  attr_first: touchSchema.nullable().optional(),
+  attr_last: touchSchema.nullable().optional(),
+  ym_client_id: z.string().max(64).nullable().optional(),
+});
+
+export type AttributionPayload = z.infer<typeof attributionPayloadSchema>;
+
 export const readinessActionInputSchema = z.object({
   input: readinessInputSchema,
   sessionId: z.string(),
   utm: utmSchema,
+  // Comes from client localStorage, so a malformed or tampered value is
+  // dropped (`.catch`) rather than rejecting an otherwise valid lead.
+  attribution: attributionPayloadSchema.optional().catch(undefined),
   examType: z.enum(["oge", "ege"] satisfies [ExamType, ExamType]).default("oge"),
   consent: z.literal(true, "Необходимо согласие на обработку персональных данных"),
   // Kept as a sibling of `input` (like `consent`/`honeypot`) rather than

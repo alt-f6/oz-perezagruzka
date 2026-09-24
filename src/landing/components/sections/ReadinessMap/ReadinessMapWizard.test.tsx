@@ -12,8 +12,14 @@ vi.mock("./attribution", () => ({
   useAttribution: () => ({ sessionId: "session-1", utm: {} }),
 }));
 const reachGoalMock = vi.fn();
+const trackMock = vi.fn();
 vi.mock("@/landing/lib/analytics", () => ({
   reachGoal: (...args: unknown[]) => reachGoalMock(...args),
+  track: (...args: unknown[]) => trackMock(...args),
+}));
+vi.mock("@/landing/lib/attribution", () => ({
+  getAttribution: () => ({ attr_first: null, attr_last: { utm_source: "vk", ts: "2026-09-01T00:00:00.000Z" } }),
+  getYmClientId: () => Promise.resolve("ym-client-1"),
 }));
 
 // Step transitions are animated with framer-motion's <AnimatePresence
@@ -74,6 +80,7 @@ describe("ReadinessMapWizard", () => {
   beforeEach(() => {
     submitReadinessMapMock.mockReset();
     reachGoalMock.mockReset();
+    trackMock.mockReset();
   });
 
   it("disables hobby options once 4 are selected and keeps them clickable to deselect", async () => {
@@ -220,6 +227,21 @@ describe("ReadinessMapWizard", () => {
     expect(await screen.findByText("Карта готовности")).toBeInTheDocument();
     expect(screen.getByText("Хорошая база")).toBeInTheDocument();
     expect(reachGoalMock).toHaveBeenCalledWith("quiz_submitted");
+    expect(callArg.attribution).toEqual({
+      attr_first: null,
+      attr_last: { utm_source: "vk", ts: "2026-09-01T00:00:00.000Z" },
+      ym_client_id: "ym-client-1",
+    });
+    expect(trackMock).toHaveBeenCalledWith("quiz_start", {}, true);
+    for (const goal of ["quiz_step_grade", "quiz_step_subjects", "quiz_step_style", "quiz_step_hobbies"]) {
+      expect(trackMock).toHaveBeenCalledWith(goal);
+    }
+    // Anonymous metadata only - never the phone or name.
+    expect(trackMock).toHaveBeenCalledWith("lead_submit", {
+      grade: "8",
+      subjects: "Математика",
+      source: "vk",
+    });
 
     // The phone was already collected and saved on Step 6, so the success
     // screen must show a confirmation banner instead of asking again.
@@ -267,6 +289,20 @@ describe("ReadinessMapWizard", () => {
       await screen.findByText("Не получилось отправить форму. Проверьте соединение и попробуйте снова."),
     ).toBeInTheDocument();
     expect(screen.getByText("Шаг 6 из 6: Срок до экзамена")).toBeInTheDocument();
+    expect(trackMock).not.toHaveBeenCalledWith("lead_submit", expect.anything());
+  });
+
+  it("does not fire lead_submit when the server rejects the submission", async () => {
+    submitReadinessMapMock.mockResolvedValue({ status: "error", message: "Проверьте заполненные поля" });
+    const user = userEvent.setup();
+    renderWizard();
+
+    await completeAllStepsExceptConsent(user);
+    await user.click(document.getElementById("readiness-consent") as HTMLInputElement);
+    await user.click(screen.getByRole("button", { name: "Получить карту" }));
+
+    expect(await screen.findByText("Проверьте заполненные поля")).toBeInTheDocument();
+    expect(trackMock).not.toHaveBeenCalledWith("lead_submit", expect.anything());
   });
 });
 

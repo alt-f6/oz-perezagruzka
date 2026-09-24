@@ -13,6 +13,7 @@ import {
   type ReadinessOutput,
 } from "@/landing/lib/validations/readiness";
 import { LEGAL_DOCUMENT_VERSION } from "@/landing/lib/legal";
+import { formatLeadSourceNotes } from "@/landing/lib/lead-source";
 import { createLogger } from "@/shared/lib/logger";
 
 const logger = createLogger("landing.readiness");
@@ -32,7 +33,7 @@ export async function submitReadinessMap(
   if (!parsed.success) {
     return { status: "error", message: "Проверьте заполненные поля и попробуйте снова." };
   }
-  const { input, sessionId, utm, examType, phone } = parsed.data;
+  const { input, sessionId, utm, attribution, examType, phone } = parsed.data;
 
   const hdrs = await headers();
   const ipHash = hashRequestHeaders(hdrs);
@@ -57,20 +58,28 @@ export async function submitReadinessMap(
     };
   }
 
+  // The URL-derived `utm` only reflects the page the form was submitted on;
+  // localStorage's last touch keeps the campaign when the user arrived via
+  // an ad and came back later without UTM params.
+  const lastTouch = attribution?.attr_last;
   const leadAttribution = {
-    // No dedicated exam-type column on Lead - recorded as a notes prefix
-    // so CRM managers see it at a glance without a schema migration.
-    notes: `Экзамен: ${examType === "ege" ? "ЕГЭ" : "ОГЭ"}`,
+    // No dedicated exam-type / first-touch / Metrika ClientID columns on
+    // Lead - recorded as notes lines so CRM managers see them at a glance
+    // without a schema migration.
+    notes: [
+      `Экзамен: ${examType === "ege" ? "ЕГЭ" : "ОГЭ"}`,
+      ...formatLeadSourceNotes(attribution),
+    ].join("\n"),
     sessionId,
     ipHash,
-    utmSource: utm?.utmSource,
-    utmMedium: utm?.utmMedium,
-    utmCampaign: utm?.utmCampaign,
-    utmContent: utm?.utmContent,
-    utmTerm: utm?.utmTerm,
-    clickId: utm?.clickId,
-    referrer: utm?.referrer,
-    landingPage: utm?.landingPage,
+    utmSource: utm?.utmSource ?? lastTouch?.utm_source,
+    utmMedium: utm?.utmMedium ?? lastTouch?.utm_medium,
+    utmCampaign: utm?.utmCampaign ?? lastTouch?.utm_campaign,
+    utmContent: utm?.utmContent ?? lastTouch?.utm_content,
+    utmTerm: utm?.utmTerm ?? lastTouch?.utm_term,
+    clickId: utm?.clickId ?? lastTouch?.click_id,
+    referrer: utm?.referrer ?? lastTouch?.referrer,
+    landingPage: utm?.landingPage ?? lastTouch?.landing_path,
   };
 
   let lead: Lead;

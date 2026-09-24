@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import Atmosphere from "@/landing/components/ui/Atmosphere";
 import Section from "@/landing/components/ui/Section";
@@ -8,6 +8,7 @@ import { fadeInUp } from "@/landing/components/ui/motion";
 import { useExam } from "@/landing/lib/exam-context";
 import { PRICING_TIERS, type PricingTierContent } from "@/landing/lib/exam-content";
 import { reachGoal } from "@/landing/lib/analytics";
+import { useSectionViewGoal } from "@/landing/lib/section-view";
 
 const FEATURES = [
   "Живые занятия в мини-группах",
@@ -29,12 +30,14 @@ export default function Pricing() {
   const selectedTier: PricingTierContent =
     tiers.find((tier) => tier.subjects === selectedSubjects) ?? tiers[tiers.length - 1];
   const cardVariants = fadeInUp(prefersReducedMotion);
+  const contentRef = useRef<HTMLDivElement>(null);
+  useSectionViewGoal(contentRef, "pricing_view");
 
   return (
     <Section id="pricing" tone="brand-wash" paddingOverride="py-16 md:py-24">
       <Atmosphere variant="accent" />
 
-      <div className="relative mx-auto max-w-3xl px-6">
+      <div ref={contentRef} className="relative mx-auto max-w-3xl px-6">
         <div className="mb-12 text-center">
           <h2 className="font-bold tracking-tight text-ink-900">Тарифы</h2>
           <p className="mx-auto mt-3.5 max-w-xl text-lg text-ink-600">

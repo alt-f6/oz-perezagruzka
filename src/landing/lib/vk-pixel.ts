@@ -34,9 +34,10 @@ export function getVkPixelId(): string {
   return configured ? configured : DEFAULT_VK_PIXEL_ID;
 }
 
-// For future goal/ecommerce tracking (mirrors analytics.ts's reachGoal). Not
-// currently called anywhere -- the pageView hit fires from the loader
-// snippet in app/landing/layout.tsx.
+// Low-level queue push; call sites should go through analytics.ts (track /
+// reachGoal / trackPageview) so goals reach Metrika and VK together. The
+// initial pageView hit fires from the loader snippet in
+// app/landing/layout.tsx.
 export function pushVkEvent(event: VkTmrEventInput): void {
   if (typeof window === "undefined") return;
 

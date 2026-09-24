@@ -5,7 +5,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { getOrCreateSessionId } from "@/landing/lib/session-id";
-import { reachGoal } from "@/landing/lib/analytics";
+import { reachGoal, track } from "@/landing/lib/analytics";
 
 const MAX_USER_MESSAGES = 3;
 
@@ -116,6 +116,9 @@ export default function AITutor() {
     const trimmed = input.trim();
     if (!trimmed || reachedLimit || isBusy) return;
     setServerErrorMessage(null);
+    // No prompt text in the payload: it's free-form user input and may
+    // contain personal data.
+    track("ai_demo_used", {}, true);
     sendMessage({ text: trimmed });
     setInput("");
   };

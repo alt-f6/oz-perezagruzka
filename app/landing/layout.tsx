@@ -6,11 +6,12 @@ import { Suspense } from "react";
 import ConsentBanner from "@/landing/components/ui/ConsentBannerClient";
 import FloatingContacts from "@/landing/components/ui/FloatingContacts";
 import { ExamProvider } from "@/landing/lib/exam-context";
-import { MetrikaPageviewTracker } from "@/landing/components/analytics/MetrikaPageviewTracker";
-import { getVkPixelId } from "@/landing/lib/vk-pixel";
+import { AnalyticsTracker } from "@/landing/components/analytics/AnalyticsTracker";
+import { EngagementTracker } from "@/landing/components/analytics/EngagementTracker";
+import { getVkPixelId, getYmId } from "@/landing/lib/analytics";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://perezagruzka-edu.ru";
-const ymCounterId = process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID ?? process.env.NEXT_PUBLIC_YM_COUNTER_ID;
+const ymCounterId = getYmId();
 const vkPixelId = getVkPixelId();
 
 const title = "Перезагрузка: Подготовка к ОГЭ с живым учителем и ИИ-репетитором";
@@ -84,15 +85,14 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
             m[i].l=1*new Date();for(var j=0;j<document.scripts.length;j++){if(document.scripts[j].src===r){return}}
             k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
             (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
-            ym(${ymCounterId}, "init", { clickmap: true, trackLinks: true, accurateTrackBounce: true, webvisor: true });
+            ym(${Number(ymCounterId)}, "init", { clickmap: true, trackLinks: true, accurateTrackBounce: true, webvisor: true });
           `}
         </Script>
       )}
-      {ymCounterId && (
-        <Suspense fallback={null}>
-          <MetrikaPageviewTracker />
-        </Suspense>
-      )}
+      <Suspense fallback={null}>
+        <AnalyticsTracker />
+      </Suspense>
+      <EngagementTracker />
       {vkPixelId && (
         <Script id="vk-pixel" strategy="afterInteractive">
           {`

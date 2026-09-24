@@ -14,7 +14,8 @@ import {
   type ReadinessInput,
 } from "@/landing/lib/validations/readiness";
 import { submitReadinessMap, type ReadinessActionResult } from "@/landing/actions/readiness";
-import { reachGoal } from "@/landing/lib/analytics";
+import { reachGoal, track, type EventName } from "@/landing/lib/analytics";
+import { getAttribution, getYmClientId } from "@/landing/lib/attribution";
 import { LegalCheckbox } from "@/landing/components/ui/LegalCheckbox";
 import { formatRussianPhoneInput, russianPhoneSchema } from "@/shared/validation/phone";
 import Atmosphere from "@/landing/components/ui/Atmosphere";
@@ -84,6 +85,14 @@ const STEPS: StepConfig[] = [
     helper: "Это поможет расставить приоритеты в карте готовности",
   },
 ];
+
+// Funnel goals for VK Ads / Metrika, fired when the step is completed.
+const STEP_GOALS: Partial<Record<StepKey, EventName>> = {
+  grade: "quiz_step_grade",
+  subjects: "quiz_step_subjects",
+  studyStyle: "quiz_step_style",
+  hobbies: "quiz_step_hobbies",
+};
 
 const SUBJECT_LABELS: Record<(typeof SUBJECT_VALUES)[number], string> = {
   "Математика": "📐 Математика",
@@ -279,10 +288,15 @@ export default function ReadinessMapWizard() {
   };
 
   const goNext = useCallback(async () => {
+    // Covers users who skip the optional name field and go straight to "Далее".
+    track("quiz_start", {}, true);
+
     const valid = await form.trigger(currentStep.key);
     if (!valid) return;
 
     reachGoal(`quiz_step_${stepIndex + 1}_completed`);
+    const stepGoal = STEP_GOALS[currentStep.key];
+    if (stepGoal) track(stepGoal);
 
     if (!isLastStep) {
       setDirection(1);
@@ -304,10 +318,14 @@ export default function ReadinessMapWizard() {
     setPhase("loading");
     setSubmitError(null);
     try {
+      const { attr_first, attr_last } = getAttribution();
+      const ymClientId = await getYmClientId();
+      const input = form.getValues();
       const actionResult = await submitReadinessMap({
-        input: form.getValues(),
+        input,
         sessionId,
         utm,
+        attribution: { attr_first, attr_last, ym_client_id: ymClientId },
         examType: exam,
         consent,
         phone: phoneResult.data,
@@ -321,13 +339,19 @@ export default function ReadinessMapWizard() {
       }
       reachGoal("quiz_submitted");
       reachGoal("form_submit_success");
+      // Anonymous metadata only (152-FZ): no name/phone ever leaves in goal params.
+      track("lead_submit", {
+        grade: input.grade,
+        subjects: selectedSubjects.join(","),
+        source: attr_last?.utm_source,
+      });
       setResult(actionResult);
       setPhase("result");
     } catch (error) {
       setSubmitError("Не получилось отправить форму. Проверьте соединение и попробуйте снова.");
       setPhase("form");
     }
-  }, [consent, currentStep.key, exam, form, formRenderedAt, isLastStep, phone, sessionId, stepIndex, utm]);
+  }, [consent, currentStep.key, exam, form, formRenderedAt, isLastStep, phone, selectedSubjects, sessionId, stepIndex, utm]);
 
   const goBack = useCallback(() => {
     setDirection(-1);
@@ -607,7 +631,9 @@ export default function ReadinessMapWizard() {
                     currentStep.key !== "deadline" && (
                       <div className="relative">
                         <input
-                          {...form.register(currentStep.key)}
+                          {...form.register(currentStep.key, {
+                            onChange: () => track("quiz_start", {}, true),
+                          })}
                           placeholder={currentStep.placeholder}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {

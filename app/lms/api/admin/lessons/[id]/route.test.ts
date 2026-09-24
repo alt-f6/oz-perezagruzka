@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 const requireRoleMock = vi.fn();
 const findUniqueMock = vi.fn();
 const updateMock = vi.fn();
+const aggregateMock = vi.fn();
 
 vi.mock("@/shared/lib/rbac", () => ({
   requireRole: (...args: unknown[]) => requireRoleMock(...args),
@@ -13,6 +14,7 @@ vi.mock("@/shared/lib/db", () => ({
     lesson: {
       findUnique: (...args: unknown[]) => findUniqueMock(...args),
       update: (...args: unknown[]) => updateMock(...args),
+      aggregate: (...args: unknown[]) => aggregateMock(...args),
     },
   },
 }));
@@ -48,7 +50,11 @@ beforeEach(() => {
   requireRoleMock.mockReset();
   findUniqueMock.mockReset();
   updateMock.mockReset();
+  aggregateMock.mockReset();
   requireRoleMock.mockResolvedValue({ id: "admin_1", role: "ADMIN" });
+  // PATCH looks up the current module to detect a move between modules.
+  findUniqueMock.mockResolvedValue({ moduleId: "module_1" });
+  aggregateMock.mockResolvedValue({ _max: { order: 0 } });
 });
 
 describe("GET /api/admin/lessons/[id]", () => {
@@ -234,5 +240,40 @@ describe("PATCH /api/admin/lessons/[id]", () => {
         data: expect.objectContaining({ presentationEmbedUrl: "https://docs.google.com/presentation/d/abc123/embed" }),
       })
     );
+  });
+
+  it("keeps the submitted order when the lesson stays in its module", async () => {
+    updateMock.mockResolvedValue(lessonRow());
+    const { PATCH } = await import("./route");
+
+    await PATCH(patchRequest({ title: "Lesson 1", order: 4, module_id: "module_1" }), makeCtx("lesson_1"));
+
+    expect(aggregateMock).not.toHaveBeenCalled();
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ order: 4, moduleId: "module_1" }) })
+    );
+  });
+
+  it("appends the lesson to the end of the target module when moved", async () => {
+    aggregateMock.mockResolvedValue({ _max: { order: 7 } });
+    updateMock.mockResolvedValue(lessonRow({ moduleId: "module_2" }));
+    const { PATCH } = await import("./route");
+
+    await PATCH(patchRequest({ title: "Lesson 1", order: 4, module_id: "module_2" }), makeCtx("lesson_1"));
+
+    expect(aggregateMock).toHaveBeenCalledWith({ where: { moduleId: "module_2" }, _max: { order: true } });
+    expect(updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ order: 8, moduleId: "module_2" }) })
+    );
+  });
+
+  it("returns 404 when the lesson does not exist", async () => {
+    findUniqueMock.mockResolvedValue(null);
+    const { PATCH } = await import("./route");
+
+    const res = await PATCH(patchRequest({ title: "Lesson 1" }), makeCtx("lesson_1"));
+
+    expect(res.status).toBe(404);
+    expect(updateMock).not.toHaveBeenCalled();
   });
 });

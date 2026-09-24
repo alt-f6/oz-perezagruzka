@@ -3,9 +3,13 @@ import { requireRoleForPage } from "@/shared/lib/rbac";
 import { ROLE_LABELS, roleHome } from "@/lms/server/auth/types";
 import { TopNav } from "@/lms/components/TopNav";
 import { hasTutorAccess } from "@/lms/server/access/has-tutor-access";
+import { STAFF_PREVIEW_ROLES } from "@/lms/server/access/can-view-lesson";
 
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
-  const user = await requireRoleForPage(["STUDENT"], {
+  // Staff (MANAGER/TEACHER; ADMIN via bypass) are let through so the admin
+  // "Предпросмотр" link can open a lesson exactly as a student sees it --
+  // the lesson page itself already grants them preview via canViewLesson.
+  const user = await requireRoleForPage(["STUDENT", ...STAFF_PREVIEW_ROLES], {
     adminBypass: true,
     loginPath: "/login",
     forbiddenPath: (user) => roleHome(user.role),
@@ -13,9 +17,12 @@ export default async function StudentLayout({ children }: { children: React.Reac
 
   // adminBypass means an ADMIN can reach this layout too; they always keep
   // the tutor link (support/QA) without an entitlement lookup.
-  const tutorAccess = user.role === "ADMIN" || (await hasTutorAccess(user.id));
+  const tutorAccess = user.role === "ADMIN" || (user.role === "STUDENT" && (await hasTutorAccess(user.id)));
+
+  const isStaffPreview = user.role !== "STUDENT";
 
   const items = [
+    ...(isStaffPreview ? [{ href: "/admin", label: "← Админка" }] : []),
     { href: "/student/lessons", label: "Уроки" },
     ...(tutorAccess ? [{ href: "/student/tutor", label: "ИИ-репетитор" }] : []),
   ];

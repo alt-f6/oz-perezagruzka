@@ -46,7 +46,12 @@ export default async function StudentDashboard() {
   if (!continueLesson) {
     const fallbackAssignment = await db.assignment.findFirst({
       where: { studentId: user.id, lesson: { isPublished: true } },
-      orderBy: [{ lesson: { order: "asc" } }, { lesson: { id: "asc" } }],
+      orderBy: [
+        { lesson: { module: { course: { createdAt: "asc" } } } },
+        { lesson: { module: { order: "asc" } } },
+        { lesson: { order: "asc" } },
+        { lesson: { id: "asc" } },
+      ],
       include: { lesson: true },
     });
     continueLesson = fallbackAssignment

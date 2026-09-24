@@ -18,8 +18,8 @@ export default function LmsAdminError({
   }, [error]);
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
+    <div>
       <ErrorState digest={error.digest} onRetry={reset} />
-    </main>
+    </div>
   );
 }

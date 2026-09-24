@@ -2,9 +2,9 @@ import { SkeletonPageHeader, SkeletonCardGrid } from "@/lms/components/boundarie
 
 export default function AdminLessonEditLoading() {
   return (
-    <main className="mx-auto max-w-5xl px-6 py-8">
+    <div className="mx-auto max-w-5xl">
       <SkeletonPageHeader />
       <SkeletonCardGrid count={2} />
-    </main>
+    </div>
   );
 }

@@ -2,9 +2,9 @@ import { SkeletonPageHeader, SkeletonTable } from "@/lms/components/boundaries/S
 
 export default function AdminLessonsLoading() {
   return (
-    <main className="mx-auto max-w-6xl px-6 py-8">
+    <div>
       <SkeletonPageHeader />
       <SkeletonTable rows={6} columns={4} />
-    </main>
+    </div>
   );
 }

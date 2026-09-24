@@ -2,9 +2,9 @@ import { SkeletonPageHeader, SkeletonCardGrid } from "@/lms/components/boundarie
 
 export default function AdminMessagesLoading() {
   return (
-    <main className="mx-auto max-w-4xl px-6 py-8">
+    <div>
       <SkeletonPageHeader />
       <SkeletonCardGrid count={3} />
-    </main>
+    </div>
   );
 }

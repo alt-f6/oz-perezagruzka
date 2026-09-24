@@ -233,16 +233,16 @@ export default function AdminAssignmentsClient({
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-5xl animate-pulse px-6 py-8">
+      <div className="animate-pulse">
         <div className="h-40 rounded-2xl bg-white/[0.06]" />
-      </main>
+      </div>
     );
   }
 
   const activeId = mode === "student" ? studentId : lessonId;
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-8">
+    <div>
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -435,6 +435,6 @@ export default function AdminAssignmentsClient({
       <p className="mt-3 text-xs text-muted-foreground">
         Подсказка: черновики можно назначать, но студент их всё равно не увидит, пока урок не опубликован.
       </p>
-    </main>
+    </div>
   );
 }

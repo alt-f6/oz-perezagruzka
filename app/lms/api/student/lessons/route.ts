@@ -12,7 +12,14 @@ export const GET = withApiErrors(async (req: NextRequest) => {
   const rows = await db.assignment.findMany({
     where: { studentId: user.id, lesson: { isPublished: true } },
     include: { lesson: { include: { progress: { where: { studentId: user.id } } } } },
-    orderBy: [{ lesson: { order: "asc" } }, { lesson: { id: "asc" } }, { id: "asc" }],
+    // Lesson.order is per-module, so group by course, then module, first.
+    orderBy: [
+      { lesson: { module: { course: { createdAt: "asc" } } } },
+      { lesson: { module: { order: "asc" } } },
+      { lesson: { order: "asc" } },
+      { lesson: { id: "asc" } },
+      { id: "asc" },
+    ],
     take: limit + 1,
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   });

@@ -708,12 +708,23 @@ model Course {
   description String   @default("")
   isPublished Boolean  @default(false)
   teacherId   String
+  // Catalog facets, inherited by every Module/Lesson in the course (a course
+  // never mixes exams). subject is one of SUBJECT_VALUES and examType is
+  // "OGE" | "EGE" (src/shared/lib/education.ts), matching the same free-string
+  // convention as Group/Student so CRM groups line up with LMS courses.
+  // Nullable: legacy courses stay uncategorized until an admin fills them in.
+  subject     String?
+  examType    String?
+  grade       Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   teacher     User         @relation("CourseTeacher", fields: [teacherId], references: [id])
   modules     Module[]
   enrollments Enrollment[]
+
+  @@index([teacherId])
+  @@index([examType, subject])
 }
 
 model Module {
@@ -753,6 +764,7 @@ model Lesson {
   presentationEmbedUrl String?
   homeworkTask         String?
   createdAt            DateTime @default(now())
+  updatedAt            DateTime @default(now()) @updatedAt
 
   module      Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   assets      LessonAsset[]
@@ -821,7 +833,9 @@ model LessonProgress {
   lessonId            String
   completedAt         DateTime?
   lastPositionSeconds Int       @default(0)
-  updatedAt           DateTime  @default(now())
+  // @updatedAt so every progress write (completion toggle, playback sync)
+  // bumps it -- the admin dashboard's "active students (7d)" reads it.
+  updatedAt           DateTime  @default(now()) @updatedAt
 
   student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
   lesson  Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)

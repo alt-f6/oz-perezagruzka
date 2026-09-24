@@ -45,7 +45,13 @@ describe("GET /api/student/lessons", () => {
 
     expect(findManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        orderBy: [{ lesson: { order: "asc" } }, { lesson: { id: "asc" } }, { id: "asc" }],
+        orderBy: [
+          { lesson: { module: { course: { createdAt: "asc" } } } },
+          { lesson: { module: { order: "asc" } } },
+          { lesson: { order: "asc" } },
+          { lesson: { id: "asc" } },
+          { id: "asc" },
+        ],
         take: 6,
       }),
     );

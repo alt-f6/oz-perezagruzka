@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { FileText, Music, Presentation, Video } from "lucide-react";
+import { Check, ChevronRight, Copy, Eye, FileText, Music, Presentation, Video } from "lucide-react";
 
 import { cn } from "@/shared/lib/utils";
-import { Badge } from "@/shared/components/ui/badge";
 import { Button } from "@/shared/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/shared/components/ui/card";
+import { StatusPill } from "@/lms/components/admin/primitives";
 import { LessonMetadataForm, type Lesson } from "./LessonMetadataForm";
 import { LessonVideoManager } from "./LessonVideoManager";
 import { LessonPdfManager } from "./LessonPdfManager";
@@ -21,6 +21,29 @@ const FORMAT_TABS: { id: AssetFormat; label: string; icon: typeof Video }[] = [
   { id: "audio", label: "Аудио", icon: Music },
   { id: "presentation", label: "Презентация", icon: Presentation },
 ];
+
+// The lesson UUID is only useful for support/debugging, so it lives behind a
+// copy action instead of being printed next to the title.
+function CopyIdButton({ id }: { id: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard unavailable (insecure context): nothing useful to do.
+    }
+  }
+
+  return (
+    <Button type="button" variant="ghost" size="sm" onClick={copy} title="Скопировать ID урока">
+      {copied ? <Check /> : <Copy />}
+      {copied ? "Скопировано" : "ID"}
+    </Button>
+  );
+}
 
 function LessonPresentationPanel({ lesson }: { lesson: Lesson }) {
   const url = lesson.presentation_embed_url?.trim();
@@ -128,15 +151,15 @@ export default function AdminLessonEditClient({ lessonId }: { lessonId: string }
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-5xl animate-pulse px-6 py-8">
+      <div className="mx-auto max-w-5xl animate-pulse">
         <div className="h-40 rounded-2xl bg-white/[0.06]" />
-      </main>
+      </div>
     );
   }
 
   if (!lesson) {
     return (
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <div className="mx-auto max-w-5xl">
         <Link href="/admin/lessons" className="text-sm font-semibold text-muted-foreground hover:text-foreground">
           ← Назад к урокам
         </Link>
@@ -146,24 +169,30 @@ export default function AdminLessonEditClient({ lessonId }: { lessonId: string }
             {error ? <p className="mt-1 text-sm text-muted-foreground">{error}</p> : null}
           </CardContent>
         </Card>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-8">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <Button asChild variant="outline" size="sm">
-          <Link href="/admin/lessons">Назад</Link>
-        </Button>
+    <div className="mx-auto max-w-5xl">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <nav aria-label="Навигация" className="flex min-w-0 items-center gap-1.5 text-sm text-muted-foreground">
+          <Link href="/admin/lessons" className="hover:text-foreground">
+            Уроки
+          </Link>
+          <ChevronRight className="size-3.5 shrink-0" aria-hidden="true" />
+          <span className="truncate font-medium text-foreground">{lesson.title || "Без названия"}</span>
+        </nav>
 
-        <div className="flex flex-wrap justify-end gap-2">
-          <Badge variant="outline">ID: {lesson.id}</Badge>
-          {lesson.is_published ? (
-            <Badge variant="success">Опубликован</Badge>
-          ) : (
-            <Badge variant="secondary">Черновик</Badge>
-          )}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <StatusPill published={lesson.is_published} />
+          <CopyIdButton id={lesson.id} />
+          <Button asChild variant="outline" size="sm">
+            <a href={`/student/lessons/${lesson.id}`} target="_blank" rel="noreferrer">
+              <Eye />
+              Предпросмотр
+            </a>
+          </Button>
         </div>
       </div>
 
@@ -204,6 +233,6 @@ export default function AdminLessonEditClient({ lessonId }: { lessonId: string }
         {activeFormat === "audio" ? <LessonAudioManager lessonId={lessonId} /> : null}
         {activeFormat === "presentation" ? <LessonPresentationPanel lesson={lesson} /> : null}
       </div>
-    </main>
+    </div>
   );
 }

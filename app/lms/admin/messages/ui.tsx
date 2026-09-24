@@ -64,7 +64,7 @@ export default function AdminMessagesClient() {
   }
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-8">
+    <div>
       <h1 className="mb-6 text-3xl font-black tracking-tight">Сообщения</h1>
 
       {loading ? (
@@ -129,6 +129,6 @@ export default function AdminMessagesClient() {
           )}
         </>
       )}
-    </main>
+    </div>
   );
 }

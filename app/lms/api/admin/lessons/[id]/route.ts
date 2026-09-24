@@ -3,6 +3,7 @@ import { db } from "@/shared/lib/db";
 import { requireRole } from "@/shared/lib/rbac";
 import { normalizePresentationUrl } from "@/lms/lib/presentation-url";
 import { withApiErrors } from "@/lms/server/http/api-guard";
+import { nextLessonOrder } from "@/lms/server/repos/lesson-order";
 import type { Lesson } from "@prisma/client";
 
 export const runtime = "nodejs";
@@ -99,6 +100,12 @@ export const PATCH = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
     }
   }
 
+  // Moving to another module appends the lesson to the end of that module:
+  // the order the editor sends is a position in the *old* module.
+  const current = await db.lesson.findUnique({ where: { id: lessonId }, select: { moduleId: true } });
+  if (!current) return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 });
+  const movingModule = moduleId !== null && moduleId !== current.moduleId;
+
   try {
     const lesson = await db.lesson.update({
       where: { id: lessonId },
@@ -106,7 +113,7 @@ export const PATCH = withApiErrors(async (req: NextRequest, ctx: Ctx) => {
         title,
         description,
         content,
-        order,
+        order: movingModule ? await nextLessonOrder(moduleId) : order,
         isPublished: is_published,
         practiceLinkUrl,
         practiceLinkLabel: practiceLinkUrl ? practiceLinkLabel : null,

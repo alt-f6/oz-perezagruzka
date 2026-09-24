@@ -5,6 +5,7 @@ import { DefaultChatTransport } from "ai";
 import { useMemo, useState } from "react";
 
 import type { TutorManifest } from "@/lms/lib/tutor";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
 
 type Topic = TutorManifest["topics"][number];
 
@@ -88,18 +89,18 @@ export function AiTutorClient({
         >
           Тема
         </label>
-        <select
-          id="tutor-topic"
-          value={topicCode}
-          onChange={(e) => handleTopicChange(e.target.value)}
-          className="h-10 w-full rounded-md border border-input bg-black/20 px-3 text-sm text-foreground transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-        >
-          {topics.map((topic) => (
-            <option key={topic.code} value={topic.code}>
-              {topic.code} — {topic.title}
-            </option>
-          ))}
-        </select>
+        <Select value={topicCode} onValueChange={handleTopicChange}>
+          <SelectTrigger id="tutor-topic">
+            <SelectValue placeholder="Выберите тему" />
+          </SelectTrigger>
+          <SelectContent>
+            {topics.map((topic) => (
+              <SelectItem key={topic.code} value={topic.code}>
+                <span className="font-mono text-muted-foreground">{topic.code}</span> — {topic.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="flex min-h-[320px] flex-col gap-3 rounded-xl border border-border bg-card/40 p-4">

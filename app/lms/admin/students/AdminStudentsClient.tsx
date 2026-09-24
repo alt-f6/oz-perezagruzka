@@ -120,7 +120,7 @@ export default function AdminStudentsClient() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-8">
+    <div>
       <div className="mb-6 flex items-end justify-between gap-3">
         <div>
           <h1 className="text-3xl font-black tracking-tight">Ученики</h1>
@@ -279,7 +279,7 @@ export default function AdminStudentsClient() {
           </CardContent>
         </Card>
       </div>
-    </main>
+    </div>
   );
 }
 

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { NAV_LINKS } from "@/landing/lib/navigation";
 import { reachGoal } from "@/landing/lib/analytics";
 import { CONTACT_PHONE } from "@/landing/lib/legal";
+import { TRIAL_LESSON_CTA } from "@/landing/lib/exam-content";
 
 const CONTACT_PHONE_HREF = `tel:+${CONTACT_PHONE.replace(/\D/g, "")}`;
 const RESPONSE_TIME_NOTE = "Перезвоним за 15 минут (ежедневно с 09:00 до 21:00)";
@@ -54,7 +55,7 @@ export default function Header() {
             aria-hidden="true"
             className="pointer-events-none absolute inset-y-0 -left-full w-1/2 -skew-x-12 bg-gradient-to-r from-transparent via-white/30 to-transparent transition-all duration-700 group-hover:left-full"
           />
-          <span className="relative">Записаться на бесплатный разбор</span>
+          <span className="relative">{TRIAL_LESSON_CTA}</span>
         </a>
 
         <button
@@ -106,7 +107,7 @@ export default function Header() {
               }}
               className="mt-2 flex min-h-[60px] items-center justify-center rounded-xl bg-[#0055FF] px-4 text-center text-base font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
             >
-              Записаться на бесплатный разбор
+              {TRIAL_LESSON_CTA}
             </a>
 
             <div className="mt-3 flex flex-col items-center gap-1 text-center">

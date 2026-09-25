@@ -4,6 +4,10 @@ import type { ExamType } from "@/landing/lib/exam-context";
 // EGE toggle states. Kept as plain data (not JSX) so it can be unit-tested
 // and imported by any section without pulling in component code.
 
+// The one primary CTA label used site-wide (header, hero, pricing, content
+// blocks, final CTA). Decided 25.09: every entry point is the trial lesson.
+export const TRIAL_LESSON_CTA = "Записаться на пробный урок";
+
 export const HERO_TITLE: Record<ExamType, string> = {
   oge: "ОГЭ С ГАРАНТИЕЙ:",
   ege: "ЕГЭ С ГАРАНТИЕЙ:",
@@ -12,11 +16,11 @@ export const HERO_TITLE: Record<ExamType, string> = {
 export const HERO_GUARANTEE_BULLETS = [
   "Целевой балл прописываем в договоре.",
   "Не выводим — возвращаем стоимость.",
-  "Берём только после разбора.",
+  "Берём только после пробного урока.",
 ];
 
 export const HERO_SUBLIST_HEADER =
-  "На разборе получите документ с конкретикой под вашего ребёнка:";
+  "На пробном уроке вы получаете документ с конкретикой под вашего ребёнка:";
 
 export const HERO_SUBLIST_ITEMS: Record<ExamType, string[]> = {
   oge: [

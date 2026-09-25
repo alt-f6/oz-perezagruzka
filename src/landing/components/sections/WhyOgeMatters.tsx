@@ -7,6 +7,7 @@ import Card from "@/landing/components/ui/Card";
 import { fadeInUp, staggerContainer } from "@/landing/components/ui/motion";
 import { useExam } from "@/landing/lib/exam-context";
 import { reachGoal } from "@/landing/lib/analytics";
+import { TRIAL_LESSON_CTA } from "@/landing/lib/exam-content";
 
 type InnerTab = "grade10" | "college";
 
@@ -21,7 +22,7 @@ const GRADE10_CARDS = [
   },
   {
     title: "ОГЭ — первая честная оценка уровня",
-    body: "Школьные пятёрки не показывают ничего. Внешний экзамен показывает реальный потенциал ребёнка — и вы принимаете решения по ЕГЭ, опираясь на факт, а не на надежду.",
+    body: "Школьные пятёрки мало что говорят о настоящем уровне. Внешний экзамен показывает реальный потенциал ребёнка, и решения про ЕГЭ вы принимаете, опираясь на результат.",
   },
   {
     title: "После ОГЭ ребёнок понимает, что ему сдавать на ЕГЭ",
@@ -41,7 +42,7 @@ const COLLEGE_METRICS = [
   {
     number: "62,5%",
     subtext:
-      "Столько девятиклассников выбирают колледж. В 2025 году это 1,3 миллиона человек — данные Минпросвещения. Это давно не «запасной вариант», это основной путь.",
+      "Столько девятиклассников сейчас выбирают колледж — по данным Минпросвещения, в 2025 году это 1,3 миллиона человек. Для многих семей колледж давно стал основным путём.",
   },
   {
     number: "Конкурс по среднему баллу аттестата",
@@ -170,7 +171,7 @@ export default function WhyOgeMatters() {
             onClick={() => reachGoal("cta_oge_block_click")}
             className="inline-flex min-h-[60px] items-center justify-center rounded-2xl bg-brand-600 px-8 text-center text-lg font-bold text-white shadow-md shadow-brand-900/20 transition-all duration-300 hover:-translate-y-1 hover:bg-brand-700 hover:shadow-lg active:scale-98"
           >
-            Записаться на бесплатный разбор
+            {TRIAL_LESSON_CTA}
           </a>
 
           <p className="mx-auto mt-4 max-w-xl text-xs text-slate-500 sm:text-sm">

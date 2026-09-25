@@ -84,7 +84,7 @@ describe("WhyOgeMatters", () => {
     await user.click(screen.getByRole("tab", { name: "В колледж" }));
     reachGoalMock.mockReset();
 
-    const cta = screen.getByRole("link", { name: "Записаться на бесплатный разбор" });
+    const cta = screen.getByRole("link", { name: "Записаться на пробный урок" });
     expect(cta).toHaveAttribute("href", "#readiness-map");
     await user.click(cta);
 

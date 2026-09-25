@@ -36,7 +36,7 @@ describe("Hero", () => {
     expect(screen.queryByText(/2000 учеников/)).not.toBeInTheDocument();
   });
 
-  it("shows the target-score guarantee bullet and the free-analysis CTA", () => {
+  it("shows the target-score guarantee bullet and the trial-lesson CTA", () => {
     render(
       <ExamProvider>
         <Hero />
@@ -47,7 +47,7 @@ describe("Hero", () => {
       screen.getByText("Целевой балл прописываем в договоре."),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: "Записаться на бесплатный разбор" }),
+      screen.getByRole("link", { name: "Записаться на пробный урок" }),
     ).toBeInTheDocument();
   });
 });

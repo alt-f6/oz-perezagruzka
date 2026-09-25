@@ -2,6 +2,7 @@
 
 import { reachGoal } from "@/landing/lib/analytics";
 import type { RegionContent } from "@/landing/data/regions";
+import { TRIAL_LESSON_CTA } from "@/landing/lib/exam-content";
 
 export default function RegionalHero({ region }: { region: RegionContent }) {
   return (
@@ -22,7 +23,7 @@ export default function RegionalHero({ region }: { region: RegionContent }) {
             onClick={() => reachGoal("cta_analysis_click")}
             className="inline-flex min-h-[70px] items-center justify-center rounded-xl bg-brand-600 px-8 py-4 text-center text-xl font-bold text-white shadow-lg shadow-brand-600/25 transition-all hover:bg-brand-700 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 md:text-2xl"
           >
-            Записаться на бесплатный разбор
+            {TRIAL_LESSON_CTA}
           </a>
         </div>
       </div>

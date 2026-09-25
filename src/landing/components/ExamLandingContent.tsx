@@ -61,13 +61,15 @@ export default function ExamLandingContent({
         <div className="relative z-10">
           {hero}
           {beforeSections}
+          {/* Order per the 25.09 mentor review: the price of the question and
+              "how we teach" first, then Pricing -- above Teachers and Reviews. */}
           <BudgetVsPaidEGE />
-          <Solution />
-          <TeachersCarousel />
           <WhyOgeMatters />
+          <Solution />
+          <Pricing />
+          <TeachersCarousel />
           <StudentCarousel />
           <YandexReviews />
-          <Pricing />
           <FAQ />
           <FinalCTA />
           <ReadinessMapSection />

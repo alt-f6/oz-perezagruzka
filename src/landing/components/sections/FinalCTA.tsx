@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 
 import Section from "@/landing/components/ui/Section";
 import { reachGoal } from "@/landing/lib/analytics";
+import { TRIAL_LESSON_CTA } from "@/landing/lib/exam-content";
 
 export default function FinalCTA() {
   const prefersReducedMotion = useReducedMotion();
@@ -31,7 +32,7 @@ export default function FinalCTA() {
             </span>
 
             <h2 className="mt-5 font-bold tracking-tight text-white text-balance">
-              Начните с бесплатного разбора —<br className="hidden sm:block" /> а решение примете позже
+              Начните с пробного урока —<br className="hidden sm:block" /> а решение примете позже
             </h2>
 
             <div className="mt-9 flex flex-col items-center justify-center gap-4">
@@ -43,7 +44,7 @@ export default function FinalCTA() {
                 transition={{ type: "spring", stiffness: 90, damping: 18 }}
                 className="group relative flex min-h-[60px] items-center justify-center overflow-hidden rounded-xl bg-brand-600 px-10 text-lg font-bold text-white shadow-lg shadow-brand-600/25 transition-all duration-300 hover:bg-brand-700 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-900"
               >
-                Записаться на бесплатный разбор
+                {TRIAL_LESSON_CTA}
               </motion.a>
               <p className="text-xs text-white/70 md:text-sm">
                 ⚡ Перезвоним в течение 15 минут (ежедневно с 09:00 до 21:00) — ваша заявка не

@@ -6,6 +6,7 @@ import { DefaultChatTransport } from "ai";
 import { AnimatePresence, motion } from "framer-motion";
 import { getOrCreateSessionId } from "@/landing/lib/session-id";
 import { reachGoal, track } from "@/landing/lib/analytics";
+import { TRIAL_LESSON_CTA } from "@/landing/lib/exam-content";
 
 const MAX_USER_MESSAGES = 3;
 
@@ -34,7 +35,7 @@ const DEMO_PAIRS = [
   {
     question: "Как решать 22 задачу ОГЭ по математике?",
     answer:
-      "Сначала выпиши отдельно, что дано и что нужно найти — на черновик, а не в уме. Дальше ищи формулу, которая связывает именно эти величины. Почти все ошибки в 22 задаче — от того, что решают в уме, не зафиксировав условие 📝",
+      "Сначала выпиши на черновик, что дано и что нужно найти. Дальше ищи формулу, которая связывает именно эти величины. Почти все ошибки в 22 задаче — от того, что решают в уме, не зафиксировав условие 📝",
   },
   {
     question: "Разбери ошибки в сочинении 9.3",
@@ -136,7 +137,7 @@ export default function AITutor() {
           Смотрите, как работает ИИ-репетитор
         </h3>
         <p className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-ink-900 font-bold leading-relaxed max-w-4xl mx-auto mt-4">
-          Персональный виртуальный преподаватель, который моментально объясняет сложные задачи 24/7 и адаптируется под уровень ученика.
+          Задайте ему школьный вопрос — так же, как это сделает ваш ребёнок, когда застрянет на домашке.
         </p>
 
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
@@ -285,7 +286,7 @@ export default function AITutor() {
                 onClick={() => reachGoal("cta_analysis_click")}
                 className="inline-flex min-h-[52px] items-center rounded-xl bg-brand-600 px-6 text-sm font-bold text-white shadow-md shadow-brand-600/25 transition-all hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 active:scale-95"
               >
-                Записаться на бесплатный разбор
+                {TRIAL_LESSON_CTA}
               </a>
             </div>
           ) : (

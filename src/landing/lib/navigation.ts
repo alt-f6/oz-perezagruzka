@@ -2,8 +2,8 @@
 // Footer can never list a different set of links.
 export const NAV_LINKS = [
   { label: "Как учим", href: "#solution" },
-  { label: "Отзывы", href: "#reviews" },
   { label: "Стоимость", href: "#pricing" },
+  { label: "Отзывы", href: "#reviews" },
   { label: "Вопросы", href: "#faq" },
-  { label: "Разбор", href: "#readiness-map" },
+  { label: "Пробный урок", href: "#readiness-map" },
 ];

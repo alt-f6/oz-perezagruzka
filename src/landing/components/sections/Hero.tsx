@@ -9,6 +9,7 @@ import {
   HERO_GUARANTEE_BULLETS,
   HERO_SUBLIST_HEADER,
   HERO_SUBLIST_ITEMS,
+  TRIAL_LESSON_CTA,
 } from "@/landing/lib/exam-content";
 
 const TRUST_BADGES = [
@@ -105,7 +106,7 @@ export default function Hero() {
               transition={{ type: "spring", stiffness: 90, damping: 18 }}
               className="group relative flex min-h-[70px] items-center justify-center overflow-hidden rounded-xl bg-brand-600 px-8 py-4 text-center text-xl md:text-2xl font-bold text-white shadow-lg shadow-brand-600/25 transition-all hover:bg-brand-700 hover:shadow-xl hover:shadow-brand-600/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 sm:min-h-[80px]"
             >
-              Записаться на бесплатный разбор
+              {TRIAL_LESSON_CTA}
             </motion.a>
           </div>
 

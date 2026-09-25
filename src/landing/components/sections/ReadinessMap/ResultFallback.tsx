@@ -27,8 +27,8 @@ export function ResultFallback({ message, phone }: ResultFallbackProps) {
           <p className="mt-3 leading-relaxed text-ink-600">{message}</p>
           <div className="mt-6 rounded-2xl border border-brand-200 bg-brand-50 p-6 text-center">
             <p className="font-extrabold text-brand-700 text-sm md:text-base leading-relaxed">
-              ✓ Заявка принята! Ваш номер {phone} зафиксирован. Эксперт подготовит детальный
-              разбор и свяжется с вами в течение 15 минут (с 09:00 до 21:00).
+              ✓ Заявка принята! Ваш номер {phone} зафиксирован. Методист свяжется с вами в течение
+              15 минут (с 09:00 до 21:00) и подберёт время пробного урока.
             </p>
           </div>
         </div>

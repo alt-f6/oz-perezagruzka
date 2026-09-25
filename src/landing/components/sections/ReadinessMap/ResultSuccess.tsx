@@ -156,8 +156,8 @@ export function ResultSuccess({ map, phone }: ResultSuccessProps) {
 
             <div className="rounded-2xl border border-brand-200 bg-brand-50 p-6 sm:p-8 text-center">
               <p className="font-extrabold text-brand-700 text-sm md:text-base leading-relaxed">
-                ✓ Заявка принята! Ваш номер {phone} зафиксирован. Эксперт подготовит детальный
-                разбор и свяжется с вами в течение 15 минут (с 09:00 до 21:00).
+                ✓ Заявка принята! Ваш номер {phone} зафиксирован. Методист свяжется с вами в течение
+                15 минут (с 09:00 до 21:00) и подберёт время пробного урока.
               </p>
             </div>
 

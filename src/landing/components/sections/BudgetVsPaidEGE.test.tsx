@@ -19,7 +19,7 @@ describe("BudgetVsPaidEGE", () => {
       </ExamProvider>,
     );
 
-    expect(screen.queryByText(/Это не расходы на репетитора/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Сейчас вы принимаете решение о том, как ваш ребёнок проживёт следующие пять лет/)).not.toBeInTheDocument();
   });
 
   it("shows the heading, all three metric cards, the paragraph block, the CTA, and the footnote on the ЕГЭ tab", async () => {
@@ -33,20 +33,25 @@ describe("BudgetVsPaidEGE", () => {
 
     await user.click(screen.getByRole("radio", { name: /ЕГЭ/ }));
 
-    expect(screen.getByText(/Это не расходы на репетитора/)).toBeInTheDocument();
+    expect(screen.getByText(/Сейчас вы принимаете решение о том, как ваш ребёнок проживёт следующие пять лет/)).toBeInTheDocument();
     expect(screen.getByText("36–42 балла")).toBeInTheDocument();
     expect(screen.getByText("1 000 000 ₽")).toBeInTheDocument();
     expect(screen.getByText("56–69 баллов")).toBeInTheDocument();
-    expect(screen.getByText(/Разрыв между проходным на бюджет/)).toBeInTheDocument();
-    expect(screen.getByText(/четыре года платного бакалавриата/)).toBeInTheDocument();
+    expect(screen.getByText(/отделяет проходной балл на платное от проходного на бюджет/)).toBeInTheDocument();
+    expect(screen.getByText(/Миллион рублей в среднем переплачивают родители/)).toBeInTheDocument();
+    // Side-by-side window: a year of prep (9 months of the cheapest and the
+    // 3-subject EGE tariff) against a paid degree.
+    expect(screen.getByText("от 117 000 ₽")).toBeInTheDocument();
+    expect(screen.getByText(/Три предмета — 180 000 ₽ за тот же год/)).toBeInTheDocument();
+    expect(screen.getByText("от 1 000 000 ₽")).toBeInTheDocument();
     expect(screen.getByText(/принимают больше 70% региональных вузов/)).toBeInTheDocument();
     expect(screen.getByText(/От балла зависит город/)).toBeInTheDocument();
-    expect(screen.getByText(/Всё это решается не в мае/)).toBeInTheDocument();
+    expect(screen.getByText(/задолго до мая/)).toBeInTheDocument();
     expect(
       screen.getByText("Источники: Рособрнадзор, Минобрнауки, «Табитуриент», 2026 год."),
     ).toBeInTheDocument();
 
-    const cta = screen.getByRole("link", { name: "Записаться на бесплатный разбор" });
+    const cta = screen.getByRole("link", { name: "Записаться на пробный урок" });
     expect(cta).toHaveAttribute("href", "#readiness-map");
 
     reachGoalMock.mockReset();

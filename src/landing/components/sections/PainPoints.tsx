@@ -77,11 +77,11 @@ export default function PainPoints() {
           <div className="pointer-events-none absolute -left-20 -top-20 h-60 w-60 rounded-full bg-brand-300/15 blur-3xl" />
 
           <p className="relative z-10 text-2xl font-bold tracking-tight md:text-3xl text-white">
-            Дело не в том, что ваш ребёнок — слабый ученик.{" "}
-            <span className="text-accent-300">Дело в формате.</span>
+            Ваш ребёнок способен на большее.{" "}
+            <span className="text-accent-300">Ему нужен подходящий формат.</span>
           </p>
           <p className="relative z-10 mx-auto mt-3 max-w-xl text-lg font-light leading-relaxed text-brand-100/90">
-            Часовые лекции — это прошлый век. Ребёнка нужно вовлекать интерактивно.
+            Часовая лекция быстро теряет подростка. Вовлекает живой разговор и задания, в которых он участвует сам.
           </p>
         </div>
       </div>

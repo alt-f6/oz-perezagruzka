@@ -406,7 +406,7 @@ export default function ReadinessMapWizard() {
         <div className="mb-10 text-center">
           <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-brand-700">
             <Target className="h-3.5 w-3.5" aria-hidden />
-            Персональный разбор знаний
+            Первый шаг к пробному уроку
           </span>
           <h2 className="font-bold tracking-tight text-ink-900 text-balance">
             Соберите Карту готовности к экзаменам 2026

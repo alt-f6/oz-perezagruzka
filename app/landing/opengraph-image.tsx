@@ -92,7 +92,7 @@ export default async function Image() {
             fontWeight: 800,
           }}
         >
-          Бесплатный разбор
+          Бесплатный пробный урок
         </div>
       </div>
     ),

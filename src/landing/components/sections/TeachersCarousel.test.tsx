@@ -8,7 +8,9 @@ describe("TeachersCarousel", () => {
 
     expect(screen.getByText("Наши педагоги")).toBeInTheDocument();
     expect(screen.getByText("Алиса Егорова")).toBeInTheDocument();
-    expect(screen.getByText("РУССКИЙ ЯЗЫК · ОГЭ И ЕГЭ")).toBeInTheDocument();
+    expect(screen.getByText("ОБЩЕСТВОЗНАНИЕ И ИСТОРИЯ · ЕГЭ")).toBeInTheDocument();
+    expect(screen.getByText("Наталья Ефремкина")).toBeInTheDocument();
+    expect(screen.getByText("Учитель продолжается в своём ученике.")).toBeInTheDocument();
     expect(screen.getByText("Сергей Фофанов")).toBeInTheDocument();
     expect(screen.getByText("86")).toBeInTheDocument();
   });

@@ -7,8 +7,11 @@ import { motion, useReducedMotion } from "framer-motion";
 import Section from "@/landing/components/ui/Section";
 import { fadeInUp, staggerContainer } from "@/landing/components/ui/motion";
 
-// TODO: баллы и фразы — временный правдоподобный текст, придуман для запуска блока.
-// Заменить на реальные данные педагогов, как только они будут собраны.
+// Scores and quotes come from the teachers' own answers ("Педагоги баллы и
+// фразы.xlsx", 13.09.2026), lightly copy-edited. Scores are phrased as the
+// teacher's personal results, never as school-wide statistics.
+// TODO: Сергей Фофанов's score and quote are still placeholder text --
+// replace once his real data arrives.
 //
 // All source photos are portrait headshots with the face/hair near the top
 // of the frame, so object-cover's default center-crop chops off foreheads
@@ -24,49 +27,47 @@ const TEACHERS = [
     name: "Алиса Егорова",
     photo: "/landing/photos/teachers/alice_rus_lang.jpg",
     photoPosition: "object-[center_45%]",
-    subject: "РУССКИЙ ЯЗЫК · ОГЭ И ЕГЭ",
-    score: "82",
-    scoreLabel: "средний балл группы на ЕГЭ в 2025 г.",
-    quote:
-      "Люблю, когда ребёнок начинает видеть красоту в правильно построенном предложении — а не только правила ради оценки.",
+    subject: "ОБЩЕСТВОЗНАНИЕ И ИСТОРИЯ · ЕГЭ",
+    score: "89",
+    scoreLabel: "средний балл её учеников по обществознанию, лучший результат — 100",
+    quote: "Мне нравится помогать ученикам на пути к высоким баллам и направлять их в развитии.",
   },
   {
     name: "Елизавета Балдина",
     photo: "/landing/photos/teachers/elizaveta_balding.jpg",
     photoPosition: "object-[center_15%]",
     subject: "МАТЕМАТИКА · ОГЭ И ЕГЭ",
-    score: "91",
-    scoreLabel: "средний результат на профильном ЕГЭ",
+    score: "4",
+    scoreLabel: "оценка, на которую её ученики сдают экзамен",
     quote:
-      "Математика перестаёт пугать, как только видишь: за каждой формулой стоит логика, а не магия.",
+      "Я стала педагогом, потому что хочу, чтобы дети видели в математике простой и понятный язык — и начинали её любить.",
   },
   {
     name: "Ирина Соколова",
     photo: "/landing/photos/teachers/irina_geography.jpg",
     photoPosition: "object-top",
-    subject: "ГЕОГРАФИЯ · ОГЭ",
-    score: "4,6",
-    scoreLabel: "средний балл группы в 2025 г.",
-    quote:
-      "Показываю мир через карту — и вижу, как у детей загораются глаза, когда география вдруг становится живой.",
+    subject: "ГЕОГРАФИЯ · ОГЭ И ЕГЭ",
+    score: "31 из 31",
+    scoreLabel: "лучший результат ученика на ОГЭ, на ЕГЭ — 95 из 100",
+    quote: "Хороший учитель показывает, великий — вдохновляет.",
   },
   {
-    name: "Наталья Волкова",
+    name: "Наталья Ефремкина",
     photo: "/landing/photos/teachers/natalia_chemistry.jpg",
     photoPosition: "object-top",
-    subject: "ХИМИЯ · ЕГЭ",
-    score: "78",
-    scoreLabel: "средний результат на ЕГЭ",
-    quote: "Химия — это не про заучивание, а про то, чтобы понять, почему всё вокруг работает именно так.",
+    subject: "ХИМИЯ И БИОЛОГИЯ · ОГЭ И ЕГЭ",
+    score: "97",
+    scoreLabel: "лучший балл ученика на ЕГЭ по биологии в этом году, по химии — 94",
+    quote: "Учитель продолжается в своём ученике.",
   },
   {
     name: "Оксана Кузнецова",
     photo: "/landing/photos/teachers/oksana.jpg",
     photoPosition: "object-top",
     subject: "ЛИТЕРАТУРА · ОГЭ И ЕГЭ",
-    score: "9 из 10 на 4 и 5",
-    scoreLabel: "сдали на 4 и 5",
-    quote: "Литература учит замечать детали — в тексте и в жизни. Это остаётся с ребёнком навсегда.",
+    score: "100",
+    scoreLabel: "лучший балл её ученика",
+    quote: "Мне нравится рассказывать о сложном простым и интересным языком и мотивировать учеников.",
   },
   {
     name: "Сергей Фофанов",
@@ -167,6 +168,10 @@ export default function TeachersCarousel() {
         <h2 className="mb-10 text-center text-3xl font-black tracking-tight text-ink-900 text-balance sm:text-4xl md:text-5xl">
           Наши педагоги
         </h2>
+        <p className="mx-auto -mt-6 mb-10 max-w-2xl text-center text-base leading-relaxed text-ink-600 md:text-lg">
+          Работу каждого педагога сопровождает методист — так мы держим высокую планку на каждом
+          занятии.
+        </p>
 
         <motion.div
           variants={sectionVariants}

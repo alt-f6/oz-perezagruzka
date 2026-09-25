@@ -15,4 +15,13 @@ describe("RegionalBenchmarks", () => {
     render(<RegionalBenchmarks region={REGIONS.surgut} />);
     expect(screen.getByText(/Сургуте/)).not.toBeNull();
   });
+
+  it("ends with the one-or-two-points transition and a trial-lesson CTA to the quiz", () => {
+    render(<RegionalBenchmarks region={REGIONS["khanty-mansiysk"]} />);
+
+    expect(screen.getByText(/Иногда одного-двух баллов достаточно/)).not.toBeNull();
+    const cta = screen.getByRole("link", { name: "Записаться на пробный урок" });
+    expect(cta.getAttribute("href")).toBe("#readiness-map");
+    expect(screen.getByText(/помогаем выбрать предметы, где у ребёнка больше потенциала/)).not.toBeNull();
+  });
 });

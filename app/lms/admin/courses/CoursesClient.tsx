@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, Plus } from "lucide-react";
+import { Check, ChevronDown, Loader2, Plus } from "lucide-react";
 
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";
@@ -26,6 +26,10 @@ const ERRORS: Record<string, string> = {
   invalid_exam_type: "Неизвестный экзамен",
   invalid_grade: "Класс должен быть от 8 до 11",
   invalid_teacher: "Этого сотрудника нельзя назначить владельцем",
+};
+
+const TEACHER_LINK_ERRORS: Record<string, string> = {
+  invalid_teacher: "Можно выбрать только активных преподавателей",
 };
 
 function FacetSelect({
@@ -64,11 +68,125 @@ function FacetSelect({
   );
 }
 
+/**
+ * Multi-select of the TEACHER users explicitly linked to a course
+ * (CourseTeacher). Each toggle saves the full set; a failed save rolls back.
+ */
+function CourseTeachersPicker({ courseId, initial, teachers }: { courseId: string; initial: string[]; teachers: CourseOwnerOption[] }) {
+  const router = useRouter();
+  const [selected, setSelected] = useState(initial);
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointerDown(e: MouseEvent) {
+      if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  async function toggle(teacherId: string) {
+    const previous = selected;
+    const next = previous.includes(teacherId) ? previous.filter((id) => id !== teacherId) : [...previous, teacherId];
+    setSelected(next);
+    setSaving(true);
+    setError(null);
+
+    const r = await fetch(`/api/admin/courses/${courseId}/teachers`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ teacher_ids: next }),
+    });
+    const j = await r.json().catch(() => null);
+    setSaving(false);
+
+    if (!r.ok || !j?.ok) {
+      setSelected(previous);
+      setError(TEACHER_LINK_ERRORS[j?.error] ?? "Не удалось сохранить");
+      return;
+    }
+    startTransition(() => router.refresh());
+  }
+
+  const names = teachers.filter((t) => selected.includes(t.id)).map((t) => t.fullName);
+  const label = names.length === 0 ? "Не назначены" : names.length === 1 ? names[0] : `${names[0]} +${names.length - 1}`;
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="true"
+        aria-expanded={open}
+        aria-label="Преподаватели курса"
+        className="flex h-8 w-52 items-center justify-between gap-2 rounded-md border border-input bg-transparent px-3 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      >
+        <span className={names.length === 0 ? "truncate text-muted-foreground" : "truncate"}>{label}</span>
+        {saving ? (
+          <Loader2 className="size-3.5 shrink-0 animate-spin text-muted-foreground" aria-label="Сохранение" />
+        ) : (
+          <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+        )}
+      </button>
+
+      {open ? (
+        <div className="absolute left-0 top-full z-50 mt-1 max-h-80 w-64 overflow-y-auto rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg">
+          {teachers.length === 0 ? (
+            <p className="px-2 py-3 text-center text-xs text-muted-foreground">Нет активных преподавателей</p>
+          ) : (
+            teachers.map((t) => (
+              <label
+                key={t.id}
+                className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent"
+              >
+                <input
+                  type="checkbox"
+                  className="size-4 accent-primary"
+                  checked={selected.includes(t.id)}
+                  disabled={saving}
+                  onChange={() => void toggle(t.id)}
+                />
+                <span className="truncate">{t.fullName}</span>
+              </label>
+            ))
+          )}
+        </div>
+      ) : null}
+
+      {error ? (
+        <p role="alert" className="mt-1 text-xs font-medium text-destructive">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 const SUBJECT_OPTIONS = SUBJECT_VALUES.map((s) => ({ value: s, label: s }));
 const EXAM_OPTIONS = EXAM_TYPE_VALUES.map((e) => ({ value: e, label: EXAM_TYPE_LABELS[e] }));
 const GRADE_OPTIONS = GRADE_VALUES.map((g) => ({ value: String(g), label: `${g} класс` }));
 
-function CourseRow({ course, owners }: { course: CourseSummary; owners: CourseOwnerOption[] }) {
+function CourseRow({
+  course,
+  owners,
+  teachers,
+}: {
+  course: CourseSummary;
+  owners: CourseOwnerOption[];
+  teachers: CourseOwnerOption[];
+}) {
   const router = useRouter();
   const [state, setState] = useState(course);
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
@@ -122,7 +240,7 @@ function CourseRow({ course, owners }: { course: CourseSummary; owners: CourseOw
       </TableCell>
 
       {course.isUncategorized ? (
-        <TableCell colSpan={4}>
+        <TableCell colSpan={5}>
           <TagPill tone="warning">Служебная корзина для уроков без курса — перенесите их в нужные модули в разделе «Уроки»</TagPill>
         </TableCell>
       ) : (
@@ -177,6 +295,9 @@ function CourseRow({ course, owners }: { course: CourseSummary; owners: CourseOw
                 ))}
               </SelectContent>
             </Select>
+          </TableCell>
+          <TableCell>
+            <CourseTeachersPicker courseId={course.id} initial={course.linkedTeacherIds} teachers={teachers} />
           </TableCell>
         </>
       )}
@@ -263,6 +384,7 @@ function CreateCourseForm() {
 
 export function CoursesClient({ courses, owners }: { courses: CourseSummary[]; owners: CourseOwnerOption[] }) {
   const sorted = [...courses].sort((a, b) => Number(b.isUncategorized) - Number(a.isUncategorized));
+  const teachers = owners.filter((o) => o.role === "TEACHER");
   const missingFacets = courses.filter((c) => !c.isUncategorized && (!c.subject || !c.examType)).length;
 
   return (
@@ -283,7 +405,8 @@ export function CoursesClient({ courses, owners }: { courses: CourseSummary[]; o
             <TableHead>Предмет</TableHead>
             <TableHead>Экзамен</TableHead>
             <TableHead>Класс</TableHead>
-            <TableHead>Преподаватель</TableHead>
+            <TableHead>Владелец</TableHead>
+            <TableHead>Преподаватели курса</TableHead>
             <TableHead>Уроки</TableHead>
             <TableHead className="text-right">Опубликован</TableHead>
           </TableRow>
@@ -291,12 +414,12 @@ export function CoursesClient({ courses, owners }: { courses: CourseSummary[]; o
         <TableBody>
           {sorted.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+              <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
                 Курсов пока нет — создайте первый выше.
               </TableCell>
             </TableRow>
           ) : (
-            sorted.map((c) => <CourseRow key={c.id} course={c} owners={owners} />)
+            sorted.map((c) => <CourseRow key={c.id} course={c} owners={owners} teachers={teachers} />)
           )}
         </TableBody>
       </Table>

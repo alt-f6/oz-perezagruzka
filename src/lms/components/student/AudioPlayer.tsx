@@ -14,7 +14,8 @@ type Props = {
   assetId: string;
   title: string | null;
   initialPositionSeconds: number;
-  onPositionChange: (seconds: number) => void;
+  /** Omitted in teacher preview: no position heartbeat at all. */
+  onPositionChange?: (seconds: number) => void;
 };
 
 // Reuses the existing student signed-URL endpoint at /api/student/pdf-url,
@@ -63,7 +64,7 @@ export function AudioPlayer({ assetId, title, initialPositionSeconds, onPosition
 
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio || !url) return;
+    if (!audio || !url || !onPositionChange) return;
 
     const interval = setInterval(() => {
       if (!audio.paused) onPositionChange(Math.floor(audio.currentTime));

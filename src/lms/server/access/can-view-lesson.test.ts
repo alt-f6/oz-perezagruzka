@@ -4,6 +4,11 @@ const assignmentFindUniqueMock = vi.fn();
 const lessonFindUniqueMock = vi.fn();
 const enrollmentFindUniqueMock = vi.fn();
 const moduleCountMock = vi.fn();
+const teacherCourseIdsMock = vi.fn();
+
+vi.mock("@/lms/server/teacher-access", () => ({
+  getTeacherAccessibleCourseIds: (...args: unknown[]) => teacherCourseIdsMock(...args),
+}));
 
 vi.mock("@/shared/lib/db", () => ({
   db: {
@@ -20,6 +25,7 @@ describe("canViewLesson", () => {
     lessonFindUniqueMock.mockReset();
     enrollmentFindUniqueMock.mockReset();
     moduleCountMock.mockReset();
+    teacherCourseIdsMock.mockReset();
   });
 
   it("returns true for ADMIN without querying the database", async () => {
@@ -40,13 +46,37 @@ describe("canViewLesson", () => {
     expect(assignmentFindUniqueMock).not.toHaveBeenCalled();
   });
 
-  it("returns true for TEACHER without querying the database", async () => {
+  it("returns true for TEACHER on a lesson of an accessible course, draft or not, without enrollment checks", async () => {
+    lessonFindUniqueMock.mockResolvedValue({ module: { courseId: "course-1" } });
+    teacherCourseIdsMock.mockResolvedValue(["course-1"]);
     const { canViewLesson } = await import("./can-view-lesson");
 
     const result = await canViewLesson({ userId: "teacher-1", role: "TEACHER", lessonId: "lesson-1" });
 
     expect(result).toBe(true);
+    expect(teacherCourseIdsMock).toHaveBeenCalledWith("teacher-1");
     expect(assignmentFindUniqueMock).not.toHaveBeenCalled();
+    expect(enrollmentFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("returns false for TEACHER on a lesson of a course outside their scope", async () => {
+    lessonFindUniqueMock.mockResolvedValue({ module: { courseId: "course-2" } });
+    teacherCourseIdsMock.mockResolvedValue(["course-1"]);
+    const { canViewLesson } = await import("./can-view-lesson");
+
+    const result = await canViewLesson({ userId: "teacher-1", role: "TEACHER", lessonId: "lesson-1" });
+
+    expect(result).toBe(false);
+  });
+
+  it("returns false for TEACHER when the lesson does not exist", async () => {
+    lessonFindUniqueMock.mockResolvedValue(null);
+    const { canViewLesson } = await import("./can-view-lesson");
+
+    const result = await canViewLesson({ userId: "teacher-1", role: "TEACHER", lessonId: "missing" });
+
+    expect(result).toBe(false);
+    expect(teacherCourseIdsMock).not.toHaveBeenCalled();
   });
 
   it("returns true for STUDENT with an active assignment", async () => {
@@ -77,7 +107,7 @@ describe("canViewLesson", () => {
     const parentResult = await canViewLesson({ userId: "parent-1", role: "PARENT", lessonId: "lesson-1" });
 
     // Only STUDENT and PARENT fall through to the assignment lookup now that
-    // ADMIN/MANAGER/TEACHER are all unconditional staff-preview bypasses.
+    // ADMIN/MANAGER bypass and TEACHER is course-scoped.
     expect(parentResult).toBe(true);
   });
 

@@ -15,7 +15,7 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 
 export default async function AdminLessonsPage({ searchParams }: Props) {
   // TEACHER gets a read-only view scoped to courses they own.
-  const user = await requireRoleForPage(["ADMIN", "MANAGER", "TEACHER"], {
+  const user = await requireRoleForPage(["ADMIN", "MANAGER"], {
     adminBypass: true,
     loginPath: "/login",
     forbiddenPath: (user) => roleHome(user.role),

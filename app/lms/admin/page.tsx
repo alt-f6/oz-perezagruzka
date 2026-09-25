@@ -48,7 +48,7 @@ function greeting(now: Date): string {
 }
 
 export default async function AdminHomePage() {
-  const user = await requireRoleForPage(["ADMIN", "MANAGER", "TEACHER"], {
+  const user = await requireRoleForPage(["ADMIN", "MANAGER"], {
     adminBypass: true,
     loginPath: "/login",
     forbiddenPath: (user) => roleHome(user.role),

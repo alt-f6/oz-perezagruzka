@@ -22,9 +22,10 @@ export function roleHome(role: Role): string {
       return "/student";
     case "PARENT":
       return "/parent/dashboard";
+    case "TEACHER":
+      return "/teacher/courses";
     case "ADMIN":
     case "MANAGER":
-    case "TEACHER":
       return "/admin";
     default: {
       const _exhaustive: never = role;

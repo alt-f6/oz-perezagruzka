@@ -28,6 +28,8 @@ type Props = {
   modules: CurriculumModule[];
   currentLessonId: string;
   onNavigate?: () => void;
+  /** Route prefix lessons open under; the teacher workspace uses its own. */
+  lessonBasePath?: string;
 };
 
 const FORMAT_ICON: Record<CurriculumLesson["format"], typeof Video> = {
@@ -42,7 +44,12 @@ function formatUnlockDate(iso: string | null) {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
-export function CurriculumSidebar({ modules, currentLessonId, onNavigate }: Props) {
+export function CurriculumSidebar({
+  modules,
+  currentLessonId,
+  onNavigate,
+  lessonBasePath = "/student/lessons",
+}: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -66,7 +73,7 @@ export function CurriculumSidebar({ modules, currentLessonId, onNavigate }: Prop
     onNavigate?.();
     if (lessonId === currentLessonId) return;
     setPendingId(lessonId);
-    startTransition(() => router.push(`/student/lessons/${lessonId}`));
+    startTransition(() => router.push(`${lessonBasePath}/${lessonId}`));
   }
 
   return (

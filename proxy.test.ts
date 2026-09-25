@@ -112,4 +112,36 @@ describe("proxy fail-closed routing", () => {
       expect(authMocks.getSessionUserFromRequest).not.toHaveBeenCalled();
     },
   );
+
+  it.each([
+    ["/", "/teacher/courses"],
+    ["/admin", "/teacher/courses"],
+    ["/admin/access", "/teacher/courses"],
+    ["/student/lessons", "/teacher/courses"],
+    ["/student/lessons/lesson-1", "/teacher/lessons/lesson-1"],
+  ])("sends an LMS TEACHER from %s to %s", async (pathname, target) => {
+    authMocks.getSessionUserFromRequest.mockResolvedValue({ id: "t1", role: "TEACHER" });
+
+    const res = await proxy(makeRequest("lms.example.com", pathname));
+
+    expect(res.status).toBe(307);
+    expect(new URL(res.headers.get("location")!).pathname).toBe(target);
+  });
+
+  it("lets an LMS TEACHER into the teacher workspace and APIs", async () => {
+    authMocks.getSessionUserFromRequest.mockResolvedValue({ id: "t1", role: "TEACHER" });
+
+    for (const pathname of ["/teacher/courses", "/teacher/lessons/lesson-1", "/api/student/pdf-url"]) {
+      const res = await proxy(makeRequest("lms.example.com", pathname));
+      expect(res.status).not.toBe(307);
+    }
+  });
+
+  it("does not reroute ADMIN away from the LMS admin area", async () => {
+    authMocks.getSessionUserFromRequest.mockResolvedValue({ id: "a1", role: "ADMIN" });
+
+    const res = await proxy(makeRequest("lms.example.com", "/admin/access"));
+
+    expect(res.status).not.toBe(307);
+  });
 });

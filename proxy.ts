@@ -24,6 +24,10 @@ const LMS_PUBLIC_API_PREFIXES = ["/api/auth", "/api/health"];
 // PARENT is only ever allowed onto the CRM parent portal, nowhere else.
 const CRM_PARENT_PORTAL_PREFIX = "/parent";
 
+// TEACHER's LMS workspace. Deliberately not /courses/*, which serves the
+// static course HTML (see isCoursesAssetPath).
+const LMS_TEACHER_HOME = "/teacher/courses";
+
 const CRM_LOGIN_PATH = "/admin/login";
 const LMS_LOGIN_PATH = "/login";
 
@@ -80,6 +84,16 @@ const COURSES_PATH_PREFIX = "/courses/";
 
 function isCoursesAssetPath(pathname: string) {
   return pathname.startsWith(COURSES_PATH_PREFIX);
+}
+
+// Where a TEACHER hitting an LMS path outside their workspace belongs: the
+// root and the admin/student areas all fold into /teacher/*, keeping old
+// "/student/lessons/<id>" preview links working. null = let the path through.
+function lmsTeacherRedirect(pathname: string): string | null {
+  const lesson = /^\/student\/lessons\/([^/]+)\/?$/.exec(pathname);
+  if (lesson) return `/teacher/lessons/${lesson[1]}`;
+  if (pathname === "/" || matchesPrefix(pathname, ["/admin", "/student"])) return LMS_TEACHER_HOME;
+  return null;
 }
 
 function isPublicPath(app: "crm" | "lms", pathname: string) {
@@ -165,6 +179,16 @@ export async function proxy(request: NextRequest) {
       loginUrl.pathname = loginPath;
       loginUrl.search = "";
       return NextResponse.redirect(loginUrl);
+    }
+
+    if (app === "lms" && user.role === "TEACHER") {
+      const teacherTarget = lmsTeacherRedirect(pathname);
+      if (teacherTarget) {
+        const target = request.nextUrl.clone();
+        target.pathname = teacherTarget;
+        target.search = "";
+        return NextResponse.redirect(target);
+      }
     }
   }
 

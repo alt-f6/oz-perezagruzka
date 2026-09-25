@@ -5,3 +5,5 @@ node_modules
 !.env.example
 tsconfig.tsbuildinfo
 /docs
+# Playwright CLI output (may contain credentials)
+.playwright-cli/

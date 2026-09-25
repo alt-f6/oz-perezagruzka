@@ -60,6 +60,8 @@ type Props = {
   audio?: AudioRow[];
   homeworkTask?: string | null;
   initialPosition: number;
+  /** false (teacher preview): media never report position/completion. */
+  trackProgress?: boolean;
 };
 
 export function LessonStage({
@@ -72,6 +74,7 @@ export function LessonStage({
   audio = [],
   homeworkTask = null,
   initialPosition,
+  trackProgress = true,
 }: Props) {
   const assets: StageAsset[] = [
     ...media.map((m) => ({
@@ -176,15 +179,20 @@ export function LessonStage({
                 embedUrl={active.embedUrl}
                 provider={active.provider}
                 initialPositionSeconds={activeIndex === 0 ? initialPosition : 0}
+                trackProgress={trackProgress}
               />
             ) : active.kind === "pdf" ? (
               <PdfViewer
                 assetId={active.id}
                 watermark={watermarkText}
                 initialPage={activeIndex === 0 && initialPosition > 1 ? initialPosition : undefined}
-                onPageChange={(page) => {
-                  void syncPlaybackPosition(lessonId, page);
-                }}
+                onPageChange={
+                  trackProgress
+                    ? (page) => {
+                        void syncPlaybackPosition(lessonId, page);
+                      }
+                    : undefined
+                }
               />
             ) : active.kind === "audio" ? (
               <AudioPlayer
@@ -192,9 +200,13 @@ export function LessonStage({
                 assetId={active.id}
                 title={active.title}
                 initialPositionSeconds={activeIndex === 0 ? initialPosition : 0}
-                onPositionChange={(s) => {
-                  void syncPlaybackPosition(lessonId, s);
-                }}
+                onPositionChange={
+                  trackProgress
+                    ? (s) => {
+                        void syncPlaybackPosition(lessonId, s);
+                      }
+                    : undefined
+                }
               />
             ) : (
               <PresentationEmbed url={active.url} title={active.title} />

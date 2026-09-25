@@ -152,9 +152,10 @@ describe("GET /api/assets/[id]/signed-url", () => {
     expect(canViewLessonMock).not.toHaveBeenCalled();
   });
 
-  it("lets TEACHER bypass isPublic and canViewLesson like ADMIN/MANAGER", async () => {
+  it("lets TEACHER bypass isPublic but still requires canViewLesson (course scope)", async () => {
     requireAuthMock.mockResolvedValue({ id: "teacher-1", role: "TEACHER" });
     findUniqueMock.mockResolvedValue({ ...COMPLETE_PUBLIC_ROW, isPublic: false });
+    canViewLessonMock.mockResolvedValue(true);
     signLessonAssetGetUrlMock.mockResolvedValue("https://r2.example.com/signed-get");
     const { GET } = await import("./route");
 
@@ -162,7 +163,19 @@ describe("GET /api/assets/[id]/signed-url", () => {
     const json = await res.json();
 
     expect(json.ok).toBe(true);
-    expect(canViewLessonMock).not.toHaveBeenCalled();
+    expect(canViewLessonMock).toHaveBeenCalledWith({ userId: "teacher-1", role: "TEACHER", lessonId: COMPLETE_PUBLIC_ROW.lessonId });
+  });
+
+  it("returns 403 for TEACHER outside their courses", async () => {
+    requireAuthMock.mockResolvedValue({ id: "teacher-1", role: "TEACHER" });
+    findUniqueMock.mockResolvedValue(COMPLETE_PUBLIC_ROW);
+    canViewLessonMock.mockResolvedValue(false);
+    const { GET } = await import("./route");
+
+    const res = await GET(req, ctxFor("asset-1"));
+
+    expect(res.status).toBe(403);
+    expect(signLessonAssetGetUrlMock).not.toHaveBeenCalled();
   });
 
   it("returns 502 when signing fails", async () => {

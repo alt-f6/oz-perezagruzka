@@ -10,7 +10,7 @@ import { LogoutButton } from "@/lms/components/LogoutButton";
 
 type Item = { href: string; label: string };
 
-function NavLink({ href, label }: Item) {
+export function NavLink({ href, label }: Item) {
   const pathname = usePathname();
   const active = pathname === href || pathname.startsWith(href + "/");
 

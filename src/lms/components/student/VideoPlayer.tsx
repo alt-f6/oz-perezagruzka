@@ -55,6 +55,8 @@ type Props = {
   embedUrl: string;
   provider: string;
   initialPositionSeconds?: number;
+  /** false (teacher preview): no position heartbeat, no auto-completion. */
+  trackProgress?: boolean;
 };
 
 export function VideoPlayer({
@@ -64,6 +66,7 @@ export function VideoPlayer({
   embedUrl,
   provider,
   initialPositionSeconds = 0,
+  trackProgress = true,
 }: Props) {
   const containerId = `yt-player-${mediaId}`;
   const playerRef = useRef<any>(null);
@@ -84,6 +87,7 @@ export function VideoPlayer({
     let syncTimer: ReturnType<typeof setInterval> | null = null;
 
     function reportPosition() {
+      if (!trackProgress) return;
       try {
         const seconds = playerRef.current?.getCurrentTime?.();
         if (typeof seconds === "number") {
@@ -101,7 +105,7 @@ export function VideoPlayer({
           playerVars: { start: Math.max(0, Math.floor(initialPositionSeconds)) },
           events: {
             onStateChange: (ev: any) => {
-              if (ev.data === YT.PlayerState.ENDED) {
+              if (trackProgress && ev.data === YT.PlayerState.ENDED) {
                 void setLessonCompletion(lessonId, true);
               }
             },
@@ -111,7 +115,7 @@ export function VideoPlayer({
           },
         });
 
-        syncTimer = setInterval(reportPosition, SYNC_INTERVAL_MS);
+        if (trackProgress) syncTimer = setInterval(reportPosition, SYNC_INTERVAL_MS);
       })
       .catch(() => {
         if (!destroyed) setError("Не удалось загрузить видеоплеер");
@@ -128,10 +132,10 @@ export function VideoPlayer({
       playerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isYouTube, videoId, containerId, lessonId]);
+  }, [isYouTube, videoId, containerId, lessonId, trackProgress]);
 
   useEffect(() => {
-    if (!isGenericEmbed) return;
+    if (!isGenericEmbed || !trackProgress) return;
 
     const startedAt = Date.now();
     const timer = setInterval(() => {
@@ -141,7 +145,7 @@ export function VideoPlayer({
     }, SYNC_INTERVAL_MS);
 
     return () => clearInterval(timer);
-  }, [isGenericEmbed, lessonId, initialPositionSeconds]);
+  }, [isGenericEmbed, lessonId, initialPositionSeconds, trackProgress]);
 
   useEffect(() => {
     if (!isHls) return;
@@ -171,6 +175,7 @@ export function VideoPlayer({
   }, [isHls, embedUrl]);
 
   function handleDirectTimeUpdate(e: React.SyntheticEvent<HTMLVideoElement>) {
+    if (!trackProgress) return;
     const now = Date.now();
     if (now - lastDirectSyncRef.current < SYNC_INTERVAL_MS) return;
     lastDirectSyncRef.current = now;
@@ -212,7 +217,7 @@ export function VideoPlayer({
           src={isHls ? undefined : embedUrl}
           onTimeUpdate={handleDirectTimeUpdate}
           onLoadedMetadata={handleDirectLoadedMetadata}
-          onEnded={() => void setLessonCompletion(lessonId, true)}
+          onEnded={trackProgress ? () => void setLessonCompletion(lessonId, true) : undefined}
           onError={handleDirectError}
         >
           {title}

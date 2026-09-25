@@ -34,6 +34,11 @@ type Props = {
   curriculum: CurriculumModule[];
   initialCompleted: boolean;
   initialPosition: number;
+  /**
+   * Teacher preview: no completion toggle, no playback/position writes, and
+   * curriculum links stay inside the teacher workspace.
+   */
+  previewMode?: { lessonBasePath: string };
   children?: ReactNode;
 };
 
@@ -50,6 +55,7 @@ export function LessonTheaterViewer({
   curriculum,
   initialCompleted,
   initialPosition,
+  previewMode,
   children,
 }: Props) {
   const router = useRouter();
@@ -108,7 +114,11 @@ export function LessonTheaterViewer({
           <p className="px-3 pb-2 pt-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
             Учебный план
           </p>
-          <CurriculumSidebar modules={curriculum} currentLessonId={lesson.id} />
+          <CurriculumSidebar
+            modules={curriculum}
+            currentLessonId={lesson.id}
+            lessonBasePath={previewMode?.lessonBasePath}
+          />
         </div>
       </aside>
 
@@ -129,6 +139,7 @@ export function LessonTheaterViewer({
                 <CurriculumSidebar
                   modules={curriculum}
                   currentLessonId={lesson.id}
+                  lessonBasePath={previewMode?.lessonBasePath}
                   onNavigate={() => setMobileSidebarOpen(false)}
                 />
               </SheetContent>
@@ -142,7 +153,9 @@ export function LessonTheaterViewer({
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            <LessonCompletionToggle lessonId={lesson.id} initialCompleted={initialCompleted} />
+            {previewMode ? null : (
+              <LessonCompletionToggle lessonId={lesson.id} initialCompleted={initialCompleted} />
+            )}
             <Button
               type="button"
               variant="outline"
@@ -189,6 +202,7 @@ export function LessonTheaterViewer({
           audio={audio}
           homeworkTask={homeworkTask}
           initialPosition={initialPosition}
+          trackProgress={!previewMode}
         />
 
         {lesson.content ? (

@@ -27,10 +27,15 @@ describe("LMS root page (SEC-02)", () => {
     await expect(LmsRootPage()).rejects.toThrow("NEXT_REDIRECT:/student");
   });
 
-  it("routes staff (ADMIN/MANAGER/TEACHER) to the admin dashboard", async () => {
-    for (const role of ["ADMIN", "MANAGER", "TEACHER"] as const) {
+  it("routes ADMIN/MANAGER to the admin dashboard", async () => {
+    for (const role of ["ADMIN", "MANAGER"] as const) {
       getSessionUserMock.mockResolvedValue({ id: "u1", email: null, role });
       await expect(LmsRootPage()).rejects.toThrow("NEXT_REDIRECT:/admin");
     }
+  });
+
+  it("routes a TEACHER to the teacher workspace, not the static /courses tree", async () => {
+    getSessionUserMock.mockResolvedValue({ id: "t1", email: null, role: "TEACHER" });
+    await expect(LmsRootPage()).rejects.toThrow("NEXT_REDIRECT:/teacher/courses");
   });
 });

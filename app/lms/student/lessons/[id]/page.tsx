@@ -8,7 +8,13 @@ import { roleHome } from "@/lms/server/auth/types";
 import { db } from "@/shared/lib/db";
 import { canViewLesson, isStaffPreviewRole } from "@/lms/server/access/can-view-lesson";
 import { computeModuleUnlockStatus, isWithinPaidAccess } from "@/lms/server/access/module-unlock";
-import { normalizePresentationUrl } from "@/lms/lib/presentation-url";
+import {
+  CURRICULUM_FORMAT_SELECT,
+  curriculumLessonFormat,
+  loadLessonForView,
+  loadLessonMaterials,
+  practiceLinkOf,
+} from "@/lms/server/lesson-view";
 import { LessonTheaterViewer } from "@/lms/components/student/LessonTheaterViewer";
 import { LessonViewerSkeleton } from "@/lms/components/student/LessonViewerSkeleton";
 import type { CurriculumModule, CurriculumLesson } from "@/lms/components/student/CurriculumSidebar";
@@ -43,68 +49,13 @@ export default async function StudentLessonPage({ params }: Props) {
 
   const isStaffPreview = isStaffPreviewRole(user.role);
 
-  const lessonRow = await db.lesson.findUnique({
-    where: isStaffPreview ? { id: lessonId } : { id: lessonId, isPublished: true },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      content: true,
-      order: true,
-      practiceLinkUrl: true,
-      practiceLinkLabel: true,
-      presentationEmbedUrl: true,
-      homeworkTask: true,
-      module: { select: { courseId: true } },
-    },
-  });
-
-  if (!lessonRow) {
+  const lesson = await loadLessonForView(lessonId, { includeDrafts: isStaffPreview });
+  if (!lesson) {
     notFound();
   }
 
-  const lesson = lessonRow;
-  const practiceLink = lesson.practiceLinkUrl ? { url: lesson.practiceLinkUrl, label: lesson.practiceLinkLabel } : null;
-
-  const mediaRows = await db.lessonMedia.findMany({
-    where: { lessonId, isPublic: true },
-    orderBy: [{ order: "asc" }, { id: "asc" }],
-    select: { id: true, title: true, embedUrl: true, provider: true, kind: true, order: true },
-  });
-  const media = mediaRows.filter((m) => m.kind !== "presentation");
-  // Lesson.presentationEmbedUrl (set via the admin form's "Ссылка на встроенную
-  // презентацию" field) is the only mechanism the admin UI actually offers for
-  // attaching a presentation -- nothing in the admin UI ever creates a
-  // LessonMedia row with kind "presentation". The LessonMedia-based mapping
-  // below is kept for any such row that might exist, but the Lesson-level URL
-  // is the one that must render for this to work at all.
-  const presentations = [
-    ...(lesson.presentationEmbedUrl
-      ? [
-          {
-            id: `${lesson.id}-presentation`,
-            title: null as string | null,
-            url: normalizePresentationUrl(lesson.presentationEmbedUrl),
-            order: 0,
-          },
-        ]
-      : []),
-    ...mediaRows
-      .filter((m) => m.kind === "presentation")
-      .map((m) => ({ id: m.id, title: m.title, url: normalizePresentationUrl(m.embedUrl), order: m.order })),
-  ];
-
-  const pdfs = await db.lessonAsset.findMany({
-    where: { lessonId, kind: "pdf", isPublic: true },
-    orderBy: [{ order: "asc" }, { id: "asc" }],
-    select: { id: true, title: true, order: true },
-  });
-
-  const audioAssets = await db.lessonAsset.findMany({
-    where: { lessonId, kind: "audio", isPublic: true },
-    orderBy: [{ order: "asc" }, { id: "asc" }],
-    select: { id: true, title: true, order: true },
-  });
+  const practiceLink = practiceLinkOf(lesson);
+  const { media, presentations, pdfs, audio: audioAssets } = await loadLessonMaterials(lesson);
 
   const progress = await db.lessonProgress.findUnique({
     where: { studentId_lessonId: { studentId: user.id, lessonId } },
@@ -134,8 +85,7 @@ export default async function StudentLessonPage({ params }: Props) {
                 order: true,
                 assignments: { where: { studentId: user.id }, select: { id: true } },
                 progress: { where: { studentId: user.id }, select: { completedAt: true } },
-                media: { where: { kind: "video" }, select: { id: true }, take: 1 },
-                assets: { where: { kind: { in: ["audio", "pdf", "presentation"] } }, select: { kind: true }, take: 1 },
+                ...CURRICULUM_FORMAT_SELECT,
               },
             },
           },
@@ -174,19 +124,14 @@ export default async function StudentLessonPage({ params }: Props) {
 
     const moduleUnlockedAndPublished = module.isPublished && moduleEnrolled && paid && unlocked;
 
-    const lessons: CurriculumLesson[] = module.lessons.map((row) => {
-      const format: CurriculumLesson["format"] =
-        row.media.length > 0 ? "video" : row.assets.length > 0 && row.assets[0].kind === "audio" ? "audio" : row.assets.length > 0 ? "presentation" : "text";
-
-      return {
-        id: row.id,
-        title: row.title,
-        order: row.order,
-        assigned: row.assignments.length > 0 || moduleUnlockedAndPublished,
-        completedAt: row.progress[0]?.completedAt ? row.progress[0].completedAt.toISOString() : null,
-        format,
-      };
-    });
+    const lessons: CurriculumLesson[] = module.lessons.map((row) => ({
+      id: row.id,
+      title: row.title,
+      order: row.order,
+      assigned: row.assignments.length > 0 || moduleUnlockedAndPublished,
+      completedAt: row.progress[0]?.completedAt ? row.progress[0].completedAt.toISOString() : null,
+      format: curriculumLessonFormat(row),
+    }));
 
     return {
       id: module.id,
@@ -209,16 +154,10 @@ export default async function StudentLessonPage({ params }: Props) {
         studentId={user.id}
         studentEmail={user.email}
         lesson={lesson}
-        media={media.map((m) => ({
-          id: m.id,
-          title: m.title,
-          embed_url: m.embedUrl,
-          provider: m.provider,
-          order: m.order,
-        }))}
+        media={media}
         presentations={presentations}
-        pdfs={pdfs.map((p) => ({ id: p.id, title: p.title, order: p.order }))}
-        audio={audioAssets.map((a) => ({ id: a.id, title: a.title, order: a.order }))}
+        pdfs={pdfs}
+        audio={audioAssets}
         homeworkTask={lesson.homeworkTask}
         practiceLink={practiceLink}
         curriculum={curriculum}

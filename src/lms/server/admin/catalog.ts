@@ -9,7 +9,8 @@ import type { LessonFilters } from "@/lms/lib/lesson-filters";
 // Read models for the LMS admin dashboard and lessons directory.
 //
 // Scoping: TEACHER only ever sees courses they own (Course.teacherId);
-// ADMIN/MANAGER see everything. Every query here goes through courseScope /
+// ADMIN/MANAGER see everything. (The admin area itself is ADMIN/MANAGER-only
+// now; teachers browse via /teacher/*, scoped by src/lms/server/teacher-access.ts.) Every query here goes through courseScope /
 // lessonScope so a teacher's numbers can never include other teachers' data.
 
 export type CatalogViewer = Pick<SessionUser, "id" | "role">;
@@ -182,6 +183,8 @@ export type CourseSummary = {
   isUncategorized: boolean;
   teacherId: string;
   teacherName: string;
+  /** Explicit CourseTeacher links, on top of the owner. */
+  linkedTeacherIds: string[];
   moduleCount: number;
   lessonCount: number;
   publishedLessonCount: number;
@@ -201,6 +204,7 @@ export async function getCourseSummaries(viewer: CatalogViewer): Promise<CourseS
       isPublished: true,
       teacherId: true,
       teacher: { select: { fullName: true } },
+      teachers: { select: { teacherId: true } },
       _count: { select: { modules: true, enrollments: { where: { status: "ACTIVE" } } } },
       modules: { select: { lessons: { select: { isPublished: true } } } },
     },
@@ -218,6 +222,7 @@ export async function getCourseSummaries(viewer: CatalogViewer): Promise<CourseS
       isUncategorized: c.title === DEFAULT_COURSE_TITLE,
       teacherId: c.teacherId,
       teacherName: c.teacher.fullName,
+      linkedTeacherIds: c.teachers.map((t) => t.teacherId),
       moduleCount: c._count.modules,
       lessonCount: lessons.length,
       publishedLessonCount: lessons.filter((l) => l.isPublished).length,

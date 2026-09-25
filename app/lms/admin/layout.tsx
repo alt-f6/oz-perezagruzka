@@ -5,22 +5,19 @@ import { AdminSidebar, type AdminNavKey } from "@/lms/components/admin/AdminSide
 import { getUnansweredSummary } from "@/lms/server/admin/catalog";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const user = await requireRoleForPage(["ADMIN", "MANAGER", "TEACHER"], {
+  // TEACHER has its own read-only workspace under /teacher/* (roleHome);
+  // the admin area is ADMIN/MANAGER tooling only. MANAGER doesn't get the
+  // tutor link (not part of its role scope).
+  const user = await requireRoleForPage(["ADMIN", "MANAGER"], {
     adminBypass: true,
     loginPath: "/login",
     forbiddenPath: (user) => roleHome(user.role),
   });
 
-  // TEACHER sees a read-only catalog scoped to their own courses
-  // (Course.teacherId) plus the AI tutor; students/access/messages stay
-  // unscoped ADMIN/MANAGER tooling. MANAGER doesn't get the tutor link (not
-  // part of its role scope).
   const items: AdminNavKey[] =
-    user.role === "TEACHER"
-      ? ["overview", "lessons", "tutor"]
-      : user.role === "MANAGER"
-        ? ["overview", "courses", "lessons", "messages"]
-        : ["overview", "courses", "lessons", "students", "access", "messages", "tutor"];
+    user.role === "MANAGER"
+      ? ["overview", "courses", "lessons", "messages"]
+      : ["overview", "courses", "lessons", "students", "access", "messages", "tutor"];
 
   const unanswered = items.includes("messages") ? (await getUnansweredSummary(user)).count : 0;
 

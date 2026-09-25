@@ -129,12 +129,15 @@ model User {
   convertedFromLead Lead?
 
   // LMS: learner/teacher relations
-  coursesTaught  Course[]         @relation("CourseTeacher")
-  enrollments    Enrollment[]
-  lessonProgress LessonProgress[]
-  assignments    Assignment[]
-  lessonMessages LessonMessage[]
-  sessions       Session[]
+  // coursesTaught: Course.teacherId owner. teachingCourses: extra links set
+  // in LMS /admin/courses. See src/lms/server/teacher-access.ts.
+  coursesTaught   Course[]         @relation("CourseOwner")
+  teachingCourses CourseTeacher[]
+  enrollments     Enrollment[]
+  lessonProgress  LessonProgress[]
+  assignments     Assignment[]
+  lessonMessages  LessonMessage[]
+  sessions        Session[]
 
   // Covers role-filtered lookups (getTeachers, salary/schedule/team pages).
   @@index([role])
@@ -720,12 +723,30 @@ model Course {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  teacher     User         @relation("CourseTeacher", fields: [teacherId], references: [id])
+  teacher     User            @relation("CourseOwner", fields: [teacherId], references: [id])
+  teachers    CourseTeacher[]
   modules     Module[]
   enrollments Enrollment[]
 
   @@index([teacherId])
   @@index([examType, subject])
+}
+
+// Explicit course <-> teacher links, on top of the Course.teacherId owner and
+// the CRM-group subject match (see src/lms/server/teacher-access.ts). Lets an
+// admin/manager give a teacher a course before any CRM group exists.
+model CourseTeacher {
+  id        String   @id @default(uuid())
+  courseId  String
+  teacherId String
+  createdAt DateTime @default(now())
+
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teacher User   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  // The unique index already serves courseId-leading lookups.
+  @@unique([courseId, teacherId])
+  @@index([teacherId])
 }
 
 model Module {

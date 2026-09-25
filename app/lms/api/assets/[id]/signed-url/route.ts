@@ -52,10 +52,13 @@ export const GET = withApiErrors(async (_req: NextRequest, ctx: Ctx) => {
     return NextResponse.json({ ok: false, error: "asset_not_completed" }, { status: 409 });
   }
 
-  const isStaffPreview = isStaffPreviewRole(me.role);
-  if (!isStaffPreview) {
-    if (!row.isPublic) return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
-
+  // Staff preview may sign non-public (draft) assets; everyone except
+  // ADMIN/MANAGER still needs the lesson itself -- a TEACHER only within
+  // their accessible courses (canViewLesson).
+  if (!isStaffPreviewRole(me.role) && !row.isPublic) {
+    return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });
+  }
+  if (me.role !== "ADMIN" && me.role !== "MANAGER") {
     const allowed = await canViewLesson({ userId: me.id, role: me.role, lessonId: row.lessonId });
     if (!allowed) {
       return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 });

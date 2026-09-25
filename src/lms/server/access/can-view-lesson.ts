@@ -2,11 +2,12 @@ import { db } from "@/shared/lib/db";
 import type { Role } from "@/shared/lib/auth";
 import { computeModuleUnlockStatus, isWithinPaidAccess } from "./module-unlock";
 import { getModulePosition } from "./module-position";
+import { getTeacherAccessibleCourseIds } from "@/lms/server/teacher-access";
 
-// Staff roles that must be able to preview a lesson regardless of its own or
-// its module's isPublished state, and regardless of enrollment/assignment.
-// MANAGER already had this bypass before this change; TEACHER is added so
-// course teachers can review their own draft material (educator preview).
+// Staff roles that preview a lesson regardless of its own or its module's
+// isPublished state, and regardless of enrollment/assignment. ADMIN/MANAGER
+// see every lesson; TEACHER only lessons of their accessible courses
+// (src/lms/server/teacher-access.ts), drafts included.
 export const STAFF_PREVIEW_ROLES: readonly Role[] = ["ADMIN", "MANAGER", "TEACHER"];
 
 export function isStaffPreviewRole(role: Role): boolean {
@@ -17,7 +18,15 @@ export async function canViewLesson(params: { userId: string; role: Role; lesson
   const { userId, role, lessonId } = params;
 
   // Step A: staff preview bypass.
-  if (STAFF_PREVIEW_ROLES.includes(role)) return true;
+  if (role === "ADMIN" || role === "MANAGER") return true;
+  if (role === "TEACHER") {
+    const lesson = await db.lesson.findUnique({
+      where: { id: lessonId },
+      select: { module: { select: { courseId: true } } },
+    });
+    if (!lesson?.module) return false;
+    return (await getTeacherAccessibleCourseIds(userId)).includes(lesson.module.courseId);
+  }
 
   // Step B: direct per-student override, independent of enrollment/module state.
   const assignment = await db.assignment.findUnique({

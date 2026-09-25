@@ -13,9 +13,11 @@ vi.mock("./attribution", () => ({
 }));
 const reachGoalMock = vi.fn();
 const trackMock = vi.fn();
+const trackPageViewMock = vi.fn();
 vi.mock("@/landing/lib/analytics", () => ({
   reachGoal: (...args: unknown[]) => reachGoalMock(...args),
   track: (...args: unknown[]) => trackMock(...args),
+  trackPageView: (...args: unknown[]) => trackPageViewMock(...args),
 }));
 vi.mock("@/landing/lib/attribution", () => ({
   getAttribution: () => ({ attr_first: null, attr_last: { utm_source: "vk", ts: "2026-09-01T00:00:00.000Z" } }),
@@ -81,6 +83,8 @@ describe("ReadinessMapWizard", () => {
     submitReadinessMapMock.mockReset();
     reachGoalMock.mockReset();
     trackMock.mockReset();
+    trackPageViewMock.mockReset();
+    window.history.replaceState({}, "", "/");
   });
 
   it("disables hobby options once 4 are selected and keeps them clickable to deselect", async () => {
@@ -232,7 +236,7 @@ describe("ReadinessMapWizard", () => {
       attr_last: { utm_source: "vk", ts: "2026-09-01T00:00:00.000Z" },
       ym_client_id: "ym-client-1",
     });
-    expect(trackMock).toHaveBeenCalledWith("quiz_start", {}, true);
+    expect(trackMock).toHaveBeenCalledWith("quiz_start", { cta_position: "readiness_map" }, true);
     for (const goal of ["quiz_step_grade", "quiz_step_subjects", "quiz_step_style", "quiz_step_hobbies"]) {
       expect(trackMock).toHaveBeenCalledWith(goal);
     }
@@ -242,6 +246,8 @@ describe("ReadinessMapWizard", () => {
       subjects: "Математика",
       source: "vk",
     });
+    expect(window.location.pathname).toBe("/spasibo");
+    expect(trackPageViewMock).toHaveBeenCalledWith("/spasibo");
 
     // The phone was already collected and saved on Step 6, so the success
     // screen must show a confirmation banner instead of asking again.
@@ -303,6 +309,8 @@ describe("ReadinessMapWizard", () => {
 
     expect(await screen.findByText("Проверьте заполненные поля")).toBeInTheDocument();
     expect(trackMock).not.toHaveBeenCalledWith("lead_submit", expect.anything());
+    expect(window.location.pathname).toBe("/");
+    expect(trackPageViewMock).not.toHaveBeenCalled();
   });
 });
 

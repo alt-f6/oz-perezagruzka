@@ -14,7 +14,7 @@ import {
   type ReadinessInput,
 } from "@/landing/lib/validations/readiness";
 import { submitReadinessMap, type ReadinessActionResult } from "@/landing/actions/readiness";
-import { reachGoal, track, type EventName } from "@/landing/lib/analytics";
+import { reachGoal, track, trackPageView, type EventName } from "@/landing/lib/analytics";
 import { getAttribution, getYmClientId } from "@/landing/lib/attribution";
 import { LegalCheckbox } from "@/landing/components/ui/LegalCheckbox";
 import { formatRussianPhoneInput, russianPhoneSchema } from "@/shared/validation/phone";
@@ -85,6 +85,13 @@ const STEPS: StepConfig[] = [
     helper: "Это поможет расставить приоритеты в карте готовности",
   },
 ];
+
+// The quiz lives in its own section (not the hero), so that's the honest
+// position to report regardless of which CTA scrolled the user here.
+const QUIZ_START_PARAMS = { cta_position: "readiness_map" };
+
+// Served by app/landing/spasibo, so a reload after the pushState below is a 200.
+const THANK_YOU_PATH = "/spasibo";
 
 // Funnel goals for VK Ads / Metrika, fired when the step is completed.
 const STEP_GOALS: Partial<Record<StepKey, EventName>> = {
@@ -289,7 +296,7 @@ export default function ReadinessMapWizard() {
 
   const goNext = useCallback(async () => {
     // Covers users who skip the optional name field and go straight to "Далее".
-    track("quiz_start", {}, true);
+    track("quiz_start", QUIZ_START_PARAMS, true);
 
     const valid = await form.trigger(currentStep.key);
     if (!valid) return;
@@ -345,6 +352,12 @@ export default function ReadinessMapWizard() {
         subjects: selectedSubjects.join(","),
         source: attr_last?.utm_source,
       });
+      // Virtual thank-you page for URL-based goals in VK Ads / Metrika. The
+      // wizard keeps its state and renders the result in place; a reload of
+      // /spasibo lands on app/landing/spasibo instead of a 404. The explicit
+      // pageview is deduped against AnalyticsTracker seeing the same URL.
+      window.history.pushState({}, "", THANK_YOU_PATH);
+      trackPageView(THANK_YOU_PATH);
       setResult(actionResult);
       setPhase("result");
     } catch (error) {
@@ -632,7 +645,7 @@ export default function ReadinessMapWizard() {
                       <div className="relative">
                         <input
                           {...form.register(currentStep.key, {
-                            onChange: () => track("quiz_start", {}, true),
+                            onChange: () => track("quiz_start", QUIZ_START_PARAMS, true),
                           })}
                           placeholder={currentStep.placeholder}
                           onKeyDown={(e) => {

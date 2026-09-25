@@ -20,6 +20,7 @@ export default function FloatingContacts() {
     <>
       <a
         href={`tel:${PHONE_NUMBER}`}
+        data-contact-place="floating"
         aria-label="Позвонить"
         title="Позвонить"
         className="group fixed bottom-64 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#0055FF] text-white shadow-xl shadow-ink-900/20 transition-transform duration-200 hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#0055FF] sm:bottom-6 sm:h-20 sm:w-20"
@@ -33,6 +34,7 @@ export default function FloatingContacts() {
 
       <a
         href={MAX_URL}
+        data-contact-place="floating"
         target="_blank"
         rel="noopener noreferrer"
         aria-label="Написать в MAX"

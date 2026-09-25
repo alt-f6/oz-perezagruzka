@@ -33,6 +33,14 @@ afterEach(() => {
 });
 
 describe("getYmId", () => {
+  it("ignores empty and whitespace-only env vars and trims configured ones", async () => {
+    process.env.NEXT_PUBLIC_YM_ID = "   ";
+    process.env.NEXT_PUBLIC_YM_COUNTER_ID = " 12345678 ";
+    const { getYmId } = await import("./analytics");
+
+    expect(getYmId()).toBe("12345678");
+  });
+
   it("falls back to the production counter when no env var is set", async () => {
     const { getYmId } = await import("./analytics");
     expect(getYmId()).toBe("113001980");
@@ -63,6 +71,23 @@ describe("sanitizeParams", () => {
         nested: { name: "Аня", subjects_count: 2 },
       }),
     ).toEqual({ grade: "9", nested: { subjects_count: 2 } });
+  });
+
+  it("strips any key containing phone/tel/email/name/fio", async () => {
+    const { sanitizeParams } = await import("./analytics");
+
+    expect(
+      sanitizeParams({
+        parent_phone: "1",
+        tel_number: "2",
+        user_email: "3",
+        first_name: "4",
+        FIO: "5",
+        channel: "whatsapp",
+        place: "header",
+        cta_position: "hero",
+      }),
+    ).toEqual({ channel: "whatsapp", place: "header", cta_position: "hero" });
   });
 });
 
@@ -148,19 +173,19 @@ describe("reachGoal", () => {
   });
 });
 
-describe("trackPageview", () => {
+describe("trackPageView", () => {
   it("does not throw when window.ym is not present", async () => {
-    const { trackPageview } = await import("./analytics");
+    const { trackPageView } = await import("./analytics");
 
-    expect(() => trackPageview("/pep")).not.toThrow();
+    expect(() => trackPageView("/pep")).not.toThrow();
   });
 
   it("sends a Metrika hit and a VK pageView with the URL", async () => {
     process.env.NEXT_PUBLIC_YM_COUNTER_ID = "12345678";
     const ymMock = setYm();
-    const { trackPageview } = await import("./analytics");
+    const { trackPageView } = await import("./analytics");
 
-    trackPageview("https://perezagruzka-edu.ru/pep");
+    trackPageView("https://perezagruzka-edu.ru/pep");
 
     expect(ymMock).toHaveBeenCalledWith(12345678, "hit", "https://perezagruzka-edu.ru/pep");
     expect(window._tmr).toEqual([
@@ -171,5 +196,26 @@ describe("trackPageview", () => {
         start: expect.any(Number),
       }),
     ]);
+  });
+
+  it("resolves relative URLs against the current origin", async () => {
+    const ymMock = setYm();
+    const { trackPageView } = await import("./analytics");
+
+    trackPageView("/spasibo");
+
+    expect(ymMock).toHaveBeenCalledWith(113001980, "hit", `${window.location.origin}/spasibo`);
+  });
+
+  it("does not double-count the same URL fired back to back", async () => {
+    const ymMock = setYm();
+    const { trackPageView } = await import("./analytics");
+
+    trackPageView("/spasibo");
+    trackPageView(`${window.location.origin}/spasibo`);
+    trackPageView("/");
+
+    expect(ymMock).toHaveBeenCalledTimes(2);
+    expect(window._tmr).toHaveLength(2);
   });
 });

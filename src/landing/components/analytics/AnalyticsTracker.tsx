@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { trackPageview } from "@/landing/lib/analytics";
+import { trackPageView } from "@/landing/lib/analytics";
 import { captureAttribution } from "@/landing/lib/attribution";
 
 /**
@@ -31,7 +31,7 @@ export function AnalyticsTracker() {
 
     const isFirstRender = previousUrl.current === null;
     if (!isFirstRender && previousUrl.current !== url) {
-      trackPageview(`${window.location.origin}${url}`);
+      trackPageView(`${window.location.origin}${url}`);
     }
     previousUrl.current = url;
   }, [pathname, searchParams]);

@@ -35,7 +35,7 @@ export function getVkPixelId(): string {
 }
 
 // Low-level queue push; call sites should go through analytics.ts (track /
-// reachGoal / trackPageview) so goals reach Metrika and VK together. The
+// reachGoal / trackPageView) so goals reach Metrika and VK together. The
 // initial pageView hit fires from the loader snippet in
 // app/landing/layout.tsx.
 export function pushVkEvent(event: VkTmrEventInput): void {

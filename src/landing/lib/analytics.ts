@@ -13,9 +13,9 @@ const DEFAULT_YM_ID = "113001980";
 // into the client bundle; a dynamic `process.env[name]` lookup would not be.
 export function getYmId(): string {
   return (
-    process.env.NEXT_PUBLIC_YM_ID ||
-    process.env.NEXT_PUBLIC_YM_COUNTER_ID ||
-    process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID ||
+    process.env.NEXT_PUBLIC_YM_ID?.trim() ||
+    process.env.NEXT_PUBLIC_YM_COUNTER_ID?.trim() ||
+    process.env.NEXT_PUBLIC_YANDEX_METRIKA_ID?.trim() ||
     DEFAULT_YM_ID
   );
 }
@@ -50,12 +50,14 @@ export function getYm(): YmFunction | undefined {
 
 // 152-FZ: goal payloads go to third-party ad/analytics systems, so personal
 // identifiers must never ride along even if a caller passes them by mistake.
-const SENSITIVE_KEYS = new Set(["phone", "email", "name"]);
+// Substring match on purpose, so variants like `parent_phone`, `tel_number`,
+// `first_name` or `fio` are caught too.
+const SENSITIVE_KEY = /phone|tel|email|name|fio/i;
 
 export function sanitizeParams(params: EventParams): EventParams {
   const clean: EventParams = {};
   for (const [key, value] of Object.entries(params)) {
-    if (SENSITIVE_KEYS.has(key.toLowerCase())) continue;
+    if (SENSITIVE_KEY.test(key)) continue;
     if (value === undefined) continue;
     clean[key] =
       value !== null && typeof value === "object" && !Array.isArray(value)
@@ -94,7 +96,7 @@ export function track(event: EventName, params: EventParams = {}, once = false):
 
   const clean = sanitizeParams(params);
   if (process.env.NODE_ENV === "development") {
-    console.debug(`[track] ${event}`, clean);
+    console.info("[Analytics]", event, clean);
   }
   dispatchGoal(event, Object.keys(clean).length > 0 ? clean : undefined);
 }
@@ -105,13 +107,27 @@ export function reachGoal(target: string): void {
   dispatchGoal(target);
 }
 
+// Last URL sent as a manual pageview, so the explicit trackPageView("/spasibo")
+// after a lead and AnalyticsTracker reacting to the same pushState don't
+// double-count one virtual page.
+let lastPageViewUrl: string | null = null;
+
+export function resetPageViewDedup(): void {
+  lastPageViewUrl = null;
+}
+
 // Fires a manual pageview for a client-side (SPA) route change on both
 // counters. Never used for the initial load -- the loader snippets in
 // app/landing/layout.tsx send that first hit themselves (see
 // AnalyticsTracker, which skips its first render for this reason).
-export function trackPageview(url: string): void {
+// Relative URLs are resolved against the current origin.
+export function trackPageView(url: string): void {
   if (typeof window === "undefined") return;
 
-  getYm()?.(Number(getYmId()), "hit", url);
-  pushVkEvent({ type: "pageView", start: Date.now(), url });
+  const absolute = new URL(url, window.location.origin).href;
+  if (absolute === lastPageViewUrl) return;
+  lastPageViewUrl = absolute;
+
+  getYm()?.(Number(getYmId()), "hit", absolute);
+  pushVkEvent({ type: "pageView", start: Date.now(), url: absolute });
 }

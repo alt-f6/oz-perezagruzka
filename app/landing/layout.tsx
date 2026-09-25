@@ -79,7 +79,7 @@ export default function LandingLayout({ children }: { children: React.ReactNode 
         href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&family=Playfair+Display:ital@1&family=Space+Mono:wght@400;700&display=swap"
       />
       {ymCounterId && (
-        <Script id="yandex-metrika" strategy="afterInteractive">
+        <Script id="ym-counter" strategy="afterInteractive">
           {`
             (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
             m[i].l=1*new Date();for(var j=0;j<document.scripts.length;j++){if(document.scripts[j].src===r){return}}

@@ -10,14 +10,15 @@ const ENGAGED_THRESHOLD_MS = 60_000;
 const IDLE_AFTER_MS = 30_000;
 const TICK_MS = 1_000;
 
-const MESSENGER_HOSTS = new Set([
-  "max.ru",
-  "wa.me",
-  "api.whatsapp.com",
-  "web.whatsapp.com",
-  "t.me",
-  "telegram.me",
-  "vk.me",
+// Host -> `channel` param of contact_messenger_click.
+const MESSENGER_HOSTS = new Map([
+  ["max.ru", "max"],
+  ["wa.me", "whatsapp"],
+  ["api.whatsapp.com", "whatsapp"],
+  ["web.whatsapp.com", "whatsapp"],
+  ["t.me", "telegram"],
+  ["telegram.me", "telegram"],
+  ["vk.me", "vk"],
 ]);
 
 // Maps a clicked link to its contact goal. Share-intent links (ShareSection's
@@ -40,6 +41,25 @@ export function classifyContactHref(href: string): Extract<EventName, "contact_p
   return "contact_messenger_click";
 }
 
+// Messenger name for a link already classified as contact_messenger_click.
+export function messengerChannel(href: string): string | undefined {
+  try {
+    return MESSENGER_HOSTS.get(new URL(href).hostname.replace(/^www\./, ""));
+  } catch {
+    return undefined;
+  }
+}
+
+// Where on the page the contact link sits: an explicit data-contact-place
+// (e.g. the floating widget) wins, then the enclosing <header>/<footer>.
+export function contactPlace(anchor: Element): string {
+  const explicit = anchor.closest("[data-contact-place]")?.getAttribute("data-contact-place");
+  if (explicit) return explicit;
+  if (anchor.closest("header")) return "header";
+  if (anchor.closest("footer")) return "footer";
+  return "page";
+}
+
 /**
  * Page-wide engagement goals, mounted once in app/landing/layout.tsx:
  * - contact_phone_click / contact_messenger_click via one delegated click
@@ -53,8 +73,12 @@ export function EngagementTracker() {
     const handleClick = (event: MouseEvent) => {
       const anchor = (event.target as Element | null)?.closest?.("a[href]");
       if (!anchor) return;
-      const goal = classifyContactHref(anchor.getAttribute("href") ?? "");
-      if (goal) track(goal);
+      const href = anchor.getAttribute("href") ?? "";
+      const goal = classifyContactHref(href);
+      if (goal === "contact_phone_click") track(goal, { place: contactPlace(anchor) });
+      else if (goal === "contact_messenger_click") {
+        track(goal, { channel: messengerChannel(href), place: contactPlace(anchor) });
+      }
     };
 
     let scrollFrame = 0;

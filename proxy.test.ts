@@ -85,6 +85,14 @@ describe("proxy fail-closed routing", () => {
     expect(new URL(rewrite as string).pathname).toBe("/lms/pdf-sandbox.html");
   });
 
+  it("rewrites the landing /spasibo thank-you URL to app/landing/spasibo so a reload never 404s", async () => {
+    const res = await proxy(makeRequest("perezagruzka-edu.ru", "/spasibo"));
+
+    const rewrite = res.headers.get("x-middleware-rewrite");
+    expect(rewrite).not.toBeNull();
+    expect(new URL(rewrite as string).pathname).toBe("/landing/spasibo");
+  });
+
   it("keeps the LMS login page public", async () => {
     const res = await proxy(makeRequest("lms.example.com", "/login"));
 

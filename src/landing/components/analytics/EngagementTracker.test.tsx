@@ -45,19 +45,31 @@ describe("EngagementTracker", () => {
     const { getByText } = render(
       <>
         <EngagementTracker />
-        <a href="tel:+79527025050">
-          <span>Позвонить</span>
+        <header>
+          <a href="tel:+79527025050">
+            <span>Позвонить</span>
+          </a>
+        </header>
+        <a href="https://max.ru/u/abc" data-contact-place="floating">
+          MAX
         </a>
-        <a href="https://max.ru/u/abc">MAX</a>
+        <footer>
+          <a href="https://wa.me/79527025050">WhatsApp</a>
+        </footer>
         <a href="#faq">FAQ</a>
       </>,
     );
 
     fireEvent.click(getByText("Позвонить"));
     fireEvent.click(getByText("MAX"));
+    fireEvent.click(getByText("WhatsApp"));
     fireEvent.click(getByText("FAQ"));
 
-    expect(trackMock.mock.calls).toEqual([["contact_phone_click"], ["contact_messenger_click"]]);
+    expect(trackMock.mock.calls).toEqual([
+      ["contact_phone_click", { place: "header" }],
+      ["contact_messenger_click", { channel: "max", place: "floating" }],
+      ["contact_messenger_click", { channel: "whatsapp", place: "footer" }],
+    ]);
   });
 
   it("fires engaged_60s once after 60s of visible, active time", () => {

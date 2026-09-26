@@ -904,3 +904,42 @@ model LessonMessage {
   @@index([studentId])
   @@map("lesson_messages")
 }
+
+// ─────────────────────────────────────────────────────────────
+// ADMIN API (machine access: REST /api/admin/v1 + MCP /api/mcp)
+// ─────────────────────────────────────────────────────────────
+
+// Bearer token for the admin API / remote MCP server. Only the SHA-256 hex
+// digest of the raw token is stored; the raw value is shown once by
+// scripts/create-admin-token.ts. Revocation is soft (revokedAt) so audit rows
+// keep a resolvable tokenId.
+model AdminToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  name       String
+  tokenHash  String    @unique
+  scopes     String[]
+  revokedAt  DateTime?
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+// Append-only journal of admin-API actions. tokenId is deliberately NOT a
+// foreign key: audit rows must outlive any token row. before/after hold
+// entity snapshots and are PII-scrubbed on read (see
+// src/shared/lib/admin-api/pii.ts) before leaving the server.
+model AdminAuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  createdAt  DateTime @default(now())
+  tokenId    String?  @db.Uuid
+  endpoint   String
+  targetType String
+  targetId   String?
+  before     Json?
+  after      Json?
+  reason     String?
+  dryRun     Boolean  @default(false)
+  requestId  String
+
+  @@index([createdAt(sort: Desc)])
+  @@index([tokenId, createdAt(sort: Desc)])
+}

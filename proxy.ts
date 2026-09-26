@@ -31,6 +31,18 @@ const LMS_TEACHER_HOME = "/teacher/courses";
 const CRM_LOGIN_PATH = "/admin/login";
 const LMS_LOGIN_PATH = "/login";
 
+// Machine-facing APIs (admin REST + remote MCP) live at the true app root
+// (app/api/admin/v1, app/api/mcp), authenticate with their own bearer tokens
+// (src/shared/lib/admin-api/auth.ts), and must answer identically on every
+// host. They bypass the per-app rewrite AND the cookie session guard;
+// NextResponse.next() forwards the request untouched, so Authorization and
+// Idempotency-Key reach the handler as sent.
+const MACHINE_API_PREFIXES = ["/api/admin/v1", "/api/mcp"];
+
+export function isMachineApiPath(pathname: string) {
+  return matchesPrefix(pathname, MACHINE_API_PREFIXES);
+}
+
 type AppKind = "crm" | "lms" | "landing";
 
 function resolveApp(host: string): AppKind {
@@ -124,6 +136,10 @@ export async function proxy(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
   const app = resolveApp(host);
   const response = NextResponse.next();
+
+  if (isMachineApiPath(pathname)) {
+    return response;
+  }
 
   if (isRootStaticAssetPath(pathname)) {
     return response;
